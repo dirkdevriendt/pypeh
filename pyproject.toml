@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "pypeh"
+version = "0.0.1"
+description = "A modular project with a core library and multiple adapters"
+authors = ["VITO Health DMT"]
+license = "MIT"
+readme = "README.md"
+packages = [
+    { include = "pypeh.core", from = "src" },
+    { include = "pypeh.dataframe_adapter", from = "src" },
+]
+
+[tool.poetry.dependencies]
+python = ">=3.8.1, <4.0.0"
+linkml = "^1.8"
+
+[tool.poetry.extras]
+core = []
+pandas_adapter = ["pandas"]
+
+[tool.poetry.group.test.dependencies]  
+pytest = "^8.2.0"
+
+[tool.poetry.group.dev.dependencies]  
+ruff = "^0.4.4"  
+black = "^24.4.2"  
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "src"
+]
+addopts = [
+    "--import-mode=importlib",
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
