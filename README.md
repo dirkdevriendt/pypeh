@@ -18,7 +18,7 @@ poetry install pypeh -E dataframe_adapter
 poetry install --with test,dev
 ```
 
-### Central design ideas: 
+# Central design ideas: 
 * core module: specifies a series of **interfaces** 
     - AIM: entry and/or exit point with no knowledge of the concrete implementation
     - the interface can be thought of as a type hint

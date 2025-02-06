@@ -12,17 +12,11 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-class CURRENT_TREE_SEQUENCE:
-    pass
-
-
-def get_environment(extra_libs=None, include_tskit=True):
+def get_environment():
     """
-    Returns a dictionary describing the environment in which tskit
+    Returns a dictionary describing the environment in which pypeh
     is currently running.
 
-    This API is tentative and will change in the future when a more
-    comprehensive provenance API is implemented.
     """
     env = {
         "os": {
@@ -37,7 +31,7 @@ def get_environment(extra_libs=None, include_tskit=True):
             "version": platform.python_version(),
         },
     }
-    
+
     return env
 
 
@@ -50,6 +44,6 @@ def get_provenance_dict(parameters=None):
         "schema_version": "0.0.1",
         "software": {"name": "pypeh", "version": __version__},
         "parameters": parameters,
-        "environment": get_environment()
+        "environment": get_environment(),
     }
     return document

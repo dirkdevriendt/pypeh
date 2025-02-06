@@ -23,7 +23,9 @@ pytest = "^8.2.0"
 
 [tool.poetry.group.dev.dependencies]  
 ruff = "^0.4.4"  
-black = "^24.4.2"  
+black = "*"  
+mypy = "*"
+isort = "*"  
 
 [tool.pytest.ini_options]
 pythonpath = [
