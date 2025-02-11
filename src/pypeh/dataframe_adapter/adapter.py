@@ -1,3 +1,10 @@
+"""
+This part of the code should contain the reusable part
+of the PyHBM library, aka, the part that would otherwise
+be copied across projects. Ideally, it also contains a
+specification on what the custom part should look like.
+"""
+
 import logging
 
 from pypeh.core.abc import DataTransferObject

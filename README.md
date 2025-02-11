@@ -1,21 +1,15 @@
 # Installation
 
 ## Core Library
-To install the core library, run:
+To install the core library for development, run:
 ```bash
-poetry install pypeh -E core
-```
+uv sync
 
 ## Adapters
 ### Dataframe adapter
 To install the dataframe adapter, run:
 ```bash
-poetry install pypeh -E dataframe_adapter
-```
-
-## Development
-```bash
-poetry install --with test,dev
+uv sync --extra pandas_adapter
 ```
 
 # Central design ideas: 
