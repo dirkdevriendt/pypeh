@@ -42,6 +42,16 @@ class Command(DataTransferObject):
         self.provenance: Dict = None
 
 
+class Response(DataTransferObject):
+    """
+    A Response acts as a data tranfer object structuring the result of the API call.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.return_status: Dict = None
+
+
 class Handler(ABC):
     """
     Each Handler class should function as a collector class connecting all
