@@ -1,0 +1,14 @@
+from pypeh.core.commands.ingestion import ManifestIngestionCommand
+from pypeh.core.tasks.ingestion import ManifestIngestionTask
+from pypeh.core.abc import HandlerChain
+
+
+class TestIngestionTask:
+    def test_manifest_task(self, get_input_path):
+        root = get_input_path("core/input/simple.json")
+        command = ManifestIngestionCommand.create(root=root)
+        assert command.metadata.task_name == "ManifestIngestionTask"
+        task = command.get_task()
+        assert isinstance(task, ManifestIngestionTask)
+        handlerchain = task.resolve()
+        assert isinstance(handlerchain, HandlerChain)

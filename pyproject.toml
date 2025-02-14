@@ -31,12 +31,14 @@ default-groups = [
 include = [
     "src/pypeh.core",
     "src/pypeh.dataframe_adapter",
+	"src/pypeh/py.typed",
 ]
 
 [tool.hatch.build.targets.wheel]
 include = [
     "src/pypeh.core",
     "src/pypeh.dataframe_adapter",
+	"src/pypeh/py.typed",
 ]
 
 [tool.hatch.build.targets.wheel.sources]
