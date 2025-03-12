@@ -135,3 +135,5 @@ data/
 # temp
 _temp/
 
+# VScode stuff
+.vscode

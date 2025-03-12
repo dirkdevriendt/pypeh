@@ -1,6 +1,8 @@
 from pypeh.core.interfaces import persistence, dataops
 from pypeh.core.abc import Interface, HandlerChain
-from pypeh.core.handlers.ingestion import ValidationHandler, EnrichmentHandler
+from pypeh.core.handlers.baseclasses import DataOpsHandler
+from pypeh.core.models.digital_objects import PehFDO
+from pypeh.core.persistence.local import JsonFileSystem
 
 
 # temp util
@@ -15,8 +17,8 @@ class TestInterfaceABC:
 
     def test_handler_chain(self):
         ll = HandlerChain()
-        vh = ValidationHandler(DataOpsTestAdapter())
-        eh = EnrichmentHandler(DataOpsTestAdapter())
+        vh = DataOpsHandler(DataOpsTestAdapter())
+        eh = DataOpsHandler(DataOpsTestAdapter())
         ll.head = vh
         vh.next = eh
         # iter
@@ -24,3 +26,19 @@ class TestInterfaceABC:
         for _ in ll:
             counter += 1
         assert counter == 2
+
+
+class TestPersistenceInterface:
+    pass
+
+
+class TestLocalPersistence:
+    pass
+
+
+class TestFileSystem:
+    def test_json_file_system(self, get_input_path):
+        root = get_input_path("core/input/simple.json")
+        adapter = JsonFileSystem(from_repo=PehFDO.model_validate)
+        fdo = adapter.load(root)
+        assert isinstance(fdo, PehFDO)

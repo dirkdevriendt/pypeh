@@ -4,6 +4,7 @@
 To install the core library for development, run:
 ```bash
 uv sync
+```
 
 ## Adapters
 ### Dataframe adapter
