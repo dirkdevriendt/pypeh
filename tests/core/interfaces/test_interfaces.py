@@ -2,7 +2,9 @@ from pypeh.core.interfaces import persistence, dataops
 from pypeh.core.abc import Interface, HandlerChain
 from pypeh.core.handlers.baseclasses import DataOpsHandler
 from pypeh.core.models.digital_objects import PehFDO
-from pypeh.core.persistence.local import JsonFileSystem
+from pypeh.core.persistence.formats import JsonIO
+
+from tests.utils.dirutils import get_input_path
 
 
 # temp util
@@ -37,8 +39,9 @@ class TestLocalPersistence:
 
 
 class TestFileSystem:
-    def test_json_file_system(self, get_input_path):
+    def test_json_file_system(self):
         root = get_input_path("core/input/simple.json")
-        adapter = JsonFileSystem(from_repo=PehFDO.model_validate)
-        fdo = adapter.load(root)
+        adapter = JsonIO()
+        with open(root, "r") as file:
+            fdo = adapter.load(file, target_class=PehFDO)
         assert isinstance(fdo, PehFDO)

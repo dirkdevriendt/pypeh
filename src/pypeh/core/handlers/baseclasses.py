@@ -7,14 +7,14 @@ from pathlib import Path
 
 from pypeh.core.interfaces import dataops, persistence
 from pypeh.core.abc import Handler, Context
-from pypeh.core.models.constants import LocationEnum, FileTypeEnum, AdapterEnum
+from pypeh.core.models.constants import AdapterEnum
 from pypeh.core.models.digital_objects import PehFDO
-from pypeh.core.persistence.local import JsonFileSystem
-from pypeh.core.persistence.remote import RemoteRepository
+from pypeh.core.persistence.formats import JsonIO
+from pypeh.core.persistence.hosts import RemoteRepository
 from pypeh.core.utils import resolve_identifiers
 
 if TYPE_CHECKING:
-    from typing import Callable
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -97,9 +97,9 @@ class ManifestHandler(PersistenceHandler):
     def create(cls, root: str, fn: str) -> "ManifestHandler":
         resolved_root = resolve_identifiers.resource_path(root)
         if isinstance(resolved_root, Path):
-            adapter = JsonFileSystem(from_repo=PehFDO.model_validate)
+            adapter = JsonIO()
         else:
-            adapter = RemoteRepository(from_repo=PehFDO.model_validate)
+            adapter = RemoteRepository()
 
         return cls(adapter, fn)
 
@@ -121,32 +121,6 @@ class ManifestHandler(PersistenceHandler):
             raise NotImplementedError
 
         return True
-
-    # @classmethod
-    # def _validate_paths(cls, peh_fdo: PehFDO, base_path: Optional[Path] = None) -> None:
-    #    if peh_fdo.peh_fdo_data:
-    #        for item in peh_fdo.peh_fdo_data:
-    #            if item.location == LocationEnum.LOCAL:
-    #                if not resolve_identifiers._resolve_local_path(item.value, base_path):
-    #                    raise ValueError(f"Local path '{item.value}' does not exist")
-    #            elif item.location == LocationEnum.URI:
-    #                if not resolve_identifiers._resolve_uri(item.value):
-    #                    raise ValueError(f"URI '{item.value}' is not resolvable")
-    #            elif item.location == LocationEnum.PID:
-    #                if not resolve_identifiers._resolve_pid(item.value):
-    #                    raise ValueError(f"PID '{item.value}' is not resolvable")
-
-    # def load_peh_fdo(self, source: str, validate_paths: bool = True) -> PehFDO:
-    #    """Core business logic for loading PehFDO"""
-    #    peh_fdo = self._repository.load(source)
-    #
-    #    if validate_paths:
-    #        self._validate_paths(peh_fdo)
-    #
-    #    return peh_fdo
-
-    # get repository adapter
-    # handle == repository.load()
 
     def map(self, context: Context) -> None:
         pass

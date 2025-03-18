@@ -11,8 +11,9 @@ from typing import TYPE_CHECKING
 from pypeh.core.commands.ingestion import ManifestIngestionCommand, DataIngestionCommand
 
 if TYPE_CHECKING:
-    from typing import Union
+    from typing import Union, Optional, Mapping
     from pypeh.core.cache.dataview import DataView
+    from os import PathLike
 
 
 def load_peh_fdo(
@@ -40,3 +41,21 @@ def load_peh_fdo(
     _ = task.complete()
 
     return task._context.data
+
+
+def read_yaml(
+    file: Union[str, PathLike[str]],
+    *,
+    importmap: Optional[Mapping[str, str]] = None,  # optional mapping between schema names and local paths
+    lazy_loading: bool = True,
+):
+    pass
+
+
+def read_fdo(
+    fdo_path: Union[str, PathLike[str]],
+    *,
+    importmap: Optional[Mapping[str, str]] = None,  # optional mapping between schema names and local paths
+    lazy_loading: bool = True,
+):
+    pass

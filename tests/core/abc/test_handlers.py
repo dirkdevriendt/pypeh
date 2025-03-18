@@ -1,16 +1,18 @@
 from pypeh.core.handlers.baseclasses import ManifestHandler
-from pypeh.core.persistence.local import JsonFileSystem
+from pypeh.core.persistence.formats import JsonIO
 from pypeh.core.models.digital_objects import PehFDO
-from pypeh.core.persistence import remote, local
+
+from tests.utils.dirutils import get_input_path
 
 
 class TestPersistenceHandlers:
-    def test_manifest_handler(self, get_input_path, get_empty_context):
+    def test_manifest_handler(self):
         root = "core/input/simple.json"
         abs_root = get_input_path(root)
         handler = ManifestHandler.create(abs_root, "load")
-        assert isinstance(handler.adapter, JsonFileSystem)
-        fdo = handler.adapter.load(abs_root)
+        assert isinstance(handler.adapter, JsonIO)
+        with open(abs_root, "r") as file:
+            fdo = handler.adapter.load(file, target_class=PehFDO)
         assert isinstance(fdo, PehFDO)
         # context = get_empty_context
         # fdo = handler.handle(context)
