@@ -18,13 +18,3 @@ class TestVersion:
 
     def test_peh_fdo_schema_version(self):
         assert True
-
-
-class TestIngestionAPI:
-    def test_ingest_fdo(self, get_input_path):
-        assert True
-        # root = get_input_path("core/input/simple.json")
-        # _ = pypeh.load_peh_fdo(
-        #   root=root,
-        #   load_data=False,
-        # )

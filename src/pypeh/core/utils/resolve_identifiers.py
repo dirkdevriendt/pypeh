@@ -54,7 +54,7 @@ def _resolve_local_path(path: str, base_path: Optional[Path] = None) -> bool:
     return True
 
 
-def identifier_to_locator(self, identifier: str, identifier_type: LocationEnum) -> str:
+def identifier_to_locator(identifier: str, identifier_type: LocationEnum) -> str:
     if identifier_type == LocationEnum.PID:
         url = f"{DomainNameEnum.RESOLVE_PID.value}/{identifier}"
     else:

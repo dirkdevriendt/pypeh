@@ -13,7 +13,10 @@ core = []
 pandas_adapter = ["pandas"]
 
 [dependency-groups]
-test = ["pytest>=8.2.0,<9"]
+test = [
+	"pytest>=8.2.0,<9",
+	"pytest_responses",
+]
 dev = [
     "ruff>=0.4.4,<0.5",
     "black",
