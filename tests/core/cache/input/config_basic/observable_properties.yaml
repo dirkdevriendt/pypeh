@@ -1,5 +1,5 @@
 observable_properties:
-- id: ParticipantID
+- id: peh:ParticipantID
   unique_name: ParticipantID
   name: ParticipantID
   label: Participant ID (e.g., CZ_PS_JF)
@@ -10,16 +10,16 @@ observable_properties:
   default_zeroallowed: true
   default_significantdecimals: 0
   grouping_id_list:
-  - PRIMARY_QUEST_HEALTH
-  - PRIMARY_QUEST_LIFESTYLE_PERCEIVED_IAQ
-  - PRIMARY_QUEST_LIFESTYLE_RECENT_BEHAVIOR
-  - PRIMARY_QUEST_LIFESTYLE_VIEWS_IAQ
-  - PRIMARY_QUEST_SOCIO_ECONOMICS
-  - ID
+  - peh:PRIMARY_QUEST_HEALTH
+  - peh:PRIMARY_QUEST_LIFESTYLE_PERCEIVED_IAQ
+  - peh:PRIMARY_QUEST_LIFESTYLE_RECENT_BEHAVIOR
+  - peh:PRIMARY_QUEST_LIFESTYLE_VIEWS_IAQ
+  - peh:PRIMARY_QUEST_SOCIO_ECONOMICS
+  - peh:ID
   default_observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
-- id: adjusttheventilation
+- id: peh:adjusttheventilation
   unique_name: adjusttheventilation
   name: adjusttheventilation
   label: It is easy for me to adjust the ventilation at home.
@@ -47,11 +47,11 @@ observable_properties:
   default_zeroallowed: true
   default_significantdecimals: 0
   grouping_id_list:
-  - PRIMARY_QUEST_LIFESTYLE_VIEWS_IAQ
+  - peh:PRIMARY_QUEST_LIFESTYLE_VIEWS_IAQ
   default_observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
-- id: Allergies_child_dd
+- id: peh:Allergies_child_dd
   unique_name: Allergies_child_dd
   name: Allergies_child_dd
   label: Allergies (diagnosed by a doctor)
@@ -69,11 +69,11 @@ observable_properties:
   default_zeroallowed: true
   default_significantdecimals: 0
   grouping_id_list:
-  - PRIMARY_QUEST_HEALTH
+  - peh:PRIMARY_QUEST_HEALTH
   default_observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
-- id: allergy_source
+- id: peh:allergy_source
   unique_name: allergy_source
   name: allergy_source
   label: If answered ‘Yes', please specify the source of the allergy
@@ -84,7 +84,7 @@ observable_properties:
   default_zeroallowed: true
   default_significantdecimals: 0
   grouping_id_list:
-  - PRIMARY_QUEST_HEALTH
+  - peh:PRIMARY_QUEST_HEALTH
   default_observation_result_type: measurement
   relevant_observation_types:
   - questionnaire

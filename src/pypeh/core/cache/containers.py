@@ -13,19 +13,16 @@ from __future__ import annotations
 import logging
 
 from abc import ABC, abstractmethod
-from collections import defaultdict
 from typing import Dict, Type, TYPE_CHECKING
 
 from pypeh.core.models.peh import NamedThing
+from pypeh.core.cache.utils import T_NamedThingLike, get_entity_type
+from pypeh.core.models.proxy import TypedLazyProxy
 
 if TYPE_CHECKING:
     from typing import Optional, Generator
 
 logger = logging.getLogger(__name__)
-
-
-class Proxy(NamedThing):
-    pass
 
 
 class CacheContainer(ABC):
@@ -35,17 +32,17 @@ class CacheContainer(ABC):
         self._storage = None
 
     @abstractmethod
-    def add(self, entity: NamedThing) -> None:
+    def add(self, entity: T_NamedThingLike) -> None:
         """Store an entity"""
         pass
 
     @abstractmethod
-    def get(self, entity_type: str, entity_id: str) -> NamedThing:
+    def get(self, entity_id: str, entity_type: str) -> T_NamedThingLike:
         """Retrieve an entity"""
         pass
 
     @abstractmethod
-    def get_all(self) -> Generator[NamedThing, None, None]:
+    def get_all(self) -> Generator[T_NamedThingLike, None, None]:
         """Retrieve all entities"""
         pass
 
@@ -55,46 +52,59 @@ class CacheContainer(ABC):
         pass
 
     @abstractmethod
-    def exists(self, entity_type: str, entity_id: str) -> bool:
+    def exists(self, entity_id: str, entity_type: str) -> bool:
         """Clear all stored data"""
         pass
 
     @abstractmethod
-    def pop(self, entity_type: str, entity_id: str) -> NamedThing:
+    def pop(self, entity_id: str, entity_type: str) -> T_NamedThingLike:
         """Return entry and delete from storage"""
         pass
 
 
 class MappingContainer(CacheContainer):
     def __init__(self):
-        self._storage: Dict[str, Dict[str, NamedThing]] = defaultdict(dict)
+        self._storage: Dict[str, T_NamedThingLike] = dict()
 
-    def add(self, entity: NamedThing) -> None:
-        return self._add_object(entity, entity.id, entity.__class__.__name__)
-
-    def _add_object(self, entity: NamedThing, entity_id: str, entity_type: str) -> None:
-        self._storage[entity_type][entity_id] = entity
+    def _add_object(self, entity: T_NamedThingLike, entity_id: str, entity_type: str) -> None:
+        self._storage[entity_id] = entity
 
     def exists(self, entity_id: str, entity_type: str) -> bool:
-        return entity_type in self._storage.keys() and entity_id in self._storage[entity_type].keys()
+        return entity_id in self._storage.keys()
 
-    def get(self, entity_id: str, entity_type: str) -> Optional[NamedThing]:
+    def _get(self, entity_id: str, entity_type: str) -> Optional[T_NamedThingLike]:
         if self.exists(entity_id, entity_type):
-            return self._storage[entity_type][entity_id]
-        else:
-            logging.debug(f"Storage error: Object of class '{entity_type}' with id '{entity_id}' not found.")
-            return None
+            return self._storage[entity_id]
+
+    def add(self, entity: T_NamedThingLike) -> None:
+        class_name = get_entity_type(entity)
+        container_entity = self._get(entity.id, class_name)
+        if container_entity is not None:
+            if isinstance(container_entity, NamedThing):
+                return
+            if isinstance(entity, TypedLazyProxy):
+                return
+        return self._add_object(entity, entity.id, class_name)
+
+    def get(self, entity_id: str, entity_type: str) -> Optional[T_NamedThingLike]:
+        ret = self._get(entity_id, entity_type)
+        if ret is None:
+            message = f"Storage error: Object of class '{entity_type}' with id '{entity_id}' not found."
+            logging.debug(message)
+        return ret
 
     def clear(self) -> None:
         self._storage.clear()
 
-    def pop(self, entity_id: str, entity_type: str) -> NamedThing:
-        return self._storage[entity_type].pop(entity_id)
+    def pop(self, entity_id: str, entity_type: str) -> Optional[T_NamedThingLike]:
+        return self._storage.pop(entity_id, None)
 
-    def get_all(self) -> Generator[NamedThing, None, None]:
-        for entity_type in self._storage.keys():
-            for entity_id in self._storage[entity_type].keys():
-                yield self._storage[entity_type][entity_id]
+    def get_all(self) -> Generator[T_NamedThingLike, None, None]:
+        for entity_id in self._storage.keys():
+            yield self._storage[entity_id]
+
+    def __repr__(self):
+        return self._storage.__repr__()
 
 
 class CacheContainerFactory:
