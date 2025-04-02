@@ -15,7 +15,7 @@ pandas_adapter = ["pandas"]
 [dependency-groups]
 test = [
 	"pytest>=8.2.0,<9",
-	"pytest_responses",
+	#"responses",
 ]
 dev = [
     "ruff>=0.4.4,<0.5",

@@ -69,7 +69,7 @@ class TypedLazyProxy:
         self._target = None
 
     @property
-    def identifier(self):
+    def id(self):
         return self._id
 
     @property
@@ -95,6 +95,6 @@ class TypedLazyProxy:
     # Add more special methods as needed
     def __eq__(self, other):
         if isinstance(other, TypedLazyProxy):
-            return self.identifier == other.identifier
+            return self.id == other.id
         elif isinstance(other, peh.NamedThing):
-            return self.identifier == other.id
+            return self.id == other.id

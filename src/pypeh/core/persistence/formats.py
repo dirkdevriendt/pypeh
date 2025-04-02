@@ -32,19 +32,20 @@ def load_entities_from_tree(root, create_proxy: Optional[Callable] = None):
             property = getattr(root, property_name)
             if property is not None:
                 if isinstance(property, list):
-                    yield from load_entities_from_tree(property)
+                    yield from load_entities_from_tree(property, create_proxy=create_proxy)
                 elif isinstance(property, dict):
-                    yield from load_entities_from_tree(list(property.values()))
+                    yield from load_entities_from_tree(list(property.values()), create_proxy=create_proxy)
                 else:
-                    yield from load_entities_from_tree([property])
+                    yield from load_entities_from_tree(property, create_proxy=create_proxy)
     if isinstance(root, NamedThingId) and create_proxy:
         proxy = create_proxy(root)
         yield proxy
+        return
     if isinstance(root, Mapping):
         root = list(root.values())
     if isinstance(root, list):
         for entity in root:
-            yield from load_entities_from_tree(entity)
+            yield from load_entities_from_tree(entity, create_proxy=create_proxy)
 
 
 def validate_dataclass(
