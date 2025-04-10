@@ -76,6 +76,10 @@ class TypedLazyProxy:
     def expected_type(self):
         return self._expected_type
 
+    def set_loader(self, loader: Callable) -> bool:
+        self._loader = loader
+        return True
+
     def _ensure_loaded(self):
         if self._target is None:
             self._target = self._loader()

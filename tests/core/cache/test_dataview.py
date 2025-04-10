@@ -11,6 +11,7 @@ from pypeh.core.persistence.hosts import FileIO
 from pypeh.core.persistence.formats import YamlIO, load_entities_from_tree
 from pypeh.core.models import peh
 from pypeh.core.models.proxy import TypedLazyProxy
+from pypeh.core.api import read_yaml
 
 from tests.utils.dirutils import get_absolute_path
 
@@ -107,3 +108,9 @@ class TestLoading:
         assert data_view._importmap_viewer._loader is not None
         for s in sources:
             data_view._importmap_viewer._loader.load_greedily(s)
+
+    # def test_read_yaml(self):
+    #    source = get_absolute_path("./input/config_basic/observable_properties.yaml")
+    #    dataview = read_yaml(source)
+    #    print(dataview._storage)
+    #    assert False

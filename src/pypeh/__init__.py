@@ -6,6 +6,7 @@ except ImportError:
 
 from pypeh.core.api import (
     load_peh_fdo,
+    read_yaml,
 )
 
 try:
@@ -15,4 +16,5 @@ except PackageNotFoundError:
 
 __all__ = [
     "load_peh_fdo",
+    "read_yaml",
 ]

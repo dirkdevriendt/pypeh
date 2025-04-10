@@ -17,6 +17,6 @@ class TestPersistenceHandlers:
         # context = get_empty_context
         # fdo = handler.handle(context)
         # assert isinstance(fdo, PehFDO)
-        # for adapter in [local.JsonFileSystem, remote.RemoteRepository]:
+        # for adapter in [local.JsonFileSystem, remote.WebServiceAdapter]:
         #    handler = ManifestHandler(adapter)
         #    handler.handle()

@@ -15,7 +15,7 @@ from pypeh.core.models.peh import NamedThing
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from pypeh.core.cache.utils import get_entity_type
 from pypeh.core.models import proxy
-from pypeh.core.persistence.hosts import FileIO, RemoteRepository
+from pypeh.core.persistence.hosts import FileIO, WebServiceAdapter
 from pypeh.core.persistence.formats import load_entities_from_tree
 
 logger = logging.getLogger(__name__)
@@ -61,6 +61,12 @@ class BaseView:
             return self.request_entity(entity, expected_type)
 
         return proxy.TypedLazyProxy(entity, expected_type, _proxy_loader)
+
+    def update_proxy(self, lazy_proxy: proxy.TypedLazyProxy) -> bool:
+        def _proxy_loader():
+            return self.request_entity(lazy_proxy._id, lazy_proxy._expected_type.__name__)
+
+        return lazy_proxy.set_loader(_proxy_loader)
 
     def request_entity(self, entity_id: str, entity_type: str) -> Optional[T_NamedThingLike]:
         entity = self._storage.get(entity_id, entity_type)
@@ -121,6 +127,8 @@ class DataView(BaseView):
         if self._importmap_viewer is not None:
             entity = self._importmap_viewer.request_entity(entity_id, entity_type)
             if entity is not None:
+                if isinstance(entity, proxy.TypedLazyProxy):
+                    _ = self.update_proxy(entity)
                 self._storage.add(entity)
                 return entity
         try:
@@ -136,6 +144,21 @@ class DataView(BaseView):
 
         return entity
 
+    # def _add_to_cache(self, root_stream: T_RootStream, proxy_loader: Callable)
+    #    for entity in load_entities_from_tree(root_stream, proxy_loader):
+    #        if entity is not None:
+    #            self._cache._storage.add(entity)
+    #    return True
+
+    # def _add_to_view(self, root_stream: T_RootStream, proxy_loader: Callable)
+    #    for entity in load_entities_from_tree(root_stream, proxy_loader):
+    #        if entity is not None:
+    #            self._data._storage.add(entity)
+    #    return True
+
+    # def add(self, root_stream: T_RootStream)
+    #   return self._add_to_view(root_stream)
+
 
 class EntityLoaderABC(EntityLoader, Generic[T_BaseView]):
     def __init__(
@@ -150,8 +173,12 @@ class EntityLoaderABC(EntityLoader, Generic[T_BaseView]):
         self.viewer.set_loader(self)
         self.persistence_interface = persistence_interface
 
-    def load_greedily(self, source: str):
-        raise NotImplementedError
+    def load_greedily(self, source: str) -> bool:
+        root = self.persistence_interface.load(source)
+        for entity in load_entities_from_tree(root, self.viewer.create_proxy):
+            if entity is not None:
+                self.viewer._storage.add(entity)
+        return True
 
     @abstractmethod
     def load_entity(self, entity_id: str, entity_type: Optional[str] = None) -> Optional[NamedThing]:
@@ -205,16 +232,9 @@ class ImportMapEntityLoader(EntityLoaderABC[T_ImportMapView]):
     def _is_namespace_loaded(self, namespace: str) -> bool:
         return namespace in self._namespace_loaded
 
-    def load_greedily(self, source: str) -> bool:
-        root = self.persistence_interface.load(source)
-        for entity in load_entities_from_tree(root, self.viewer.create_proxy):
-            if entity is not None:
-                self.viewer._storage.add(entity)
-        return True
-
     def load_entity(self, entity_id: str, entity_type: Optional[str] = None) -> Optional[T_NamedThingLike]:
-        # TODO: add ability that if namespace is not in importmap
-        # identifier gets pushed to dataview and loaded there.
+        # TODO: check whether request with namespace not in importmap
+        # gets correctly pushed to dataview and loaded there.
         namespace = self._extract_namespace(entity_id)
         if namespace in self._import_map:
             if not self._is_namespace_loaded(namespace):
@@ -248,7 +268,7 @@ def get_dataview(storage_container="default", importmap: Optional[Dict] = None) 
     # TODO: extend: add storage_container logic: currently always dict
     data_view = DataView()
     # init EntityLoader linked to DataView
-    _ = DataViewEntityLoader(RemoteRepository(), data_view)
+    _ = DataViewEntityLoader(WebServiceAdapter(), data_view)
     if importmap is not None:
         importmap_view = get_importmapview(importmap=importmap)
         data_view._importmap_viewer = importmap_view
