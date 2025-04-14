@@ -8,22 +8,16 @@ from io import IOBase
 from linkml_runtime.loaders import YAMLLoader, JSONLoader
 from linkml_runtime.dumpers import YAMLDumper, JSONDumper
 from pydantic import TypeAdapter, BaseModel
-from typing import TYPE_CHECKING, Mapping, TypeVar, Union, List, Dict, TextIO, Sequence, Any
+from typing import TYPE_CHECKING, Mapping, Union, Any
 
 from pypeh.core.interfaces.persistence import PersistenceInterface
 from pypeh.core.models.peh import EntityList, NamedThing, YAMLRoot, NamedThingId
-
+from pypeh.core.models.typing import T_Dataclass, T_RootStream, IOLike
 
 if TYPE_CHECKING:
     from typing import Optional, Callable, Type
 
 logger = logging.getLogger(__name__)
-
-
-T_dataclass = TypeVar("T_dataclass", bound=Union[EntityList, BaseModel])
-T_root = Union[YAMLRoot, NamedThingId]
-T_RootStream = Union[T_root, Mapping[Any, T_root], Sequence[T_root]]
-IOLike = Union[str, List, List[Dict], TextIO]
 
 
 def load_entities_from_tree(root: T_RootStream, create_proxy: Optional[Callable] = None):
@@ -52,8 +46,8 @@ def load_entities_from_tree(root: T_RootStream, create_proxy: Optional[Callable]
 
 def validate_dataclass(
     json_data: IOLike,
-    target_class: Type[T_dataclass],
-) -> T_dataclass:
+    target_class: Type[T_Dataclass],
+) -> T_Dataclass:
     """
     Validate JSON data against a dataclass using Pydantic's TypeAdapter.
     """
@@ -98,7 +92,7 @@ class JsonIO(IOAdapter):
     Assuming jsonfiles can be directly loaded by linkml
     """
 
-    def load(self, source: IOLike, target_class: Type[T_dataclass] = EntityList, **kwargs) -> Any:
+    def load(self, source: IOLike, target_class: Type[T_Dataclass] = EntityList, **kwargs) -> Any:
         """
         Load JSON data from a file-like object (e.g., a context manager).
         # TODO: test with: fake_file = StringIO('{"key": "value"}')
@@ -126,7 +120,7 @@ class YamlIO(IOAdapter):
     """
 
     def load(
-        self, source: IOLike, target_class: Type[T_dataclass] = EntityList, **kwargs
+        self, source: IOLike, target_class: Type[T_Dataclass] = EntityList, **kwargs
     ) -> Union[BaseModel, YAMLRoot]:
         """
         Load YAML data from a file-like object (e.g., a context manager).

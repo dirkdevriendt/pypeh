@@ -11,21 +11,19 @@ import json
 
 from abc import abstractmethod
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Generic
 
 from pypeh.core.interfaces.persistence import PersistenceInterface
 from pypeh.core.persistence import formats
-from pypeh.core.models.peh import EntityList
+from pypeh.core.models.typing import T_Dataclass
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from typing import Optional, Any, Dict, List, Generator, Generic, Type, Union
+    from typing import Optional, Any, Dict, List, Generator, Type, Union
     from pydantic import BaseModel
 
     from pypeh.core.models.transform import FieldMapping
-
-T_dataclass = TypeVar("T_dataclass", bound=Union[EntityList, BaseModel])
 
 
 class WebServiceAdapter(PersistenceInterface):
@@ -88,7 +86,7 @@ class FileIO(PersistenceInterface):
         raise NotImplementedError
 
 
-class DatabaseAdapter(PersistenceInterface, Generic[T_dataclass]):
+class DatabaseAdapter(PersistenceInterface, Generic[T_Dataclass]):
     def __init__(self, registry: ResourceRegistry, connection: Optional[Any] = None, **kwargs):
         self.config = kwargs
         self.conn = connection
@@ -129,7 +127,7 @@ class DatabaseAdapter(PersistenceInterface, Generic[T_dataclass]):
     def delete(self, resource_type: str, resource_id: str) -> None:
         pass
 
-    def load(self, source: str, target_class: Optional[Type[T_dataclass]] = None, **kwargs) -> T_dataclass:
+    def load(self, source: str, target_class: Optional[Type[T_Dataclass]] = None, **kwargs) -> T_Dataclass:
         if "/" not in source:
             raise ValueError(f"Invalid source format: {source}. Expected 'resource_type/resource_id'")
 
