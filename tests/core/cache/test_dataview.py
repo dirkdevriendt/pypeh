@@ -34,6 +34,7 @@ class TestLoading:
         root = yaml_loader.load(source)
 
         all_entities = []
+        assert isinstance(root, peh.YAMLRoot)
         for entity in load_entities_from_tree(root, create_proxy=base_view.create_proxy):
             if isinstance(entity, TypedLazyProxy):
                 all_entities.append(entity)

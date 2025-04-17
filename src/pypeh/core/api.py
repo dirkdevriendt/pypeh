@@ -58,9 +58,7 @@ def read_yaml(
     if data_view is None:
         data_view = get_dataview(importmap=importmap)  # type:ignore
     root = YamlIO().load(file, EntityList)  # type: ignore
-    for entity in load_entities_from_tree(root, data_view.create_proxy):
-        if entity is not None:
-            data_view._storage.add(entity)
+    data_view.add(root)  # type: ignore
 
     return data_view
 
