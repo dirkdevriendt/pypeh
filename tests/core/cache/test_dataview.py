@@ -11,6 +11,7 @@ from pypeh.core.persistence.hosts import FileIO
 from pypeh.core.persistence.formats import YamlIO, load_entities_from_tree
 from pypeh.core.models import peh
 from pypeh.core.models.proxy import TypedLazyProxy
+from pypeh.core.api import read_yaml
 
 from tests.utils.dirutils import get_absolute_path
 
@@ -19,8 +20,9 @@ class TestLoading:
     def test_baseview(self):
         source = get_absolute_path("./input/config_basic/observation_results.yaml")
         data_view = BaseView()
-        yaml_loader = ImportMapEntityLoader(FileIO(), data_view)
-        yaml_loader.load_greedily(source)
+        yaml_loader = ImportMapEntityLoader(FileIO())
+        root_stream = yaml_loader.load(source)
+        _ = data_view._add_root_stream(root_stream, None)
 
         entity = data_view.view_entity("peh:INQUIRE_IT_PERSON_Q1_RESULT1", "ObservationResult")
         assert isinstance(entity, peh.ObservationResult)
@@ -32,6 +34,7 @@ class TestLoading:
         root = yaml_loader.load(source)
 
         all_entities = []
+        assert isinstance(root, peh.YAMLRoot)
         for entity in load_entities_from_tree(root, create_proxy=base_view.create_proxy):
             if isinstance(entity, TypedLazyProxy):
                 all_entities.append(entity)
@@ -63,6 +66,7 @@ class TestLoading:
         ]
         sources = [get_absolute_path(s) for s in sources]
         data_view = get_dataview(importmap={"peh": sources})
+        assert data_view._loader is not None
         entity_id = "peh:ParticipantID"
         entity_type = "ObservableProperty"
         ret = data_view.request_entity(entity_id, entity_type)
@@ -85,8 +89,7 @@ class TestLoading:
         # peh:PRIMARY_QUEST_HEALTH
         entity_id = "peh:PRIMARY_QUEST_HEALTH"
         entity_type = "Grouping"
-        with pytest.warns():
-            ret = data_view.request_entity(entity_id, entity_type)
+        ret = data_view.request_entity(entity_id, entity_type)
         assert ret is not None
         assert ret.id == entity_id
         assert isinstance(ret, TypedLazyProxy)
@@ -103,7 +106,13 @@ class TestLoading:
 
         # test importmapentityloader
         assert data_view._loader is not None
-        assert data_view._importmap_viewer is not None
-        assert data_view._importmap_viewer._loader is not None
+        assert data_view._cache_viewer is not None
+        assert data_view._cache_viewer._loader is not None
         for s in sources:
-            data_view._importmap_viewer._loader.load_greedily(s)
+            data_view._cache_viewer._loader.load(s)
+
+    # def test_read_yaml(self):
+    #    source = get_absolute_path("./input/config_basic/observable_properties.yaml")
+    #    dataview = read_yaml(source)
+    #    print(dataview._storage)
+    #    assert False

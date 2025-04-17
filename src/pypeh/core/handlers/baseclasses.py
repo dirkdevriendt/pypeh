@@ -8,9 +8,8 @@ from pathlib import Path
 from pypeh.core.interfaces import dataops, persistence
 from pypeh.core.abc import Handler, Context
 from pypeh.core.models.constants import AdapterEnum
-from pypeh.core.models.digital_objects import PehFDO
 from pypeh.core.persistence.formats import JsonIO
-from pypeh.core.persistence.hosts import RemoteRepository
+from pypeh.core.persistence.hosts import WebServiceAdapter
 from pypeh.core.utils import resolve_identifiers
 
 if TYPE_CHECKING:
@@ -39,7 +38,7 @@ class DataOpsHandler(Handler):
         if engine == AdapterEnum.DATAFRAME:
             try:
                 # TODO: currently always DataValidationAdapter, adapt logic
-                from dataframe_adapter.adapter import DataValidationAdapter
+                from dataframe_adapter.dataops import DataValidationAdapter
             except ImportError:
                 logging.error(f"The {engine} requires the 'dataframe_adapter' module. Please install it.")
                 raise ImportError(f"The {engine} requires the 'dataframe_adapter' module. Please install it.")
@@ -67,11 +66,11 @@ class PersistenceHandler(Handler):
     def create(cls, engine: AdapterEnum, fn: str) -> "PersistenceHandler":
         if engine == AdapterEnum.DATAFRAME:
             try:
-                from dataframe_adapter.persistence import PersistenceAdapter
+                from dataframe_adapter.persistence import CsvIOImpl
             except ImportError:
                 logging.error(f"The {engine} requires the 'dataframe_adapter' module. Please install it.")
                 raise ImportError(f"The {engine} requires the 'dataframe_adapter' module. Please install it.")
-            adapter = PersistenceAdapter()
+            adapter = CsvIOImpl()
         else:
             raise NotImplementedError
         return cls(adapter, fn)
@@ -99,7 +98,7 @@ class ManifestHandler(PersistenceHandler):
         if isinstance(resolved_root, Path):
             adapter = JsonIO()
         else:
-            adapter = RemoteRepository()
+            adapter = WebServiceAdapter()
 
         return cls(adapter, fn)
 

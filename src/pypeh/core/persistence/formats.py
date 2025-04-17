@@ -8,26 +8,23 @@ from io import IOBase
 from linkml_runtime.loaders import YAMLLoader, JSONLoader
 from linkml_runtime.dumpers import YAMLDumper, JSONDumper
 from pydantic import TypeAdapter, BaseModel
-from typing import TYPE_CHECKING, Mapping, TypeVar, Union, List, Dict, TextIO
+from typing import TYPE_CHECKING, Mapping, Union, Any
 
 from pypeh.core.interfaces.persistence import PersistenceInterface
 from pypeh.core.models.peh import EntityList, NamedThing, YAMLRoot, NamedThingId
-
+from pypeh.core.models.typing import T_Dataclass, T_RootStream, IOLike
 
 if TYPE_CHECKING:
-    from typing import Optional, Callable, Any, Type
+    from typing import Optional, Callable, Type
 
 logger = logging.getLogger(__name__)
 
 
-T_dataclass = TypeVar("T_dataclass", bound=Union[EntityList, BaseModel])
-IOLike = Union[str, List, List[Dict], TextIO]
-
-
-def load_entities_from_tree(root, create_proxy: Optional[Callable] = None):
+def load_entities_from_tree(root: T_RootStream, create_proxy: Optional[Callable] = None):
     if isinstance(root, NamedThing):
         yield root
-    if isinstance(root, NamedThing) or isinstance(root, EntityList):
+    if isinstance(root, YAMLRoot):
+        # if isinstance(root, NamedThing) or isinstance(root, EntityList): # TODO decide which one we need
         for property_name in list(root._keys()):
             property = getattr(root, property_name)
             if property is not None:
@@ -40,7 +37,6 @@ def load_entities_from_tree(root, create_proxy: Optional[Callable] = None):
     if isinstance(root, NamedThingId) and create_proxy:
         proxy = create_proxy(root)
         yield proxy
-        return
     if isinstance(root, Mapping):
         root = list(root.values())
     if isinstance(root, list):
@@ -50,8 +46,8 @@ def load_entities_from_tree(root, create_proxy: Optional[Callable] = None):
 
 def validate_dataclass(
     json_data: IOLike,
-    target_class: Type[T_dataclass],
-) -> T_dataclass:
+    target_class: Type[T_Dataclass],
+) -> T_Dataclass:
     """
     Validate JSON data against a dataclass using Pydantic's TypeAdapter.
     """
@@ -92,11 +88,11 @@ class IOAdapter(PersistenceInterface):
 
 class JsonIO(IOAdapter):
     """
-    Adapter for loading from json file.
+    Adapter for loading from json file/stream.
     Assuming jsonfiles can be directly loaded by linkml
     """
 
-    def load(self, source: IOLike, target_class: Type[T_dataclass] = EntityList, **kwargs) -> Any:
+    def load(self, source: IOLike, target_class: Type[T_Dataclass] = EntityList, **kwargs) -> Any:
         """
         Load JSON data from a file-like object (e.g., a context manager).
         # TODO: test with: fake_file = StringIO('{"key": "value"}')
@@ -119,12 +115,12 @@ class JsonIO(IOAdapter):
 
 class YamlIO(IOAdapter):
     """
-    Adapter for loading from Yaml file
+    Adapter for loading from Yaml file/stream
     Assuming yaml files can be directly loaded by linkml
     """
 
     def load(
-        self, source: IOLike, target_class: Type[T_dataclass] = EntityList, **kwargs
+        self, source: IOLike, target_class: Type[T_Dataclass] = EntityList, **kwargs
     ) -> Union[BaseModel, YAMLRoot]:
         """
         Load YAML data from a file-like object (e.g., a context manager).
@@ -178,3 +174,25 @@ class ExcelIO(IOAdapter):
 
     def dump(self, source: str, **kwargs):
         pass
+
+
+class IOAdapterFactory:
+    _adapters = {
+        "json": JsonIO,
+        "yaml": YamlIO,
+        "yml": YamlIO,
+        "csv": CsvIO,
+        "xlsx": ExcelIO,
+        "xls": ExcelIO,
+    }
+
+    @classmethod
+    def register_adapter(cls, format: str, adapter_class: Type[IOAdapter]) -> None:
+        cls._adapters[format.lower()] = adapter_class
+
+    @classmethod
+    def create(cls, format: str, **kwargs) -> IOAdapter:
+        adapter_class = cls._adapters.get(format.lower())
+        if not adapter_class:
+            raise ValueError(f"No adapter registered for dataformat: {format}")
+        return adapter_class(**kwargs)

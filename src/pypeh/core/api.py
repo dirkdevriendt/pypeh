@@ -9,9 +9,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pypeh.core.commands.ingestion import ManifestIngestionCommand, DataIngestionCommand
+from pypeh.core.cache.dataview import get_dataview
+from pypeh.core.persistence.formats import load_entities_from_tree, YamlIO
+from pypeh.core.models.peh import EntityList
 
 if TYPE_CHECKING:
-    from typing import Union, Optional, Mapping
+    from typing import Union, Optional, Mapping, List
     from pypeh.core.cache.dataview import DataView
     from os import PathLike
 
@@ -46,10 +49,18 @@ def load_peh_fdo(
 def read_yaml(
     file: Union[str, PathLike[str]],
     *,
-    importmap: Optional[Mapping[str, str]] = None,  # optional mapping between schema names and local paths
+    importmap: Optional[
+        Mapping[str, Union[List[str], str]]
+    ] = None,  # optional mapping between schema names and local paths
     lazy_loading: bool = True,
+    data_view: Optional[DataView] = None,
 ):
-    pass
+    if data_view is None:
+        data_view = get_dataview(importmap=importmap)  # type:ignore
+    root = YamlIO().load(file, EntityList)  # type: ignore
+    data_view.add(root)  # type: ignore
+
+    return data_view
 
 
 def read_fdo(

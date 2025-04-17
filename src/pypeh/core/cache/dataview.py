@@ -4,18 +4,15 @@ Contains functionality to query the content of a CacheContainer
 
 from __future__ import annotations
 
-from abc import abstractmethod
 import logging
-import warnings
 
-from pathlib import Path
-from typing import Union, Optional, Protocol, TYPE_CHECKING, TypeVar, Generic, Sequence
+from typing import Union, Optional, Protocol, TYPE_CHECKING, Sequence
 
 from pypeh.core.models.peh import NamedThing
+from pypeh.core.models.typing import T_RootStream
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
-from pypeh.core.cache.utils import get_entity_type
 from pypeh.core.models import proxy
-from pypeh.core.persistence.hosts import FileIO, RemoteRepository
+from pypeh.core.persistence.hosts import FileIO, WebServiceAdapter
 from pypeh.core.persistence.formats import load_entities_from_tree
 
 logger = logging.getLogger(__name__)
@@ -23,19 +20,15 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from pypeh.core.interfaces.persistence import PersistenceInterface
     from pypeh.core.cache.containers import T_NamedThingLike
-    from typing import Dict, Generator, List
-
-T_BaseView = TypeVar("T_BaseView", bound="BaseView")
-T_DataView = TypeVar("T_DataView", bound="DataView")
-T_ImportMapView = TypeVar("T_ImportMapView", bound="ImportMapView")
+    from typing import Dict, Generator, List, Callable
 
 
 class EntityLoader(Protocol):
     lazy_loading = True
 
-    def load_entity(self, entity_id: str, entity_type: Optional[str] = None): ...
+    def load(self, source: str) -> T_RootStream: ...
 
-    def load_greedily(self, source: str): ...
+    def load_entity(self, entity_id: str, entity_type: Optional[str] = None): ...
 
 
 class BaseView:
@@ -86,113 +79,25 @@ class BaseView:
     def view_all(self) -> Generator[T_NamedThingLike, None, None]:
         yield from self._storage.get_all()
 
-
-class ImportMapView(BaseView):
-    def __init__(
-        self,
-        storage: CacheContainer = CacheContainerFactory.new(),
-        loader: Optional[ImportMapEntityLoader] = None,
-    ):
-        super().__init__(storage, loader)
-
-    def request_entity(self, entity_id: str, entity_type: str) -> Optional[T_NamedThingLike]:
-        try:
-            if self._loader is None:
-                raise NotImplementedError
-            return super().request_entity(entity_id, entity_type)
-        except NotImplementedError:
-            e = "Loader for ImportMapView was not set correctly. Report this as a bug."
-            logger.error(e)
-            raise NotImplementedError(e)
-
-
-class DataView(BaseView):
-    # TODO: add roll back ability
-    def __init__(
-        self,
-        storage: CacheContainer = CacheContainerFactory.new(),
-        loader: Optional[DataViewEntityLoader] = None,
-        importmap_viewer: Optional[ImportMapView] = None,
-    ):
-        super().__init__(storage, loader)
-        self._importmap_viewer = importmap_viewer
-
-    def request_entity(self, entity_id: str, entity_type: str) -> Optional[T_NamedThingLike]:
-        if self._importmap_viewer is not None:
-            entity = self._importmap_viewer.request_entity(entity_id, entity_type)
+    def _add_root_stream(self, root_stream: T_RootStream, create_proxy_loader: Optional[Callable]) -> bool:
+        for entity in load_entities_from_tree(root_stream, create_proxy_loader):
             if entity is not None:
                 self._storage.add(entity)
-                return entity
-        try:
-            entity = super().request_entity(entity_id, entity_type)
-        except NotImplementedError:
-            e = "Loader for DataView was not set correctly. Report this as a bug."
-            logger.error(e)
-            raise NotImplementedError(e)
-
-        if entity is None:
-            logger.error(f"Could not resolve entity with id {entity_id}")
-            raise ValueError(f"Could not resolve eneity with id {entity_id}")
-
-        return entity
+        return True
 
 
-class EntityLoaderABC(EntityLoader, Generic[T_BaseView]):
+class CacheView(BaseView):
     def __init__(
         self,
-        persistence_interface: PersistenceInterface,
-        viewer: BaseView,
-        root: Optional[Union[str, Path]] = None,
-    ):
-        self.root = root
-        self.viewer = viewer
-        # LOADER FOR VIEWER HAS TO BE SET EXPLICITLY
-        self.viewer.set_loader(self)
-        self.persistence_interface = persistence_interface
-
-    def load_greedily(self, source: str):
-        raise NotImplementedError
-
-    @abstractmethod
-    def load_entity(self, entity_id: str, entity_type: Optional[str] = None) -> Optional[NamedThing]:
-        raise NotImplementedError
-
-
-class DataViewEntityLoader(EntityLoaderABC[T_DataView]):
-    def resolve_identifier(self, entity_id: str) -> Optional[T_NamedThingLike]:
-        # loc = identifier_to_locator(entity_id, LocationEnum.PID)
-        # TODO: requires access to namespace context
-        # distinguish between local and remote entries
-        # dealing with lazy_loading -> use proxyObject?
-
-        # could represent single item or list of items
-        pass
-
-    def load_greedily(self, source: str):
-        return super().load_greedily(source)
-
-    def load_entity(self, entity_id: str, entity_type: Optional[str] = None) -> Optional[T_NamedThingLike]:
-        """Save an entity to storage"""
-        entity = self.resolve_identifier(entity_id)
-        if entity is not None:
-            entity_type = get_entity_type(entity)
-            if not self.viewer._storage.exists(entity.id, entity_type):
-                self.viewer._storage.add(entity)
-
-        return entity
-
-
-class ImportMapEntityLoader(EntityLoaderABC[T_ImportMapView]):
-    def __init__(
-        self,
-        persistence_interface: PersistenceInterface,
-        viewer: BaseView,
-        root: Optional[Union[str, Path]] = None,
+        storage: CacheContainer = CacheContainerFactory.new(),
         importmap: Dict[str, Union[str, List[str]]] = {},
+        loader: Optional[ImportMapEntityLoader] = None,
+        create_proxy_fn: Optional[Callable[[str], proxy.TypedLazyProxy]] = None,
     ):
-        super().__init__(persistence_interface, viewer, root)
         self._import_map = importmap
+        super().__init__(storage, loader)
         self._namespace_loaded = set()
+        self._create_proxy_fn = create_proxy_fn
 
     def _extract_namespace(self, entity_id: str) -> Optional[str]:
         """
@@ -205,52 +110,128 @@ class ImportMapEntityLoader(EntityLoaderABC[T_ImportMapView]):
     def _is_namespace_loaded(self, namespace: str) -> bool:
         return namespace in self._namespace_loaded
 
-    def load_greedily(self, source: str) -> bool:
-        root = self.persistence_interface.load(source)
-        for entity in load_entities_from_tree(root, self.viewer.create_proxy):
-            if entity is not None:
-                self.viewer._storage.add(entity)
+    def _load(self, source: Union[List[str], str]) -> bool:
+        if self._loader is None:
+            e = "Loader for CacheView was not set correctly. Report this as a bug."
+            logger.error(e)
+            raise NotImplementedError(e)
+
+        if isinstance(source, Sequence):
+            for s in source:
+                root_stream = self._loader.load(s)
+                _ = self._add_root_stream(root_stream, self._create_proxy_fn)
+        else:
+            root_stream = self._loader.load(source)
+            _ = self._add_root_stream(root_stream, self._create_proxy_fn)
+
         return True
 
-    def load_entity(self, entity_id: str, entity_type: Optional[str] = None) -> Optional[T_NamedThingLike]:
-        # TODO: add ability that if namespace is not in importmap
-        # identifier gets pushed to dataview and loaded there.
+    def request_entity(self, entity_id: str, entity_type: str) -> Optional[T_NamedThingLike]:
         namespace = self._extract_namespace(entity_id)
         if namespace in self._import_map:
             if not self._is_namespace_loaded(namespace):
                 source = self._import_map[namespace]
-                if isinstance(source, Sequence):
-                    for s in source:
-                        _ = self.load_greedily(s)
-                else:
-                    _ = self.load_greedily(source)
+                _ = self._load(source)
                 self._namespace_loaded.add(namespace)
-            else:
-                warnings.warn(
-                    f"{entity_id} was not found in files pointed to by importmap argument even though it belongs to the {namespace} namespace."
-                )
+            return self._storage.pop(entity_id, entity_type)
 
-        if entity_type is None:
-            entity_type = entity_id.__class__.__name__
-        if self.viewer._storage.exists(entity_id, entity_type):
-            return self.viewer._storage.pop(entity_id, entity_type)
+        return None
 
 
-def get_importmapview(storage_container="default", importmap: Dict[str, Union[str, List[str]]] = {}) -> ImportMapView:
-    importmap_view = ImportMapView()
-    # init EntityLoader linked to ImportMapView
-    _ = ImportMapEntityLoader(FileIO(), importmap_view, importmap=importmap)
+class DataView(BaseView):
+    # TODO: add roll back ability
+    def __init__(
+        self,
+        storage: CacheContainer = CacheContainerFactory.new(),
+        loader: Optional[DataViewEntityLoader] = None,
+        cache_viewer: Optional[CacheView] = None,
+    ):
+        super().__init__(storage, loader)
+        self._cache_viewer = None
+        if cache_viewer is not None:
+            self.set_cache_viewer(cache_viewer)
+
+    def set_cache_viewer(self, cache_viewer: CacheView) -> bool:
+        self._cache_viewer = cache_viewer
+        cache_viewer._create_proxy_fn = self.create_proxy
+        return True
+
+    def _add_root_stream_to_cache(self, root_stream: T_RootStream) -> bool:
+        if self._cache_viewer is None:
+            raise ValueError("CacheView was not correctly initialized.")
+        return self._cache_viewer._add_root_stream(root_stream, self.create_proxy)
+
+    def add(self, root_stream: T_RootStream) -> bool:
+        return self._add_root_stream(root_stream, self.create_proxy)
+
+    def request_entity(self, entity_id: str, entity_type: str) -> Optional[T_NamedThingLike]:
+        if self._cache_viewer is not None:
+            entity = self._cache_viewer.request_entity(entity_id, entity_type)
+            if entity is not None:
+                self._storage.add(entity)
+                return entity
+        try:
+            entity = super().request_entity(entity_id, entity_type)
+        except NotImplementedError:
+            e = "Loader for DataView was not set correctly. Report this as a bug."
+            logger.error(e)
+            raise NotImplementedError(e)
+
+        if entity is None:
+            logger.error(f"Could not resolve entity with id {entity_id}")
+            raise ValueError(f"Could not resolve entity with id {entity_id}")
+
+        return entity
+
+
+class EntityLoaderABC(EntityLoader):
+    def __init__(
+        self,
+        persistence_interface: PersistenceInterface,
+    ):
+        self.persistence_interface = persistence_interface
+
+    def load(self, source: str) -> T_RootStream:
+        return self.persistence_interface.load(source)
+
+    def load_entity(self, entity_id: str, entity_type: Optional[str] = None) -> Optional[NamedThing]:
+        raise NotImplementedError
+
+
+class DataViewEntityLoader(EntityLoaderABC):
+    def resolve_identifier(self, entity_id: str) -> str:
+        # loc = identifier_to_locator(entity_id, LocationEnum.PID)
+        # TODO: requires access to namespace context
+        # distinguish between local and remote entries
+        # dealing with lazy_loading -> use proxyObject?
+
+        # could represent single item or list of items
+        return ""
+
+    def load(self, source: str) -> T_RootStream:
+        source_url = self.resolve_identifier(source)
+        return super().load(source_url)
+
+
+class ImportMapEntityLoader(EntityLoaderABC):
+    def load(self, source: str) -> T_RootStream:
+        return super().load(source)
+
+
+def get_importmapview(storage_container="default", importmap: Dict[str, Union[str, List[str]]] = {}) -> CacheView:
+    loader = ImportMapEntityLoader(FileIO())
+    importmap_view = CacheView(importmap=importmap, loader=loader)
 
     return importmap_view
 
 
 def get_dataview(storage_container="default", importmap: Optional[Dict] = None) -> DataView:
     # TODO: extend: add storage_container logic: currently always dict
-    data_view = DataView()
-    # init EntityLoader linked to DataView
-    _ = DataViewEntityLoader(RemoteRepository(), data_view)
+    importmap_view = None
     if importmap is not None:
         importmap_view = get_importmapview(importmap=importmap)
-        data_view._importmap_viewer = importmap_view
+
+    loader = DataViewEntityLoader(WebServiceAdapter())
+    data_view = DataView(loader=loader, cache_viewer=importmap_view)
 
     return data_view
