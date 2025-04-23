@@ -9,20 +9,29 @@ Usage: TODO: add usage info
 import logging
 
 from abc import abstractmethod
+from typing import TYPE_CHECKING, Mapping
 
 from pypeh.core.abc import Interface, DataTransferObject
+
+if TYPE_CHECKING:
+    pass
 
 logger = logging.getLogger(__name__)
 
 
 class DataOpsInterface(Interface):
     @abstractmethod
-    def process(self, data: DataTransferObject, config: DataTransferObject):
+    def process(self, dto: DataTransferObject):
         pass
 
 
 class DataValidationInterface(DataOpsInterface):
-    pass
+    def validate(self, data: Mapping, config: Mapping):
+        pass
+
+    def process(self, dto:DataTransferObject):
+        # apply model to metadata
+        return self.validate(dto.data, dto.metadata)
 
 
 class DataEnrichmentInterface(DataOpsInterface):

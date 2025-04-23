@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pypeh.core.interfaces.persistence import PersistenceInterface
-    from pypeh.core.cache.containers import T_NamedThingLike
+    from pypeh.core.models.typing import T_NamedThingLike
     from typing import Dict, Generator, List, Callable
 
 

@@ -16,11 +16,12 @@ from abc import ABC, abstractmethod
 from typing import Dict, Type, TYPE_CHECKING
 
 from pypeh.core.models.peh import NamedThing
-from pypeh.core.cache.utils import T_NamedThingLike, get_entity_type
+from pypeh.core.cache.utils import get_entity_type
 from pypeh.core.models.proxy import TypedLazyProxy
 
 if TYPE_CHECKING:
     from typing import Optional, Generator
+    from pypeh.core.models.typing import T_NamedThingLike
 
 logger = logging.getLogger(__name__)
 
