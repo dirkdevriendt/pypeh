@@ -29,7 +29,7 @@ class DataValidationInterface(DataOpsInterface):
     def validate(self, data: Mapping, config: Mapping):
         pass
 
-    def process(self, dto:DataTransferObject):
+    def process(self, dto: DataTransferObject):
         # apply model to metadata
         return self.validate(dto.data, dto.metadata)
 
