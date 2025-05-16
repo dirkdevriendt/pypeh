@@ -1,0 +1,17 @@
+{   "$schema": "https://www.w3id.org/schemas/pehfdo-v1.0.0.json",
+    "peh_fdo_header": {
+      "peh_fdo_version": "1.0.0",
+      "entry_point": "pypeh.loads",
+      "peh_fdo_data_set_identifier": "https://raw.githubusercontent.com/eu-parc/voc2skosmos-workflow/refs/heads/main/data/people.yml"
+    },
+    "peh_fdo_data_set": [
+      {
+        "value": "example_data_bit_sequence",
+        "content": 1,
+        "peh_model_version": "1.0.0",
+        "file_type": "application/yaml"
+      }
+    ],
+    "FDO_Profile_Ref": "21.T11969/bcc54a2a9ab5bf2a8f2c",
+    "FDO_Type_Ref": "21.T11969/2bb5fec05c00bb89793e"
+  }

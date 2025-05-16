@@ -1,3 +1,5 @@
+import pytest
+
 from pypeh.core.handlers.baseclasses import ManifestHandler
 from pypeh.core.persistence.formats import JsonIO
 from pypeh.core.models.digital_objects import PehFDO
@@ -6,6 +8,7 @@ from tests.utils.dirutils import get_input_path
 
 
 class TestPersistenceHandlers:
+    @pytest.mark.core
     def test_manifest_handler(self):
         root = "core/input/simple.json"
         abs_root = get_input_path(root)

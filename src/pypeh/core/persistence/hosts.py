@@ -79,11 +79,42 @@ class FileIO(PersistenceInterface):
         if format is None:
             format = self.get_format(source)
         adapter = formats.IOAdapterFactory.create(format.lower())
-        return adapter.load(source, **kwargs)
+        try:
+            return adapter.load(source, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in FileIO: {e}")
+            raise
 
-    @classmethod
-    def dump(cls, destination: str, entity: BaseModel, **kwargs) -> None:
+    def dump(self, destination: str, entity: BaseModel, **kwargs) -> None:
         raise NotImplementedError
+
+
+class DirectoryIO(PersistenceInterface):
+    def load(self, source: str, format: Optional[str] = None, **kwargs) -> Generator[Any, None, None]:
+        """
+        Yield data loaded from files in a directory and its subdirectories.
+        This implementation assumes that all supported file formats (jsonn, yaml, csv, xslx, xls)
+        should be loaded.
+        """
+        file_io = FileIO()
+        supported_formats = formats.IOAdapterFactory._adapters.keys()
+
+        for root, _, files in os.walk(source):
+            for file in files:
+                file_path = os.path.join(root, file)
+
+                if format is not None:
+                    yield file_io.load(file_path, format=format, **kwargs)
+
+                else:
+                    inferred_format = FileIO.get_format(file_path)
+                    if inferred_format in supported_formats:
+                        yield file_io.load(file_path, format=inferred_format, **kwargs)
+                    else:
+                        continue  # Skip unsupported formats
+
+    def dump(self, destination: str, entities: List[BaseModel], **kwargs) -> None:
+        pass
 
 
 class DatabaseAdapter(PersistenceInterface, Generic[T_Dataclass]):

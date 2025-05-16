@@ -11,12 +11,12 @@ from pypeh.core.persistence.hosts import FileIO
 from pypeh.core.persistence.formats import YamlIO, load_entities_from_tree
 from pypeh.core.models import peh
 from pypeh.core.models.proxy import TypedLazyProxy
-from pypeh.core.api import read_yaml
 
 from tests.utils.dirutils import get_absolute_path
 
 
 class TestLoading:
+    @pytest.mark.core
     def test_baseview(self):
         source = get_absolute_path("./input/config_basic/observation_results.yaml")
         data_view = BaseView()
@@ -27,6 +27,7 @@ class TestLoading:
         entity = data_view.view_entity("peh:INQUIRE_IT_PERSON_Q1_RESULT1", "ObservationResult")
         assert isinstance(entity, peh.ObservationResult)
 
+    @pytest.mark.core
     def test_load_entities_from_tree(self):
         base_view = BaseView()
         yaml_loader = YamlIO()
@@ -40,6 +41,7 @@ class TestLoading:
                 all_entities.append(entity)
         assert len(all_entities) > 0
 
+    @pytest.mark.core
     def test_importview(self):
         sources = [
             "./input/config_basic/observable_properties.yaml",
@@ -58,6 +60,7 @@ class TestLoading:
         # return entry should have been popped from storage
         assert not import_view._storage.exists(entity_id, entity_type)
 
+    @pytest.mark.core
     def test_dataview(self):
         sources = [
             "./input/config_basic/observable_properties.yaml",
@@ -94,6 +97,7 @@ class TestLoading:
         assert ret.id == entity_id
         assert isinstance(ret, TypedLazyProxy)
 
+    @pytest.mark.core
     def test_load_reference(self):
         sources = [
             "./input/config_basic/observable_properties.yaml",
@@ -110,9 +114,3 @@ class TestLoading:
         assert data_view._cache_viewer._loader is not None
         for s in sources:
             data_view._cache_viewer._loader.load(s)
-
-    # def test_read_yaml(self):
-    #    source = get_absolute_path("./input/config_basic/observable_properties.yaml")
-    #    dataview = read_yaml(source)
-    #    print(dataview._storage)
-    #    assert False

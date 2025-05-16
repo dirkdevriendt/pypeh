@@ -1,11 +1,12 @@
 import pytest
 
-from pypeh.dataframe_adapter.dataops import DataValidationAdapter
+from pypeh.dataframe_adapter.dataops import DataOpsAdapter
 
 
-class TestDataValidationAdapter:
+@pytest.mark.dataframe
+class TestDataOpsAdapter:
     def test_validate(self):
-        adapter = DataValidationAdapter()
+        adapter = DataOpsAdapter()
 
         data = {
             "col1": [1, 2, 3, None],

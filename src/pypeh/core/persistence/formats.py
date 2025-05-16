@@ -98,14 +98,20 @@ class JsonIO(IOAdapter):
         # TODO: test with: fake_file = StringIO('{"key": "value"}')
 
         """
-        if issubclass(target_class, EntityList):
-            return JSONLoader().load(source, target_class)
-        elif is_dataclass(target_class):
-            return validate_dataclass(source, target_class)
-        elif issubclass(target_class, BaseModel):
-            return validate_pydantic(source, target_class)
-        else:
-            raise NotImplementedError
+        try:
+            if issubclass(target_class, EntityList):
+                return JSONLoader().load(source, target_class)
+            elif is_dataclass(target_class):
+                return validate_dataclass(source, target_class)
+            elif issubclass(target_class, BaseModel):
+                return validate_pydantic(source, target_class)
+            else:
+                raise NotImplementedError
+        except ValueError as e:
+            raise ValueError(f"Could not validate the provided data at {source} as {target_class}")
+        except Exception as e:
+            logger.error(f"Error in JsonIO adapter: {e}")
+            raise e
 
     def dump(self, destination: str, entity: BaseModel, **kwargs) -> None:
         # LinkML-based version JSONDumper().dump
@@ -126,10 +132,18 @@ class YamlIO(IOAdapter):
         Load YAML data from a file-like object (e.g., a context manager).
         Args:
         """
-        if issubclass(target_class, EntityList):
-            return YAMLLoader().load(source, target_class)
-        else:
-            raise NotImplementedError
+        try:
+            if issubclass(target_class, EntityList):
+                return YAMLLoader().load(source, target_class)
+            else:
+                raise NotImplementedError
+        except ValueError as e:
+            raise ValueError(f"Could not validate the provided data at {source} as {target_class}")
+        except TypeError as e:
+            raise TypeError(f"Could not validate the provided data at {source} as {target_class}")
+        except Exception as e:
+            logger.error(f"Error in YamlIO adapter: {e}")
+            raise
 
     def dump(self, destination: str, entity: EntityList, fn: Callable = YAMLDumper().dump, **kwargs):
         raise NotImplementedError

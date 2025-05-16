@@ -13,15 +13,17 @@ dependencies = [
 
 [project.optional-dependencies]
 core = []
-pandas_adapter = ["pandas"]
-dataframe-adapter = [
-    "peh-validation-library",
-]
+ro-crate-adapter = ["rocrate"]
 
 [dependency-groups]
-test = [
-	"pytest>=8.2.0,<9",
-	#"responses",
+test-core = [
+    "pytest>=8.2.0,<9",
+]
+test-dataframe = [
+    "pandas",
+]
+test-rocrate = [
+    "rocrate",
 ]
 dev = [
     "ruff>=0.4.4,<0.5",
@@ -32,7 +34,7 @@ dev = [
 
 [tool.uv]
 default-groups = [
-    "test",
+    "test-core",
     "dev",
 ]
 
@@ -43,6 +45,7 @@ peh-validation-library = { git = "https://github.com/eu-parc/peh-validation-libr
 include = [
     "src/pypeh.core",
     "src/pypeh.dataframe_adapter",
+	"src.pypeh.rocrate_adapter",
 	"src/pypeh/py.typed",
 ]
 
@@ -50,12 +53,14 @@ include = [
 include = [
     "src/pypeh.core",
     "src/pypeh.dataframe_adapter",
+	"src.pypeh.rocrate_adapter",
 	"src/pypeh/py.typed",
 ]
 
 [tool.hatch.build.targets.wheel.sources]
 "src/pypeh.core" = "pypeh.core"
 "src/pypeh.dataframe_adapter" = "pypeh.dataframe_adapter"
+"src.pypeh.rocrate_adapter" = "pypeh.rocrate_adapter"
 
 [build-system]
 requires = ["hatchling"]
@@ -68,14 +73,20 @@ pythonpath = [
 addopts = [
     "--import-mode=importlib",
 ]
+markers = [
+	"core: tests for core functionality",
+    "dataframe: tests for dataframe adapter",
+    "rocrate: tests for rocrate adapter",
+    "interface: tests for shared interfaces",
+]
 
 [tool.ruff]
 # Same as Black.
 line-length  = 120
 indent-width = 4
 
-# Assume Python 3.8
-target-version = "py38"
+# Assume Python 3.10
+target-version = "py310"
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.

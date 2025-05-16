@@ -8,7 +8,6 @@ Usage: TODO: add usage info
 
 import logging
 
-from abc import abstractmethod
 from typing import TYPE_CHECKING, Mapping
 
 from pypeh.core.abc import Interface, DataTransferObject
@@ -20,23 +19,18 @@ logger = logging.getLogger(__name__)
 
 
 class DataOpsInterface(Interface):
-    @abstractmethod
-    def process(self, dto: DataTransferObject):
-        pass
-
-
-class DataValidationInterface(DataOpsInterface):
+    """
+    Example of DataOps methods
     def validate(self, data: Mapping, config: Mapping):
         pass
 
-    def process(self, dto: DataTransferObject):
-        # apply model to metadata
-        return self.validate(dto.data, dto.metadata)
+    def summarize(self, dat: Mapping, config: Mapping):
+        pass
+    """
 
-
-class DataEnrichmentInterface(DataOpsInterface):
-    pass
-
-
-class DataSummaryInterface(DataOpsInterface):
-    pass
+    def process(self, dto: DataTransferObject, command: str):
+        method = getattr(self, command, None)
+        if method and callable(method):
+            return method(dto.data, dto.metadata)
+        else:
+            raise ValueError(f"Unknown command for DataOpsInterface: {command}")

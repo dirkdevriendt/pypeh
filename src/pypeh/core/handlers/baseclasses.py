@@ -38,11 +38,11 @@ class DataOpsHandler(Handler):
         if engine == AdapterEnum.DATAFRAME:
             try:
                 # TODO: currently always DataValidationAdapter, adapt logic
-                from dataframe_adapter.dataops import DataValidationAdapter
+                from dataframe_adapter.dataops import DataOpsAdapter
             except ImportError:
                 logging.error(f"The {engine} requires the 'dataframe_adapter' module. Please install it.")
                 raise ImportError(f"The {engine} requires the 'dataframe_adapter' module. Please install it.")
-            return DataOpsHandler(adapter=DataValidationAdapter())
+            return DataOpsHandler(adapter=DataOpsAdapter())
 
         raise ValueError(f"Unsupported command type or engine: {engine}")
 
