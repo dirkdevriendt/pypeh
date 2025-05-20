@@ -6,6 +6,9 @@ specification on what the custom part should look like.
 """
 
 import logging
+from typing import Mapping
+
+from peh_validation_library import Validator
 
 from pypeh.core.abc import DataTransferObject
 from pypeh.core.interfaces.dataops import (
@@ -15,6 +18,8 @@ from pypeh.core.interfaces.dataops import (
     DataSummaryInterface,
 )
 from pypeh.core.interfaces.persistence import PersistenceInterface
+from pypeh.core.models.validation_errors import ValidationReport
+from pypeh.dataframe_adapter.validation.parsers import parse_config, parse_error_report
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +35,15 @@ class DataValidationAdapter(DataValidationInterface):
     DataValidationInterface abstract base class.
     """
 
-    def process(self, data: DataTransferObject, config: DataTransferObject):
-        pass
+    def validate(self, data: Mapping, config: Mapping) -> ValidationReport:
+        config = parse_config(config)
+
+        validator = Validator.build_validator(config, data, logger)
+        return parse_error_report(validator.validate())
+
+    def process(self, dto: DataTransferObject):
+        # apply model to metadata
+        return self.validate(dto.data, dto.metadata)
 
 
 class DataEnrichmentAdapter(DataEnrichmentInterface):
