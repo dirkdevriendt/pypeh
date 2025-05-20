@@ -3,7 +3,7 @@ name = "pypeh"
 version = "0.0.1"
 description = "A modular project with a core library and multiple adapters"
 authors = [{ name = "VITO Health DMT" }]
-requires-python = ">=3.8.1, <4.0.0"
+requires-python = ">=3.10, <4.0.0"
 readme = "README.md"
 license = "MIT"
 dependencies = ["linkml~=1.8"]
@@ -11,6 +11,9 @@ dependencies = ["linkml~=1.8"]
 [project.optional-dependencies]
 core = []
 pandas_adapter = ["pandas"]
+dataframe-adapter = [
+    "peh-validation-library",
+]
 
 [dependency-groups]
 test = [
@@ -29,6 +32,9 @@ default-groups = [
     "test",
     "dev",
 ]
+
+[tool.uv.sources]
+peh-validation-library = { git = "https://github.com/eu-parc/peh-validation-library.git", tag = "v0.1.0" }
 
 [tool.hatch.build.targets.sdist]
 include = [
