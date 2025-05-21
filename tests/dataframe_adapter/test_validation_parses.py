@@ -2,13 +2,14 @@ import pytest
 
 from pypeh.dataframe_adapter.validation.parsers import (
     parse_validation_expression,
-    parse_validation_design,
+    parse_validation_design,  # TODO separate test required
     parse_columns,
     parse_config,
 )
-from pypeh.dataframe_adapter.validation.check_functions import decimals_precision
+from pypeh.dataframe_adapter.validation.check_functions import decimals_precision  # TODO test required
 
 
+@pytest.mark.dataframe
 @pytest.mark.parametrize(
     "input_data, expected_output",
     [
@@ -101,6 +102,7 @@ def test_parse_validation_expression(input_data, expected_output):
     assert result == expected_output
 
 
+@pytest.mark.dataframe
 @pytest.mark.parametrize(
     "columns, expected_output",
     [
@@ -164,6 +166,7 @@ def test_parse_columns(columns, expected_output):
     assert result == expected_output
 
 
+@pytest.mark.dataframe
 @pytest.mark.parametrize(
     "config, expected_output",
     [

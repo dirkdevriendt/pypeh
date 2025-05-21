@@ -1,3 +1,5 @@
+import pytest
+
 from pypeh.core.interfaces import persistence, dataops
 from pypeh.core.abc import Interface, HandlerChain
 from pypeh.core.handlers.baseclasses import DataOpsHandler
@@ -14,9 +16,11 @@ class DataOpsTestAdapter(dataops.DataOpsInterface):
 
 
 class TestInterfaceABC:
+    @pytest.mark.core
     def test_basic(self):
         assert issubclass(persistence.RepositoryInterface, Interface)
 
+    @pytest.mark.core
     def test_handler_chain(self):
         ll = HandlerChain()
         vh = DataOpsHandler(DataOpsTestAdapter())
@@ -39,6 +43,7 @@ class TestLocalPersistence:
 
 
 class TestFileSystem:
+    @pytest.mark.core
     def test_json_file_system(self):
         root = get_input_path("core/input/simple.json")
         adapter = JsonIO()
