@@ -14,6 +14,7 @@ dependencies = [
 core = []
 ro-crate-adapter = ["rocrate"]
 dataframe-adapter = ["peh-validation-library"]
+test-core = ["pytest>=8.2.0,<9"]
 
 [dependency-groups]
 test-core = [
