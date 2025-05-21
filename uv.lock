@@ -901,6 +901,9 @@ dataframe-adapter = [
 ro-crate-adapter = [
     { name = "rocrate" },
 ]
+test-core = [
+    { name = "pytest" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -923,6 +926,7 @@ test-rocrate = [
 requires-dist = [
     { name = "linkml", specifier = ">=1.9.1" },
     { name = "peh-validation-library", marker = "extra == 'dataframe-adapter'", git = "https://github.com/eu-parc/peh-validation-library.git?tag=v0.1.0" },
+    { name = "pytest", marker = "extra == 'test-core'", specifier = ">=8.2.0,<9" },
     { name = "rocrate", marker = "extra == 'ro-crate-adapter'" },
 ]
 
