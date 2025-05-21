@@ -8,19 +8,19 @@ readme = "README.md"
 license = "MIT"
 dependencies = [
     "linkml>=1.9.1",
-    "peh-validation-library>=0.1.0",
 ]
 
 [project.optional-dependencies]
 core = []
 ro-crate-adapter = ["rocrate"]
+dataframe-adapter = ["peh-validation-library"]
 
 [dependency-groups]
 test-core = [
     "pytest>=8.2.0,<9",
 ]
 test-dataframe = [
-    "pandas",
+    "peh-validation-library>=0.1.0",
 ]
 test-rocrate = [
     "rocrate",
