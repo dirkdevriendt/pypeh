@@ -1,5 +1,7 @@
 import pytest
 
+from peh_model import peh
+
 from pypeh.core.cache.dataview import (
     BaseView,
     ImportMapEntityLoader,
@@ -9,7 +11,6 @@ from pypeh.core.cache.dataview import (
 from pypeh.core.cache.containers import MappingContainer
 from pypeh.core.persistence.hosts import FileIO
 from pypeh.core.persistence.formats import YamlIO, load_entities_from_tree
-from pypeh.core.models import peh
 from pypeh.core.models.proxy import TypedLazyProxy
 
 from tests.utils.dirutils import get_absolute_path

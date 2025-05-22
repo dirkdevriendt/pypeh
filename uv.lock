@@ -698,6 +698,19 @@ wheels = [
 ]
 
 [[package]]
+name = "peh-model"
+version = "0.0.1a2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "linkml-runtime" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/75/0e/51759f0a58c3187f253a2d385148efbdb1595c5a29e648e717460472af35/peh_model-0.0.1a2.tar.gz", hash = "sha256:6e7bf1aeb4b7ce2a1b70e06e0661809a454fe6d2955964165f5b618a237defa4", size = 37718 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a8/c2/7c722ff6f61ee22ad48710016a5dc98a77ba9473fc09d9b8cd5502a4c267/peh_model-0.0.1a2-py3-none-any.whl", hash = "sha256:8f565d20aeab01a3fd3e0f91d4e13ebb3e7b75a0ea73eff40ef70b7d4b3bb8f7", size = 37877 },
+]
+
+[[package]]
 name = "peh-validation-library"
 version = "0.1.0"
 source = { git = "https://github.com/eu-parc/peh-validation-library.git?tag=v0.1.0#27f9cdc51e470846b7c0aaf27e2aa0807ce0f1d3" }
@@ -892,6 +905,7 @@ version = "0.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "linkml" },
+    { name = "peh-model" },
 ]
 
 [package.optional-dependencies]
@@ -925,6 +939,7 @@ test-rocrate = [
 [package.metadata]
 requires-dist = [
     { name = "linkml", specifier = ">=1.9.1" },
+    { name = "peh-model" },
     { name = "peh-validation-library", marker = "extra == 'dataframe-adapter'", git = "https://github.com/eu-parc/peh-validation-library.git?tag=v0.1.0" },
     { name = "pytest", marker = "extra == 'test-core'", specifier = ">=8.2.0,<9" },
     { name = "rocrate", marker = "extra == 'ro-crate-adapter'" },

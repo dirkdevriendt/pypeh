@@ -11,7 +11,7 @@ from pydantic import TypeAdapter, BaseModel
 from typing import TYPE_CHECKING, Mapping, Union, Any
 
 from pypeh.core.interfaces.persistence import PersistenceInterface
-from pypeh.core.models.peh import EntityList, NamedThing, YAMLRoot, NamedThingId
+from peh_model.peh import EntityList, NamedThing, YAMLRoot, NamedThingId
 from pypeh.core.models.typing import T_Dataclass, T_RootStream, IOLike
 
 if TYPE_CHECKING:

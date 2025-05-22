@@ -1,7 +1,7 @@
 from typing import TypeVar, Union, Sequence, List, Dict, Any, Mapping, TextIO
 from pydantic import BaseModel
+from peh_model.peh import EntityList, YAMLRoot, NamedThingId, NamedThing
 
-from pypeh.core.models.peh import EntityList, YAMLRoot, NamedThingId, NamedThing
 from pypeh.core.models.proxy import TypedLazyProxy
 
 

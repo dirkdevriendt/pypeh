@@ -8,6 +8,7 @@ readme = "README.md"
 license = "MIT"
 dependencies = [
     "linkml>=1.9.1",
+	"peh-model"
 ]
 
 [project.optional-dependencies]

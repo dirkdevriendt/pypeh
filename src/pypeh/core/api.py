@@ -6,12 +6,12 @@ TODO: expose functions
 from __future__ import annotations
 
 from pathlib import Path
+from peh_model.peh import EntityList
 from typing import TYPE_CHECKING
 
 from pypeh.core.commands.ingestion import ManifestIngestionCommand, DataIngestionCommand
 from pypeh.core.cache.dataview import get_dataview
 from pypeh.core.persistence.formats import YamlIO
-from pypeh.core.models.peh import EntityList
 
 if TYPE_CHECKING:
     from typing import Union, Optional, Mapping, List

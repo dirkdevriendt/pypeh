@@ -2,10 +2,11 @@ import pytest
 import abc
 
 from typing import Protocol
+from pypeh.core.models.validation_errors import ValidationReport
 
 
 class DataOpsProtocol(Protocol):
-    def validate(self, data, config): ...
+    def validate(self, data, config) -> ValidationReport: ...
 
 
 class BaseDataOpsTests(abc.ABC):
