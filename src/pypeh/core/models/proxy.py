@@ -1,7 +1,6 @@
 import logging
 
-from pypeh.core.models import peh
-
+from peh_model import peh
 from typing import Type, Callable
 
 
@@ -48,16 +47,6 @@ CLASS_REFERENCES = {
     "SampleCollectionId": peh.SampleCollection,
     "StudySubjectId": peh.StudySubject,
     "StudySubjectGroupId": peh.StudySubjectGroup,
-    # ObservationId
-    "MetadataObservationId": peh.MetadataObservation,
-    "QuestionnaireObservationId": peh.QuestionnaireObservation,
-    "SamplingObservationId": peh.SamplingObservation,
-    "GeospatialObservationId": peh.GeospatialObservation,
-    # ObservationResultId
-    "MetadataResultId": peh.MetadataResult,
-    "QuestionnaireResultId": peh.QuestionnaireResult,
-    "SamplingResultId": peh.SamplingResult,
-    "GeospatialResultId": peh.GeospatialResult,
 }
 
 

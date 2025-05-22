@@ -5,11 +5,11 @@ be copied across projects. Ideally, it also contains a
 specification on what the custom part should look like.
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Mapping
 
 from peh_validation_library import Validator
-
 from typing import TYPE_CHECKING
 
 from pypeh.core.interfaces.dataops import (
@@ -19,7 +19,7 @@ from pypeh.dataframe_adapter.validation.parsers import parse_config, parse_error
 from pypeh.core.models.validation_errors import ValidationReport
 
 if TYPE_CHECKING:
-    from typing import Mapping
+    from typing import Mapping, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class DataOpsAdapter(DataOpsInterface):
     `self.process(dto, "validate")`
     """
 
-    def validate(self, data: Mapping, config: Mapping) -> ValidationReport:
+    def validate(self, data: dict[str, Sequence], config: Mapping) -> ValidationReport:
         config = parse_config(config)
 
         validator = Validator.build_validator(config, data, logger)

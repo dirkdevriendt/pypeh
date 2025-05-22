@@ -13,9 +13,9 @@ from __future__ import annotations
 import logging
 
 from abc import ABC, abstractmethod
+from peh_model.peh import NamedThing
 from typing import Dict, Type, TYPE_CHECKING
 
-from pypeh.core.models.peh import NamedThing
 from pypeh.core.cache.utils import get_entity_type
 from pypeh.core.models.proxy import TypedLazyProxy
 

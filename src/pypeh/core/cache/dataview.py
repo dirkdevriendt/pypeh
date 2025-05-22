@@ -7,8 +7,8 @@ from __future__ import annotations
 import logging
 
 from typing import Union, Optional, Protocol, TYPE_CHECKING, Sequence
+from peh_model.peh import NamedThing
 
-from pypeh.core.models.peh import NamedThing
 from pypeh.core.models.typing import T_RootStream
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from pypeh.core.models import proxy
