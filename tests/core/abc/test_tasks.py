@@ -4,7 +4,7 @@ from pypeh.core.commands.ingestion import ManifestIngestionCommand
 from pypeh.core.tasks.ingestion import ManifestIngestionTask
 from pypeh.core.abc import HandlerChain
 
-from tests.utils.dirutils import get_input_path
+from tests.test_utils.dirutils import get_input_path
 
 
 class TestIngestionTask:

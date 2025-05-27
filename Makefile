@@ -2,11 +2,11 @@
 
 test-core:
 	uv pip install -e ".[core, test-core]"
-	uv run pytest -m core -W ignore tests/core
+	uv run pytest tests -m core --disable-warnings
 
 test-dataframe:
-	uv pip install -e ".[dataframe-adapter, test-core]"
-	uv run pytest -m dataframe -W ignore tests/dataframe_adapter
+	uv pip install -e ".[pandera-adapter, test-core]"
+	uv run pytest tests/adapters tests/core/interfaces -m dataframe --disable-warnings
 
 test-rocrate:
 	uv pip install -e ".[rocrate-adapter, test-core]"

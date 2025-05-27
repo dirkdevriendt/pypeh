@@ -10,7 +10,7 @@ from linkml_runtime.dumpers import YAMLDumper, JSONDumper
 from pydantic import TypeAdapter, BaseModel
 from typing import TYPE_CHECKING, Mapping, Union, Any
 
-from pypeh.core.interfaces.persistence import PersistenceInterface
+from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
 from peh_model.peh import EntityList, NamedThing, YAMLRoot, NamedThingId
 from pypeh.core.models.typing import T_Dataclass, T_RootStream, IOLike
 
@@ -152,12 +152,12 @@ class YamlIO(IOAdapter):
 class CsvIO(IOAdapter):
     """
     Public interace for the Csv Adapter
-    Actual implementation is in dataframe_adapter
+    Actual implementation is in persistence/dataframe adapter
     """
 
     def load(self, source: str, **kwargs):
         try:
-            from dataframe_adapter.persistence import CsvIOImpl
+            from pypeh.adapters.outbound.persistence.dataframe import CsvIOImpl
         except ImportError:
             message = "The CsvIO class requires the 'dataframe_adapter' module. Please install it."
             logging.error(message)
@@ -171,7 +171,7 @@ class CsvIO(IOAdapter):
 class ExcelIO(IOAdapter):
     """
     Public interface for Excel repository
-    Actual implementation is in dataframe_adapter
+    Actual implementation is in external/persistence/dataframe adapter
     """
 
     # source = StringIO(response.text)
@@ -179,7 +179,7 @@ class ExcelIO(IOAdapter):
 
     def load(self, source: str, **kwargs):
         try:
-            from dataframe_adapter.persistence import ExcelIOImpl
+            from pypeh.adapters.outbound.persistence.dataframe import ExcelIOImpl
         except ImportError:
             message = "The ExcelIO class requires the 'dataframe_adapter' module. Please install it."
             logging.error(message)

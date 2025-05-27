@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import psycopg2
 
-from pypeh.core.persistence.hosts import DatabaseAdapter
+from pypeh.adapters.outbound.persistence.hosts import DatabaseAdapter
 
 if TYPE_CHECKING:
     from typing import Dict, List, Any, Optional

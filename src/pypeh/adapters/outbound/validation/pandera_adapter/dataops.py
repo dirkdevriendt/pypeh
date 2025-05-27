@@ -12,10 +12,10 @@ import logging
 from peh_validation_library import Validator
 from typing import TYPE_CHECKING
 
-from pypeh.core.interfaces.dataops import (
+from pypeh.core.interfaces.outbound.dataops import (
     DataOpsInterface,
 )
-from pypeh.dataframe_adapter.validation.parsers import parse_config, parse_error_report
+from pypeh.adapters.outbound.validation.pandera_adapter.parsers import parse_config, parse_error_report
 from pypeh.core.models.validation_errors import ValidationReport
 
 if TYPE_CHECKING:

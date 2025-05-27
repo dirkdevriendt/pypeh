@@ -9,11 +9,11 @@ from pypeh.core.cache.dataview import (
     get_importmapview,
 )
 from pypeh.core.cache.containers import MappingContainer
-from pypeh.core.persistence.hosts import FileIO
-from pypeh.core.persistence.formats import YamlIO, load_entities_from_tree
+from pypeh.adapters.outbound.persistence.hosts import FileIO
+from pypeh.adapters.outbound.persistence.formats import YamlIO, load_entities_from_tree
 from pypeh.core.models.proxy import TypedLazyProxy
 
-from tests.utils.dirutils import get_absolute_path
+from tests.test_utils.dirutils import get_absolute_path
 
 
 class TestLoading:

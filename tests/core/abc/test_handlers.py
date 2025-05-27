@@ -1,10 +1,10 @@
 import pytest
 
 from pypeh.core.handlers.baseclasses import ManifestHandler
-from pypeh.core.persistence.formats import JsonIO
+from pypeh.adapters.outbound.persistence.formats import JsonIO
 from pypeh.core.models.digital_objects import PehFDO
 
-from tests.utils.dirutils import get_input_path
+from tests.test_utils.dirutils import get_input_path
 
 
 class TestPersistenceHandlers:

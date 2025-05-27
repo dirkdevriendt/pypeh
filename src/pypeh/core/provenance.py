@@ -1,14 +1,8 @@
 import logging
 import platform
 
-__version__ = "undefined"
+from pypeh import __version__
 
-try:
-    from . import _version
-
-    __version__ = _version.version
-except ImportError:
-    pass
 logger = logging.getLogger(__name__)
 
 

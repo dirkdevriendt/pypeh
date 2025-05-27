@@ -5,7 +5,7 @@ import pandas as pd
 
 from typing import TYPE_CHECKING
 
-from pypeh.core.persistence.formats import IOAdapter
+from pypeh.adapters.outbound.persistence.formats import IOAdapter
 
 if TYPE_CHECKING:
     pass

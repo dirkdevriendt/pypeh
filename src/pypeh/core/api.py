@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 from pypeh.core.commands.ingestion import ManifestIngestionCommand, DataIngestionCommand
 from pypeh.core.cache.dataview import get_dataview
-from pypeh.core.persistence.formats import YamlIO
+from pypeh.adapters.outbound.persistence.formats import YamlIO
 
 if TYPE_CHECKING:
     from typing import Union, Optional, Mapping, List
