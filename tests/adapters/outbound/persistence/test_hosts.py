@@ -1,9 +1,9 @@
 import pytest
 
-from pypeh.core.persistence.hosts import FileIO, DirectoryIO, DatabaseAdapter, WebServiceAdapter
+from pypeh.adapters.outbound.persistence.hosts import FileIO, DirectoryIO, DatabaseAdapter, WebServiceAdapter
 
 
-from tests.utils.dirutils import get_absolute_path
+from tests.test_utils.dirutils import get_absolute_path
 
 
 class TestFileIO:

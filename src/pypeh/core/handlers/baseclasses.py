@@ -5,11 +5,11 @@ import logging
 from typing import TYPE_CHECKING
 from pathlib import Path
 
-from pypeh.core.interfaces import dataops, persistence
+from pypeh.core.interfaces.outbound import dataops, persistence
 from pypeh.core.abc import Handler, Context
 from pypeh.core.models.constants import AdapterEnum
-from pypeh.core.persistence.formats import JsonIO
-from pypeh.core.persistence.hosts import WebServiceAdapter
+from pypeh.adapters.outbound.persistence.formats import JsonIO
+from pypeh.adapters.outbound.persistence.hosts import WebServiceAdapter
 from pypeh.core.utils import resolve_identifiers
 
 if TYPE_CHECKING:
@@ -38,7 +38,7 @@ class DataOpsHandler(Handler):
         if engine == AdapterEnum.DATAFRAME:
             try:
                 # TODO: currently always DataValidationAdapter, adapt logic
-                from dataframe_adapter.dataops import DataOpsAdapter
+                from pypeh.adapters.outbound.validation.pandera_adapter.dataops import DataOpsAdapter
             except ImportError:
                 logging.error(f"The {engine} requires the 'dataframe_adapter' module. Please install it.")
                 raise ImportError(f"The {engine} requires the 'dataframe_adapter' module. Please install it.")
@@ -66,7 +66,7 @@ class PersistenceHandler(Handler):
     def create(cls, engine: AdapterEnum, fn: str) -> "PersistenceHandler":
         if engine == AdapterEnum.DATAFRAME:
             try:
-                from dataframe_adapter.persistence import CsvIOImpl
+                from pypeh.adapters.outbound.persistence.dataframe import CsvIOImpl
             except ImportError:
                 logging.error(f"The {engine} requires the 'dataframe_adapter' module. Please install it.")
                 raise ImportError(f"The {engine} requires the 'dataframe_adapter' module. Please install it.")

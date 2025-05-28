@@ -4,7 +4,7 @@ import logging
 
 from typing import TYPE_CHECKING
 
-from pypeh.core.interfaces.persistence import PersistenceInterface
+from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
 
 
 if TYPE_CHECKING:

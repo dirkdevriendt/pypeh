@@ -10,7 +10,7 @@ from pypeh.core.abc import Interface
 if TYPE_CHECKING:
     from typing import Union
     from pydantic import BaseModel
-    from pypeh.core.models.peh import YAMLRoot
+    from peh_model.peh import YAMLRoot
 
 logger = logging.getLogger(__name__)
 

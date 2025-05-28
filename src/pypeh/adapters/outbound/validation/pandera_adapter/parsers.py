@@ -13,7 +13,7 @@ from pypeh.core.models.validation_errors import ValidationReport
 def parse_single_expression(expression: ValidationExpression) -> Mapping:
     command = expression.command
     try:
-        command = getattr(importlib.import_module("pypeh.dataframe_adapter.validation.check_functions"), command)
+        command = getattr(importlib.import_module("pypeh.adapters.outbound.validation.pandera_adapter.check_functions"), command)
     except AttributeError:
         pass
     return {

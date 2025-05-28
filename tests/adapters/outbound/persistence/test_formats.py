@@ -1,9 +1,9 @@
 import pytest
 
-from pypeh.core.persistence.formats import IOAdapterFactory, IOAdapter, YamlIO
+from pypeh.adapters.outbound.persistence.formats import IOAdapterFactory, IOAdapter, YamlIO
 
 from pydantic import BaseModel
-from tests.utils.dirutils import get_absolute_path
+from tests.test_utils.dirutils import get_absolute_path
 
 
 class MockAdapter(IOAdapter):

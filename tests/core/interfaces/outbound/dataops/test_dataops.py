@@ -1,7 +1,9 @@
 import pytest
+import abc
 
-from pypeh.dataframe_adapter.dataops import DataOpsAdapter
+from typing import Protocol
 
+from pypeh.core.models.validation_errors import ValidationReport
 from pypeh.core.models.constants import ValidationErrorLevel
 from pypeh.core.models.validation_dto import (
     ValidationExpression,
@@ -10,11 +12,20 @@ from pypeh.core.models.validation_dto import (
     ValidationConfig,
 )
 
+class DataOpsProtocol(Protocol):
+    def validate(self, data, config) -> ValidationReport: ...
 
-@pytest.mark.dataframe
-class TestDataOpsAdapter:
+
+class TestDataOps(abc.ABC):
+    """Abstract base class for testing dataops adapters."""
+
+    @abc.abstractmethod
+    def get_adapter(self) -> DataOpsProtocol:
+        """Return the adapter implementation to test."""
+        raise NotImplementedError
+
     def test_validate(self):
-        adapter = DataOpsAdapter()
+        adapter = self.get_adapter()
 
         data = {
             "col1": [1, 2, 3, None],
@@ -59,3 +70,20 @@ class TestDataOpsAdapter:
 
         assert result is not None
         assert len(result) == 1
+
+
+@pytest.mark.dataframe
+class TestDataFrameDataOps(TestDataOps):
+    def get_adapter(self) -> DataOpsProtocol:
+        try:
+            from pypeh.adapters.outbound.validation.pandera_adapter import dataops as dfops
+
+            return dfops.DataOpsAdapter()
+        except ImportError:
+            pytest.skip("Necessary modules not installed")
+
+
+@pytest.mark.other
+class TestUnknownDataOps(TestDataOps):
+    def get_adapter(self) -> DataOpsProtocol:
+        raise NotImplementedError

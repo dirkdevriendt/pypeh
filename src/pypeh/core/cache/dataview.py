@@ -12,13 +12,13 @@ from peh_model.peh import NamedThing
 from pypeh.core.models.typing import T_RootStream
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from pypeh.core.models import proxy
-from pypeh.core.persistence.hosts import FileIO, WebServiceAdapter
-from pypeh.core.persistence.formats import load_entities_from_tree
+from pypeh.adapters.outbound.persistence.hosts import FileIO, WebServiceAdapter
+from pypeh.adapters.outbound.persistence.formats import load_entities_from_tree
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from pypeh.core.interfaces.persistence import PersistenceInterface
+    from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
     from pypeh.core.models.typing import T_NamedThingLike
     from typing import Dict, Generator, List, Callable
 

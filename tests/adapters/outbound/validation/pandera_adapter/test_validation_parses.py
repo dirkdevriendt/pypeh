@@ -1,12 +1,11 @@
 import pytest
 
-from pypeh.dataframe_adapter.validation.parsers import (
+from pypeh.adapters.outbound.validation.pandera_adapter.parsers import (
     parse_validation_expression,
     parse_validation_design,  # TODO separate test required
     parse_columns,
     parse_config,
 )
-from pypeh.dataframe_adapter.validation.check_functions import decimals_precision  # TODO test required
 from pypeh.core.models.validation_dto import (
     ValidationExpression,
     ValidationDesign,

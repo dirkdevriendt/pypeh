@@ -13,8 +13,8 @@ from abc import abstractmethod
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Generic
 
-from pypeh.core.interfaces.persistence import PersistenceInterface
-from pypeh.core.persistence import formats
+from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
+from pypeh.adapters.outbound.persistence import formats
 from pypeh.core.models.typing import T_Dataclass
 
 logger = logging.getLogger(__name__)
@@ -173,7 +173,7 @@ class DatabaseAdapter(PersistenceInterface, Generic[T_Dataclass]):
             return target_class.model_validate(data)  # type: ignore
         else:
             # Fall back to your existing validation methods
-            from pypeh.core.persistence.formats import validate_dataclass, validate_pydantic
+            from pypeh.adapters.outbound.persistence.formats import validate_dataclass, validate_pydantic
             from dataclasses import is_dataclass
 
             if is_dataclass(target_class):
