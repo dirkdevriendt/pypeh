@@ -11,6 +11,7 @@ import logging
 
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Mapping
+from enum import Enum
 
 from pypeh.core.abc import Interface, DataTransferObject
 
@@ -23,18 +24,21 @@ logger = logging.getLogger(__name__)
 
 class DataOpsInterface(Interface):
     """
-    Example of DataOps methods
+    Example of methods for specialized DataOps implementations
     def validate(self, data: Mapping, config: Mapping):
         pass
 
-    def summarize(self, dat: Mapping, config: Mapping):
+    def summarize(self, data: Mapping, config: Mapping):
+        pass
+
+    def export(self, data: Mapping, config: Mapping, target: str):
         pass
     """
 
-    def process(self, dto: DataTransferObject, command: str):
+    def process(self, dto: DataTransferObject, command: str, **kwargs):
         method = getattr(self, command, None)
         if method and callable(method):
-            return method(dto.data, dto.metadata)
+            return method(dto.data, dto.metadata, **kwargs)
         else:
             raise ValueError(f"Unknown command for DataOpsInterface: {command}")
 
@@ -50,3 +54,15 @@ class ValidationInterface(DataOpsInterface):
             raise NotImplementedError
         else:
             return self.validate(dto.data, dto.metadata)
+
+
+class ExportTypeEnum(str, Enum):
+    EmptyDataTemplate = 'EmptyDataTemplate'
+    TemplatedData = 'TemplatedData'
+    DataDictionary = 'DataDictionary'
+
+class ExportInterface(DataOpsInterface):
+
+    @abstractmethod
+    def export(self, export_type: ExportTypeEnum, data: Mapping, config: Mapping, target: str):
+        raise NotImplementedError
