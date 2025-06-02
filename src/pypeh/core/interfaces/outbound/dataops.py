@@ -47,7 +47,7 @@ class ValidationInterface(DataOpsInterface):
 
     @abstractmethod
     def validate(self, data: dict[str, Sequence], config: Mapping) -> ValidationReport:
-        raise NotImplementedError        
+        raise NotImplementedError
     
     def process(self, dto: DataTransferObject, command: Optional[str] = None):
         if command is not None:

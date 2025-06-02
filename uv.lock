@@ -920,6 +920,9 @@ rocrate-adapter = [
 test-core = [
     { name = "pytest" },
 ]
+test-validation = [
+    { name = "peh-validation-library" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -937,17 +940,21 @@ test-dataframe = [
 test-rocrate = [
     { name = "rocrate" },
 ]
+test-validation = [
+    { name = "peh-validation-library" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "linkml", specifier = ">=1.9.1" },
     { name = "peh-model" },
     { name = "peh-validation-library", marker = "extra == 'pandera-adapter'", git = "https://github.com/eu-parc/peh-validation-library.git?tag=v0.1.0" },
+    { name = "peh-validation-library", marker = "extra == 'test-validation'", git = "https://github.com/eu-parc/peh-validation-library.git?tag=v0.1.0" },
     { name = "pytest", marker = "extra == 'test-core'", specifier = ">=8.2.0,<9" },
     { name = "rocrate", marker = "extra == 'rocrate-adapter'" },
     { name = "xlsxwriter" },
 ]
-provides-extras = ["core", "rocrate-adapter", "pandera-adapter", "test-core"]
+provides-extras = ["core", "rocrate-adapter", "pandera-adapter", "test-core", "test-validation"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -959,6 +966,7 @@ dev = [
 test-core = [{ name = "pytest", specifier = ">=8.2.0,<9" }]
 test-dataframe = [{ name = "peh-validation-library", git = "https://github.com/eu-parc/peh-validation-library.git?tag=v0.1.0" }]
 test-rocrate = [{ name = "rocrate" }]
+test-validation = [{ name = "peh-validation-library", git = "https://github.com/eu-parc/peh-validation-library.git?tag=v0.1.0" }]
 
 [[package]]
 name = "pyshex"

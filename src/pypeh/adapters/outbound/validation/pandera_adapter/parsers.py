@@ -64,9 +64,7 @@ def parse_columns(columns: Sequence[ColumnValidation]) -> Mapping:
                 "required": column.required,
                 "nullable": column.nullable,
                 "unique": False,
-                "checks": [parse_validation_design(check) for check in column.validations]
-                if column.validations
-                else None,
+                "checks": [parse_validation_design(check) for check in column.validations] if column.validations else [],
             }
         )
     return parsed_columns
@@ -77,7 +75,7 @@ def parse_config(config: ValidationConfig) -> Mapping:
         "name": config.name,
         "columns": parse_columns(config.columns),
         "ids": config.identifying_column_names,
-        "checks": [parse_validation_design(check) for check in config.validations] if config.validations else None,
+        "checks": [parse_validation_design(check) for check in config.validations] if config.validations else [],
     }
 
 

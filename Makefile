@@ -8,6 +8,10 @@ test-dataframe:
 	uv pip install -e ".[pandera-adapter, test-core]"
 	uv run pytest tests/adapters tests/core/interfaces -m dataframe --disable-warnings
 
+test-validation:
+	uv pip install -e ".[core, test-core, test-validation]"
+	uv run pytest tests -m validation --disable-warnings
+
 test-rocrate:
 	uv pip install -e ".[rocrate-adapter, test-core]"
 	uv run pytest -m rocrate -W ignore
