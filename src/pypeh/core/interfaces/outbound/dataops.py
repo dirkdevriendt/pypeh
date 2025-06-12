@@ -5,6 +5,7 @@ the corresponding Adapter subclass should be implemented.
 Usage: TODO: add usage info
 
 """
+
 from __future__ import annotations
 
 import logging
@@ -16,7 +17,7 @@ from pypeh.core.abc import Interface, DataTransferObject
 
 if TYPE_CHECKING:
     from typing import Sequence, Optional
-    from pypeh.core.models.validation_errors import ValidationReport
+    from pypeh.core.models.validation_errors import ValidationErrorReport
 
 logger = logging.getLogger(__name__)
 
@@ -40,11 +41,10 @@ class DataOpsInterface(Interface):
 
 
 class ValidationInterface(DataOpsInterface):
-
     @abstractmethod
-    def validate(self, data: dict[str, Sequence], config: Mapping) -> ValidationReport:
-        raise NotImplementedError        
-    
+    def validate(self, data: dict[str, Sequence], config: Mapping) -> ValidationErrorReport:
+        raise NotImplementedError
+
     def process(self, dto: DataTransferObject, command: Optional[str] = None):
         if command is not None:
             raise NotImplementedError

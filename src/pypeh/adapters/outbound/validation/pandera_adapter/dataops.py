@@ -10,13 +10,17 @@ from __future__ import annotations
 import logging
 
 from peh_validation_library import Validator
+
+# TODO: Remove this import once import from __init__.py is fixed
+from peh_validation_library.error_report.error_collector import ErrorCollector
 from typing import TYPE_CHECKING
 
 from pypeh.core.interfaces.outbound.dataops import (
     DataOpsInterface,
 )
 from pypeh.adapters.outbound.validation.pandera_adapter.parsers import parse_config, parse_error_report
-from pypeh.core.models.validation_errors import ValidationReport
+from pypeh.core.models.validation_errors import ValidationErrorReport
+from pypeh.core.models.validation_dto import ValidationDTO, ValidationConfig
 
 if TYPE_CHECKING:
     from typing import Mapping, Sequence
@@ -30,11 +34,26 @@ class DataOpsAdapter(DataOpsInterface):
     `self.process(dto, "validate")`
     """
 
-    def validate(self, data: dict[str, Sequence], config: Mapping) -> ValidationReport:
-        config = parse_config(config)
+    def parse_configuration(self, config: ValidationConfig) -> Mapping:
+        return parse_config(config)
 
-        validator = Validator.build_validator(config, data, logger)
-        return parse_error_report(validator.validate())
+    def get_error_collector(self):
+        return ErrorCollector()
+
+    def cleanup(self):
+        self.get_error_collector().clear_errors()
+
+    def validate(self, data: dict[str, Sequence], config: Mapping) -> ValidationErrorReport:
+        config = self.parse_configuration(config)
+
+        validator = Validator.config_from_mapping(config=config, logger=logger)
+
+        validator.validate(data)
+
+        return parse_error_report(self.get_error_collector().get_errors())
+
+    def process(self, dto: ValidationDTO, action: str) -> ValidationErrorReport:
+        return getattr(self, action)(dto.data, dto.config)
 
     def summarize(self, data: Mapping, config: Mapping):
         pass
