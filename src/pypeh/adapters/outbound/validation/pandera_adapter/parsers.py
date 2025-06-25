@@ -1,19 +1,28 @@
 from typing import Mapping, Sequence
 import importlib
+from datetime import datetime
 
+from pypeh.core.models.constants import ValidationErrorLevel
 from pypeh.core.models.validation_dto import (
     ValidationDesign,
     ValidationExpression,
     ColumnValidation,
     ValidationConfig,
 )
-from pypeh.core.models.validation_errors import ValidationReport
+from pypeh.core.models.validation_errors import (
+    ValidationErrorReport,
+    ValidationErrorGroup,
+    ValidationError,
+    DataFrameLocation,
+)
 
 
 def parse_single_expression(expression: ValidationExpression) -> Mapping:
     command = expression.command
     try:
-        command = getattr(importlib.import_module("pypeh.adapters.outbound.validation.pandera_adapter.check_functions"), command)
+        command = getattr(
+            importlib.import_module("pypeh.adapters.outbound.validation.pandera_adapter.check_functions"), command
+        )
     except AttributeError:
         pass
     return {
@@ -81,6 +90,77 @@ def parse_config(config: ValidationConfig) -> Mapping:
     }
 
 
-def parse_error_report(error_report: Mapping) -> ValidationReport:
-    # TODO: Implement the parsing logic for the error report
-    return error_report
+def map_error_level(level: str) -> ValidationErrorLevel:
+    match level.lower():
+        case "warning":
+            return ValidationErrorLevel.WARNING
+        case "error":
+            return ValidationErrorLevel.ERROR
+        case "critical":
+            return ValidationErrorLevel.FATAL
+        case _:
+            raise ValueError(f"Unknown error level: {level}")
+
+
+def parse_collected_exception(exception: Mapping) -> ValidationError:
+    return ValidationError(
+        message=exception.error_message,
+        type=exception.error_type,
+        level=map_error_level(exception.error_level),
+        traceback=exception.error_traceback,
+        context=exception.error_context,
+        source=exception.error_source,
+    )
+
+
+def parse_validation_error_group(group) -> ValidationErrorGroup:
+    return ValidationErrorGroup(
+        group_id=str(group.id),
+        group_type="pandera",
+        name=group.name,
+        metadata={},
+        errors=[parse_error_schema(error) for error in group.errors],
+    )
+
+
+def parse_error_schema(error_schema: Mapping) -> ValidationError:
+    level = map_error_level(error_schema.level)
+
+    return ValidationError(
+        message=error_schema.message,
+        type=error_schema.title,
+        level=level,
+        locations=[
+            DataFrameLocation(
+                location_type="dataframe",
+                key_columns=error_schema.idx_columns,
+                column_names=[col_name for col_name in error_schema.column_names],
+                row_ids=error_schema.row_ids,
+            )
+        ],
+        check_name=error_schema.title,
+    )
+
+
+def parse_error_report(error_collector_schema: Mapping) -> ValidationErrorReport:
+    error_reports = error_collector_schema.error_reports
+    exceptions = error_collector_schema.exceptions
+
+    groups = [parse_validation_error_group(group) for group in error_reports] if error_reports else []
+    unexpected_errors = [parse_collected_exception(exception) for exception in exceptions] if exceptions else []
+
+    counter = {level: 0 for level in ValidationErrorLevel}
+
+    total_errors = 0
+    for group in groups:
+        for error in group.errors:
+            total_errors += 1
+            counter[error.level] += 1
+
+    return ValidationErrorReport(
+        timestamp=datetime.now().isoformat(),
+        total_errors=total_errors,
+        error_counts=counter,
+        groups=groups,
+        unexpected_errors=unexpected_errors,
+    )

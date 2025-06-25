@@ -41,7 +41,7 @@ default-groups = [
 ]
 
 [tool.uv.sources]
-peh-validation-library = { git = "https://github.com/eu-parc/peh-validation-library.git", tag = "v0.1.0" }
+peh-validation-library = { git = "https://github.com/eu-parc/peh-validation-library.git", tag = "v0.1.1" }
 
 [tool.hatch.build.targets.sdist]
 include = [

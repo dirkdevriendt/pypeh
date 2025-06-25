@@ -3,7 +3,7 @@ import abc
 
 from typing import Protocol
 
-from pypeh.core.models.validation_errors import ValidationReport
+from pypeh.core.models.validation_errors import ValidationErrorReport
 from pypeh.core.models.constants import ValidationErrorLevel
 from pypeh.core.models.validation_dto import (
     ValidationExpression,
@@ -12,8 +12,9 @@ from pypeh.core.models.validation_dto import (
     ValidationConfig,
 )
 
+
 class DataOpsProtocol(Protocol):
-    def validate(self, data, config) -> ValidationReport: ...
+    def validate(self, data, config) -> ValidationErrorReport: ...
 
 
 class TestDataOps(abc.ABC):
@@ -69,7 +70,7 @@ class TestDataOps(abc.ABC):
         result = adapter.validate(data, config)
 
         assert result is not None
-        assert len(result) == 1
+        assert result.total_errors == 3
 
 
 @pytest.mark.dataframe

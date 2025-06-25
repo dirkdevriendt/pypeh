@@ -15,8 +15,8 @@ class DataFrameLocation(ValidationErrorLocation):
 
     location_type: Literal["dataframe"] = "dataframe"
     key_columns: List[str]  # List of column names that jointly identifies a dataframe entry.
-    column_name: Optional[str] = None
-    row_ids: List[Tuple[str]] = []
+    column_names: Optional[List[str]] = None
+    row_ids: List[int] = []
 
 
 class ValidationErrorContext(BaseModel):  # TODO: adapt, what type of context are we expecting
@@ -42,7 +42,7 @@ class ValidationError(BaseModel):
     source: Optional[str] = None
 
 
-class ValidationGroup(BaseModel):
+class ValidationErrorGroup(BaseModel):
     """Group of related validation errors"""
 
     group_id: str
@@ -52,11 +52,11 @@ class ValidationGroup(BaseModel):
     errors: List[ValidationError] = Field(default_factory=list)
 
 
-class ValidationReport(BaseModel):
+class ValidationErrorReport(BaseModel):
     """Complete validation report"""
 
     timestamp: str
     total_errors: int
     error_counts: Dict[ValidationErrorLevel, int] = Field(default_factory=dict)
-    groups: List[ValidationGroup] = Field(default_factory=list)
-    unexpected_errors: ValidationError
+    groups: List[ValidationErrorGroup] = Field(default_factory=list)
+    unexpected_errors: List[ValidationError] = Field(default_factory=list)
