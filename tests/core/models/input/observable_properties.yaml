@@ -1,0 +1,288 @@
+observable_properties:
+- id: peh:adults_id_subject
+  unique_name: None_id_subject
+  name: id_subject
+  description: UID of the subject
+  label: UID of the subject
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '1'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - peh:UniqueIdentifier
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: id_subject
+- id: peh:adults_u_matrix
+  unique_name: u_matrix
+  name: matrix
+  description: matrix of the sample
+  label: matrix of the sample
+  remark: 'Required unit:  µg/L if matrix =  ''BWB'' OR matrix = ''BP'' OR matrix
+    = ''BS'' OR matrix = ''CBWB'' OR matrix = ''CBP'' OR matrix =''CBS'' OR matrix
+    = ''US'' OR matrix = ''UD'' OR matrix = ''UM'' OR matrix = ''SA'' OR matrix =
+    ''SEM'' OR matrix = ''EBC'' OR matrix = ''RBC'' OR matrix = ''BM'' OR matrix =
+    ''ADI'' = Adipose Tissue/Fat OR matrix = ''AF'';  ng/g if matrix =  ''H'' OR matrix
+    = ''PLT''; µg/cm2 if matrix  =''DW'''
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: BWB
+    value: Blood-whole blood
+  - key: BP
+    value: Blood -plasma
+  - key: BS
+    value: Blood -serum
+  - key: CBWB
+    value: Cord blood-whole blood
+  - key: CBP
+    value: Cord blood-plasma
+  - key: CBS
+    value: Cord blood-serum
+  - key: US
+    value: Urine- random spot
+  - key: UD
+    value: Urine-24h
+  - key: UM
+    value: Urine-first morning urine
+  - key: SA
+    value: Saliva/sputum
+  - key: SEM
+    value: Semen
+  - key: EBC
+    value: exhaled breath condensate
+  - key: RBC
+    value: red blood cells
+  - key: BM
+    value: Breast milk
+  - key: ADI
+    value: Adipose Tissue/Fat
+  - key: H
+    value: Hair
+  - key: DW
+    value: dermal wipes
+  - key: AF
+    value: Amniotic Fluid
+  - key: PLT
+    value: placenta tissue
+  value_metadata:
+  - field: id_line
+    value: '2'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: matrix
+- id: peh:adults_u_sg
+  unique_name: u_sg
+  name: sg
+  description: Specific gravity of urine of the sample
+  label: Specific gravity of urine of the sample
+  value_type: decimal
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '1.001'
+  - field: max
+    value: '1.05'
+  - field: id_line
+    value: '11'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_significantdecimals: 6
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: sg
+  validation_designs:
+  - validation_expression:
+      validation_subject_source_paths:
+      - sg
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - matrix
+        validation_command: is_in
+        validation_arg_values:
+        - US
+        - UD
+        - UM
+      validation_command: is_not_null
+    conditional: 'IF matrix IS (US,UD,UM) THEN sg IS not empty;
+      IF crt < 2 THEN sg [1.001,1.02]'
+  - validation_expression:
+      validation_command: conjunction
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - crt
+        validation_command: is_less_than
+        validation_arg_values:
+        - '2.0'
+      validation_arg_expressions:
+      - validation_subject_source_paths:
+        - sg
+        validation_command: is_greater_than_or_equal_to
+        validation_arg_values:
+        - '1.001'
+      - validation_subject_source_paths:
+        - sg
+        validation_command: is_less_than_or_equal_to
+        validation_arg_values:
+        - '1.02'
+    conditional: 'IF matrix IS (US,UD,UM) THEN sg IS not empty;
+      IF crt < 2 THEN sg [1.001,1.02]'
+- id: peh:adults_u_crt
+  unique_name: u_crt
+  name: crt
+  description: Concentration of creatinine in urine of the sample
+  label: Concentration of creatinine in urine of the sample
+  remark: "measured values (X) are given;\n\n-10 = measurement was planned for a participant,\
+    \ but unexpected reasons prevented the sample to be measured (eg. not enough sample,\
+    \ broken tube, analytical issue, etc.)\n\n\n\nif LOD as well as LOQ is known:\
+    \ \n\n-1 for X < LOD\n\n-2 for LOD <= X < LOQ\n\nif LOQ is known, but LOD is not:\n\
+    \n-3 for X < LOQ\n\nif LOD is known, but LOQ is not:\n\n-1 for X < LOD"
+  value_type: decimal
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '5.0'
+  - field: max
+    value: '500.0'
+  - field: id_line
+    value: '7'
+  - field: cb_source
+    value: basic
+  default_unit: MilliGM-PER-DeciL
+  default_unit_label: mg/dL
+  default_required: false
+  default_zeroallowed: true
+  default_significantdecimals: 6
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: crt
+  validation_designs:
+  - validation_expression:
+      validation_subject_source_paths:
+      - crt
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - matrix
+        validation_command: is_in
+        validation_arg_values:
+        - US
+        - UD
+        - UM
+      validation_command: is_not_null
+    conditional: IF matrix IS (US,UD,UM) THEN crt IS not empty
+- id: peh:adults_anl_biomarkercode
+  unique_name: anl_biomarkercode
+  name: biomarkercode
+  description: Biomarker abbreviation as used in the SAMPLETIMEPOINT tabs
+  label: Biomarker abbreviation as used in the SAMPLETIMEPOINT tabs
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '1'
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: biomarkercode
+- id: peh:adults_anl_matrix
+  unique_name: anl_matrix
+  name: matrix
+  description: matrix abbreviation
+  label: matrix abbreviation
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: BWB
+    value: Blood-whole blood
+  - key: BP
+    value: Blood -plasma
+  - key: BS
+    value: Blood -serum
+  - key: CBWB
+    value: Cord blood-whole blood
+  - key: CBP
+    value: Cord blood-plasma
+  - key: CBS
+    value: Cord blood-serum
+  - key: US
+    value: Urine- random spot
+  - key: UD
+    value: Urine-24h
+  - key: UM
+    value: Urine-first morning urine
+  - key: SA
+    value: Saliva/sputum
+  - key: SEM
+    value: Semen
+  - key: EBC
+    value: exhaled breath condensate
+  - key: RBC
+    value: red blood cells
+  - key: BM
+    value: Breast milk
+  - key: ADI
+    value: Adipose Tissue/Fat
+  - key: H
+    value: Hair
+  - key: DW
+    value: dermal wipes
+  - key: AF
+    value: Amniotic Fluid
+  - key: PLT
+    value: placenta tissue
+  value_metadata:
+  - field: id_line
+    value: '2'
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: matrix
+- id: peh:adults_anl_labinstitution
+  unique_name: anl_labinstitution
+  name: labinstitution
+  description: institution name acronym of the laboratory performing the chemical
+    analysis
+  label: institution name acronym of the laboratory performing the chemical analysis
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '3'
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: labinstitution
