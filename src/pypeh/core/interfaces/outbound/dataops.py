@@ -11,9 +11,10 @@ from __future__ import annotations
 import logging
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING
 
-from pypeh.core.abc import Interface, DataTransferObject
+from pypeh.core.models.dto import DataTransferObject
+from pypeh.core.models.validation_dto import ValidationConfig
 
 if TYPE_CHECKING:
     from typing import Sequence, Optional
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class DataOpsInterface(Interface):
+class OutDataOpsInterface:
     """
     Example of DataOps methods
     def validate(self, data: Mapping, config: Mapping):
@@ -40,13 +41,13 @@ class DataOpsInterface(Interface):
             raise ValueError(f"Unknown command for DataOpsInterface: {command}")
 
 
-class ValidationInterface(DataOpsInterface):
+class ValidationInterface(OutDataOpsInterface):
     @abstractmethod
-    def validate(self, data: dict[str, Sequence], config: Mapping) -> ValidationErrorReport:
+    def validate(self, data: dict[str, Sequence], config: ValidationConfig) -> ValidationErrorReport:
         raise NotImplementedError
 
     def process(self, dto: DataTransferObject, command: Optional[str] = None):
         if command is not None:
             raise NotImplementedError
         else:
-            return self.validate(dto.data, dto.metadata)
+            return self.validate(dto.data, ValidationConfig.model_validate(dto.metadata))
