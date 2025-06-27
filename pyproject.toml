@@ -14,7 +14,9 @@ dependencies = [
 [project.optional-dependencies]
 core = []
 rocrate-adapter = ["rocrate"]
-pandera-adapter = ["peh-validation-library"]
+pandera-adapter = [
+    "dataguard",
+]
 test-core = ["pytest>=8.2.0,<9"]
 
 [dependency-groups]
@@ -22,7 +24,7 @@ test-core = [
     "pytest>=8.2.0,<9",
 ]
 test-dataframe = [
-    "peh-validation-library>=0.1.0",
+    "dataguard",
 ]
 test-rocrate = [
     "rocrate",
@@ -41,7 +43,7 @@ default-groups = [
 ]
 
 [tool.uv.sources]
-peh-validation-library = { git = "https://github.com/eu-parc/peh-validation-library.git", tag = "v0.1.1" }
+dataguard = { git = "https://github.com/eu-parc/dataguard", tag = "v0.1.2" }
 
 [tool.hatch.build.targets.sdist]
 include = [
