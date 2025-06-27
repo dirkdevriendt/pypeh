@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import logging
 
-from peh_validation_library import Validator
+from dataguard import Validator, ErrorCollector
 
-# TODO: Remove this import once import from __init__.py is fixed
-from peh_validation_library.error_report.error_collector import ErrorCollector
 from typing import TYPE_CHECKING
 
 from pypeh.core.interfaces.outbound.dataops import (
