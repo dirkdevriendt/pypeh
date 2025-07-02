@@ -2,17 +2,19 @@ from __future__ import annotations
 
 import logging
 import json
+import yaml
 
 from dataclasses import is_dataclass
 from io import IOBase
 from linkml_runtime.loaders import YAMLLoader, JSONLoader
 from linkml_runtime.dumpers import YAMLDumper, JSONDumper
 from pydantic import TypeAdapter, BaseModel
-from typing import TYPE_CHECKING, Mapping, Union, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Mapping, Union, Any, IO
 
 from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
 from peh_model.peh import EntityList, NamedThing, YAMLRoot, NamedThingId
-from pypeh.core.models.typing import T_Dataclass, T_RootStream, IOLike
+from pypeh.core.models.typing import T_Dataclass, T_RootStream, IOLike, JSONLike
 
 if TYPE_CHECKING:
     from typing import Optional, Callable, Type
@@ -45,7 +47,7 @@ def load_entities_from_tree(root: T_RootStream, create_proxy: Optional[Callable]
 
 
 def validate_dataclass(
-    json_data: IOLike,
+    json_data: JSONLike,
     target_class: Type[T_Dataclass],
 ) -> T_Dataclass:
     """
@@ -62,7 +64,7 @@ def validate_dataclass(
 
 
 def validate_pydantic(
-    json_data: IOLike,
+    json_data: JSONLike,
     target_class: BaseModel,
 ) -> BaseModel:
     """
@@ -79,10 +81,10 @@ def validate_pydantic(
 class IOAdapter(PersistenceInterface):
     """Adapter for loading from file."""
 
-    def load(self, source: str) -> Any:
+    def load(self, source: IOLike) -> Any:
         raise NotImplementedError
 
-    def dump(self, destination: str, entity: BaseModel) -> None:
+    def dump(self, destination: IOLike, entity: BaseModel) -> None:
         raise NotImplementedError
 
 
@@ -92,21 +94,22 @@ class JsonIO(IOAdapter):
     Assuming jsonfiles can be directly loaded by linkml
     """
 
-    def load(self, source: IOLike, target_class: Type[T_Dataclass] = EntityList, **kwargs) -> Any:
+    def load(self, source: Union[str, Path, IO[str]], target_class: Type[T_Dataclass] = EntityList, **kwargs) -> Any:
         """
         Load JSON data from a file-like object (e.g., a context manager).
         # TODO: test with: fake_file = StringIO('{"key": "value"}')
 
         """
         try:
+            data_dict = json.load(source)  # type: ignore
             if issubclass(target_class, EntityList):
-                return JSONLoader().load(source, target_class)
+                return JSONLoader().load(data_dict, target_class)
             elif is_dataclass(target_class):
-                return validate_dataclass(source, target_class)
+                return validate_dataclass(data_dict, target_class)
             elif issubclass(target_class, BaseModel):
-                return validate_pydantic(source, target_class)
+                return validate_pydantic(data_dict, target_class)
             else:
-                raise NotImplementedError
+                return data_dict
         except ValueError as e:
             raise ValueError(f"Could not validate the provided data at {source} as {target_class}")
         except Exception as e:
@@ -126,17 +129,23 @@ class YamlIO(IOAdapter):
     """
 
     def load(
-        self, source: IOLike, target_class: Type[T_Dataclass] = EntityList, **kwargs
-    ) -> Union[BaseModel, YAMLRoot]:
+        self, source: Union[str, Path, IO[str]], target_class: Type[T_Dataclass] = EntityList, **kwargs
+    ) -> Union[BaseModel, YAMLRoot, dict]:
         """
         Load YAML data from a file-like object (e.g., a context manager).
         Args:
         """
         try:
-            if issubclass(target_class, EntityList):
-                return YAMLLoader().load(source, target_class)
+            if isinstance(source, (str, Path)):
+                with open(source, "r") as f:
+                    data_dict = yaml.safe_load(f)  # type: ignore ## pyyaml lacks type hints
             else:
-                raise NotImplementedError
+                data_dict = yaml.safe_load(source)  # type: ignore ## pyyaml lacks type hints
+            if issubclass(target_class, EntityList):
+                return YAMLLoader().load(data_dict, target_class)
+            else:
+                logger.warning(f"target_class {target_class} not implemented")
+                return data_dict
         except ValueError as e:
             raise ValueError(f"Could not validate the provided data at {source} as {target_class}")
         except TypeError as e:
@@ -155,7 +164,7 @@ class CsvIO(IOAdapter):
     Actual implementation is in persistence/dataframe adapter
     """
 
-    def load(self, source: str, **kwargs):
+    def load(self, source: Union[str, Path, IO[str]], **kwargs):
         try:
             from pypeh.adapters.outbound.persistence.dataframe import CsvIOImpl
         except ImportError:
@@ -177,7 +186,7 @@ class ExcelIO(IOAdapter):
     # source = StringIO(response.text)
     # df = pd.read_csv(source)
 
-    def load(self, source: str, **kwargs):
+    def load(self, source: Union[str, Path, IO[str]], **kwargs):
         try:
             from pypeh.adapters.outbound.persistence.dataframe import ExcelIOImpl
         except ImportError:

@@ -12,6 +12,10 @@ test-rocrate:
 	uv pip install -e ".[rocrate-adapter, test-core]"
 	uv run pytest -m rocrate -W ignore
 
+test-s3:
+	uv pip install -e ".[s3-adapter, test-s3]"
+	uv run pytest -m s3 -W ignore
+
 test-all: test-core test-dataframe test-rocrate
 
 format:

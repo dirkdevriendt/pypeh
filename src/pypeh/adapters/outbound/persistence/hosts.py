@@ -4,18 +4,21 @@
 
 from __future__ import annotations
 
-import logging
-import requests
-import os
+import fsspec
 import json
+import logging
+import os
+import requests
 
 from abc import abstractmethod
 from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING, Generic
 
 from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
 from pypeh.adapters.outbound.persistence import formats
 from pypeh.core.models.typing import T_Dataclass
+from pypeh.core.models.settings import S3Settings
 
 logger = logging.getLogger(__name__)
 
@@ -69,52 +72,87 @@ class WebServiceAdapter(PersistenceInterface):
         raise NotImplementedError
 
 
-class FileIO(PersistenceInterface):
-    @classmethod
-    def get_format(cls, path: str) -> str:
-        return os.path.splitext(path)[1].lower().lstrip(".")
+## fsspec-based file interactions: local or cloud
 
-    def load(self, source: str, format: Optional[str] = None, **kwargs) -> Any:
+
+class FileIO(PersistenceInterface):
+    def __init__(self, file_system: fsspec.AbstractFileSystem | None = None):
+        self.file_system = file_system
+
+    @classmethod
+    def get_format(cls, path: Union[str, Path]) -> str:
+        return os.path.splitext(str(path))[1].lower().lstrip(".")
+
+    def load(self, source: Union[str, Path], format: Optional[str] = None, **kwargs) -> Any:
         """Load data from file using the appropriate adapter."""
         if format is None:
             format = self.get_format(source)
         adapter = formats.IOAdapterFactory.create(format.lower())
-        try:
-            return adapter.load(source, **kwargs)
-        except Exception as e:
-            logger.error(f"Error in FileIO: {e}")
-            raise
+        open_func = self.file_system.open if self.file_system is not None else fsspec.open
+
+        with open_func(source, "r") as f:
+            try:
+                return adapter.load(f, **kwargs)  # type: ignore ## fsspec does not provide type hints
+            except Exception as e:
+                logger.error(f"Error in FileIO: {e}")
+                raise
 
     def dump(self, destination: str, entity: BaseModel, **kwargs) -> None:
         raise NotImplementedError
 
 
 class DirectoryIO(PersistenceInterface):
-    def load(self, source: str, format: Optional[str] = None, **kwargs) -> Generator[Any, None, None]:
+    supported_formats = formats.IOAdapterFactory._adapters.keys()
+
+    def __init__(self, protocol: str = "file", **storage_options):
+        self.file_system = fsspec.filesystem(protocol, **storage_options)
+
+    def walk(
+        self, source: Union[str, Path], format: Optional[str] = None, maxdepth: int | None = None, **load_options
+    ) -> Generator[Any, None, None]:
         """
         Yield data loaded from files in a directory and its subdirectories.
         This implementation assumes that all supported file formats (jsonn, yaml, csv, xslx, xls)
         should be loaded.
         """
-        file_io = FileIO()
-        supported_formats = formats.IOAdapterFactory._adapters.keys()
-
-        for root, _, files in os.walk(source):
+        file_io = FileIO(file_system=self.file_system)
+        for root, _, files in self.file_system.walk(source, maxdepth=maxdepth):
             for file in files:
                 file_path = os.path.join(root, file)
 
                 if format is not None:
-                    yield file_io.load(file_path, format=format, **kwargs)
+                    yield file_io.load(file_path, format=format, **load_options)
 
                 else:
                     inferred_format = FileIO.get_format(file_path)
-                    if inferred_format in supported_formats:
-                        yield file_io.load(file_path, format=inferred_format, **kwargs)
+                    if inferred_format in self.supported_formats:
+                        yield file_io.load(file_path, format=inferred_format, **load_options)
                     else:
                         continue  # Skip unsupported formats
 
+    def load(self, source: Union[str, Path], format: Optional[str] = None, maxdepth: int = 1, **load_options) -> Any:
+        path = Path(source)
+
+        if path.is_file():
+            return
+        elif path.is_dir():
+            return list(self.walk(path, maxdepth=maxdepth, **load_options))
+        else:
+            logger.error(f"Source {source} could not be resolved as a path")
+            raise ValueError
+
     def dump(self, destination: str, entities: List[BaseModel], **kwargs) -> None:
         pass
+
+
+class S3StorageProvider(DirectoryIO):
+    def __init__(self, settings: S3Settings, **storage_options):
+        session_kwargs = {**storage_options, **settings.to_s3fs()}
+        self.bucket = settings.bucket_name
+        super().__init__(protocol="s3", storage_options=session_kwargs)
+
+
+## initial implementation to database adapter: UNDER CONSTRUCTION
 
 
 class DatabaseAdapter(PersistenceInterface, Generic[T_Dataclass]):
