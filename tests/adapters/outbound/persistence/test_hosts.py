@@ -1,7 +1,9 @@
 import pytest
 
-from pypeh.adapters.outbound.persistence.hosts import FileIO, DirectoryIO, DatabaseAdapter, WebServiceAdapter
+from peh_model.peh import EntityList
 
+from pypeh.adapters.outbound.persistence.hosts import FileIO, DirectoryIO, S3StorageProvider
+from pypeh.core.models.settings import S3Config
 
 from tests.test_utils.dirutils import get_absolute_path
 
@@ -22,7 +24,10 @@ class TestFileIO:
 
     @pytest.mark.core
     def test_basic(self):
-        assert True
+        source = get_absolute_path("./input/config_basic/_Reference_YAML/observable_entities.yaml")
+        fio = FileIO()
+        data = fio.load(source)
+        assert isinstance(data, EntityList)
 
     @pytest.mark.core
     def test_unknown_format(self):
@@ -38,7 +43,7 @@ class TestDirectoryIO:
     def test_basic(self):
         directory_io = DirectoryIO()
         source = get_absolute_path("./input/config_basic")
-        all_data = list(directory_io.load(source))
+        all_data = list(directory_io.load(source, maxdepth=10))
         assert len(all_data) > 1
 
     @pytest.mark.core
@@ -54,6 +59,26 @@ class TestDirectoryIO:
         source = get_absolute_path("./input/wrong_input")
         with pytest.raises(TypeError):
             _ = list(directory_io.load(source))
+
+    @pytest.mark.core
+    def test_walk(self):
+        source = get_absolute_path("./input/config_basic")
+        directory_io = DirectoryIO()
+        i = 0
+        for _ in directory_io.file_system.walk(source):
+            i += 1
+        assert i > 1
+
+
+@pytest.mark.s3
+class TestS3Adapter:
+    def test_basic(self, monkeypatch):
+        monkeypatch.setenv("MYBUCKET_BUCKET_NAME", "my-test-bucket")
+        override = {"aws_region": "eu-central-1"}
+
+        config_base = S3Config(env_prefix="MYBUCKET_", config_dict=override)
+        settings = config_base.make_settings()
+        s3io = S3StorageProvider(settings)
 
 
 class TestDatabaseAdapter:

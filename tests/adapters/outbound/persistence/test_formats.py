@@ -1,8 +1,10 @@
 import pytest
+import logging
 
 from pypeh.adapters.outbound.persistence.formats import IOAdapterFactory, IOAdapter, YamlIO
 
 from pydantic import BaseModel
+from peh_model.peh import EntityList
 from tests.test_utils.dirutils import get_absolute_path
 
 
@@ -50,16 +52,27 @@ class TestYamlIO:
         yaml_io = YamlIO()
         yaml_io.load(source)
 
-    def test_wrong_schema(self):
-        source = get_absolute_path("./input/wrong_input/observable_entities.yaml")
+    def test_wrong_schema(self, caplog):
+        source = get_absolute_path("./input/config_basic/_Reference_YAML/observable_entities.yaml")
         yaml_io = YamlIO()
-        with pytest.raises(NotImplementedError):
-            yaml_io.load(source, target_class=MockModel)
 
+        with caplog.at_level(logging.WARNING):
+            _ = yaml_io.load(source, target_class=MockModel)
+            logs = caplog.text.replace("\n", " ").strip()
+            assert f"target_class {MockModel} not implemented" in logs
+
+    def test_wrong_input(self):
         source = get_absolute_path("./input/wrong_input/random.yaml")
         yaml_io = YamlIO()
         with pytest.raises(TypeError):
             yaml_io.load(source)
+
+    def test_textio(self):
+        source = get_absolute_path("./input/config_basic/_Reference_YAML/observable_entities.yaml")
+        yaml_io = YamlIO()
+        with open(source, "r") as f:
+            data = yaml_io.load(f)
+        assert isinstance(data, EntityList)
 
 
 @pytest.mark.core

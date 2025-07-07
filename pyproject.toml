@@ -8,7 +8,9 @@ readme = "README.md"
 license = "MIT"
 dependencies = [
     "linkml>=1.9.1",
-	"peh-model"
+	"peh-model",
+	"pydantic-settings",
+	"fsspec",
 ]
 
 [project.optional-dependencies]
@@ -17,6 +19,7 @@ rocrate-adapter = ["rocrate"]
 pandera-adapter = [
     "dataguard",
 ]
+s3-adapter = ["s3fs"]
 test-core = ["pytest>=8.2.0,<9"]
 
 [dependency-groups]
@@ -29,6 +32,7 @@ test-dataframe = [
 test-rocrate = [
     "rocrate",
 ]
+test-s3 = ["s3fs"]
 dev = [
     "ruff>=0.4.4,<0.5",
     "black",

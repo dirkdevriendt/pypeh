@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class CacheContainer(ABC):
-    """Abstract base class for storage backends"""
+    """Abstract base class for cache backends"""
 
     def __init__(self):
         self._storage = None
@@ -59,7 +59,7 @@ class CacheContainer(ABC):
 
     @abstractmethod
     def pop(self, entity_id: str, entity_type: str) -> T_NamedThingLike:
-        """Return entry and delete from storage"""
+        """Return entry and delete from cache"""
         pass
 
 
