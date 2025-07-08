@@ -11,16 +11,20 @@ from __future__ import annotations
 import logging
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from peh_model.peh import DataLayout, EntityList
+from typing import TYPE_CHECKING, TypeVar, Generic, cast, List
 
-from pypeh.core.models.dto import DataTransferObject
+from pypeh.core.models.settings import FileSystemSettings
 from pypeh.core.models.validation_dto import ValidationConfig
+from pypeh.adapters.outbound.persistence.hosts import HostFactory
 
 if TYPE_CHECKING:
-    from typing import Sequence, Optional
+    from typing import Sequence
     from pypeh.core.models.validation_errors import ValidationErrorReport
 
 logger = logging.getLogger(__name__)
+
+T_DataType = TypeVar("T_DataType")
 
 
 class OutDataOpsInterface:
@@ -33,12 +37,7 @@ class OutDataOpsInterface:
         pass
     """
 
-    def process(self, dto: DataTransferObject, command: str):
-        method = getattr(self, command, None)
-        if method and callable(method):
-            return method(dto.data, dto.metadata)
-        else:
-            raise ValueError(f"Unknown command for DataOpsInterface: {command}")
+    pass
 
 
 class ValidationInterface(OutDataOpsInterface):
@@ -46,8 +45,33 @@ class ValidationInterface(OutDataOpsInterface):
     def validate(self, data: dict[str, Sequence], config: ValidationConfig) -> ValidationErrorReport:
         raise NotImplementedError
 
-    def process(self, dto: DataTransferObject, command: Optional[str] = None):
-        if command is not None:
-            raise NotImplementedError
+
+class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
+    @abstractmethod
+    def import_data(self, source: str, config: FileSystemSettings) -> T_DataType | List[T_DataType]:
+        raise NotImplementedError
+
+    def import_data_layout(
+        self,
+        source: str,
+        config: FileSystemSettings,
+        **kwargs,
+    ) -> DataLayout | List[DataLayout]:
+        provider = HostFactory.create(config)
+        layout = provider.load(source)
+        if isinstance(layout, EntityList):
+            layout = layout.layouts
+        if isinstance(layout, list):
+            if not all(isinstance(item, DataLayout) for item in layout):
+                me = "Imported layouts should all be DataLayout instances"
+                logger.error(me)
+                raise TypeError(me)
+            return cast(List[DataLayout], layout)
+
+        elif isinstance(layout, DataLayout):
+            return layout
+
         else:
-            return self.validate(dto.data, ValidationConfig.model_validate(dto.metadata))
+            me = f"Imported layout should be a DataLayout instance not {type(layout)}"
+            logger.error(me)
+            raise TypeError(me)

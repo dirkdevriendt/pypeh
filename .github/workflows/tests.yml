@@ -41,8 +41,5 @@ jobs:
         echo "VIRTUAL_ENV=$PWD/.venv" >> $GITHUB_ENV
         echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
-    - name: Run core tests
-      run: make test-core
-      
-    - name: Run dataframe tests
-      run: make test-dataframe
+    - name: Run all tests
+      run: make test-all

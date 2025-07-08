@@ -1,8 +1,10 @@
 import pytest
 import abc
 
-from typing import Protocol
+from typing import Protocol, Any, Generic
+from peh_model.peh import DataLayout
 
+from pypeh.core.interfaces.outbound.dataops import T_DataType
 from pypeh.core.models.validation_errors import ValidationErrorReport
 from pypeh.core.models.constants import ValidationErrorLevel
 from pypeh.core.models.validation_dto import (
@@ -11,13 +13,21 @@ from pypeh.core.models.validation_dto import (
     ColumnValidation,
     ValidationConfig,
 )
+from pypeh.core.models.settings import LocalFileSettings
+from tests.test_utils.dirutils import get_absolute_path
 
 
-class DataOpsProtocol(Protocol):
+class DataOpsProtocol(Protocol, Generic[T_DataType]):
+    data_format: T_DataType
+
     def validate(self, data, config) -> ValidationErrorReport: ...
 
+    def import_data(self, source, config) -> Any: ...
 
-class TestDataOps(abc.ABC):
+    def import_data_layout(self, source, config) -> Any: ...
+
+
+class TestValidation(abc.ABC):
     """Abstract base class for testing dataops adapters."""
 
     @abc.abstractmethod
@@ -73,18 +83,46 @@ class TestDataOps(abc.ABC):
         assert result.total_errors == 3
 
 
+class TestDataImport(abc.ABC):
+    """Abstract base class for testing dataops adapters."""
+
+    @abc.abstractmethod
+    def get_adapter(self) -> DataOpsProtocol:
+        """Return the adapter implementation to test."""
+        raise NotImplementedError
+
+    def test_import_data_layout(self):
+        adapter = self.get_adapter()
+        source = "./input/datalayout.yaml"
+        path = get_absolute_path(source)
+        config = LocalFileSettings()
+        data = adapter.import_data_layout(path, config)
+        if isinstance(data, list):
+            assert all(isinstance(dl, DataLayout) for dl in data)
+        else:
+            assert isinstance(data, DataLayout)
+
+    def test_import_data(self):
+        adapter = self.get_adapter()
+        source = "./input/data.csv"
+        path = get_absolute_path(source)
+        config = LocalFileSettings()
+        data = adapter.import_data(path, config)
+        assert isinstance(data, adapter.data_format)
+
+
 @pytest.mark.dataframe
-class TestDataFrameDataOps(TestDataOps):
+class TestDataFrameDataOps(TestValidation, TestDataImport):
     def get_adapter(self) -> DataOpsProtocol:
         try:
             from pypeh.adapters.outbound.validation.pandera_adapter import dataops as dfops
 
-            return dfops.DataOpsAdapter()
+            return dfops.DataFrameAdapter()
         except ImportError:
             pytest.skip("Necessary modules not installed")
 
 
 @pytest.mark.other
-class TestUnknownDataOps(TestDataOps):
+class TestUnknownDataOps(TestValidation):
     def get_adapter(self) -> DataOpsProtocol:
         raise NotImplementedError

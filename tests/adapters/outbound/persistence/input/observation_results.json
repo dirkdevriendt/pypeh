@@ -1,0 +1,27 @@
+{
+  "observation_results": [
+    {
+      "id": "peh:INQUIRE_IT_PERSON_Q1_RESULT1",
+      "observed_values": [
+        {
+          "observable_entity": "peh:IT_HH_01",
+          "observable_property": "peh:adjusttheventilation",
+          "value": "7",
+          "value_as_string": "7 - Agree strongly"
+        },
+        {
+          "observable_entity": "peh:IT_HH_01",
+          "observable_property": "peh:Allergies_child_dd",
+          "value": "0",
+          "value_as_string": "0 - No"
+        },
+        {
+          "observable_entity": "peh:IT_HH_01",
+          "observable_property": "peh:allergy_source",
+          "value": "",
+          "value_as_string": ""
+        }
+      ]
+    }
+  ]
+}

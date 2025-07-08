@@ -1,0 +1,44 @@
+layouts:
+  id: peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS
+  name: PARC_ALIGNED_STUDIES_LAYOUT_ADULTS
+  label: ADULTS
+  sections:
+  - id: peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS_SECTION_urine_lab
+    label: urine_lab
+    section_type: data_table
+    observable_entity_types:
+    - sample
+    elements:
+    - varname: id_subject
+      label: id_subject
+      observable_property: adults_id_subject
+    - varname: matrix
+      label: matrix
+      observable_property: adults_u_matrix
+    - varname: crt
+      label: crt
+      observable_property: adults_u_crt
+    - varname: crt_lod
+      label: crt_lod
+      observable_property: adults_u_crt_lod
+    - varname: crt_loq
+      label: crt_loq
+      observable_property: adults_u_crt_loq
+    - varname: sg
+      label: sg
+      observable_property: adults_u_sg
+  - id: peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS_SECTION_analyticalinfo
+    label: analyticalinfo
+    section_type: data_table
+    observable_entity_types:
+    - samplegroup
+    elements:
+    - varname: biomarkercode
+      label: biomarkercode
+      observable_property: adults_anl_biomarkercode
+    - varname: matrix
+      label: matrix
+      observable_property: adults_anl_matrix
+    - varname: labinstitution
+      label: labinstitution
+      observable_property: adults_anl_labinstitution
