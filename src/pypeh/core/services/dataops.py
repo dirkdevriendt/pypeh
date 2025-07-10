@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Sequence
 from peh_model import peh
 
 from pypeh.core.interfaces.inbound.dataops import InDataOpsInterface
-from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface, ValidationInterface
+from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface, ValidationInterface, DataImportInterface
+from pypeh.core.models.settings import SettingsConfig
 from pypeh.core.models.validation_dto import ValidationConfig
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 
@@ -62,3 +63,34 @@ class ValidationService(DataOpsService):
             result_dict[oep_set_name] = self.outbound_adapter.validate(data, validation_config)
 
         return result_dict
+
+
+class DataImportService(DataOpsService):
+    def __init__(
+        self,
+        inbound_adapter: InDataOpsInterface,
+        outbound_adapter: DataImportInterface,
+        cache: CacheContainer = CacheContainerFactory.new(),
+    ):
+        super().__init__(inbound_adapter, outbound_adapter, cache)
+        self.outbound_adapter: DataImportInterface = outbound_adapter
+
+    def import_data(
+        self, source: str, config: SettingsConfig, data_layout: str, layout_config: SettingsConfig | None = None
+    ):
+        # validate config
+        settings = config.make_settings()
+        if layout_config is not None:
+            layout_settings = layout_config.make_settings()
+        else:
+            layout_settings = settings
+
+        # import layout and extract info
+        layout_object = self.outbound_adapter.import_data_layout(
+            data_layout,
+            layout_settings,
+        )
+        # import data
+        data = self.outbound_adapter.import_data(source, settings)
+
+        # apply layout to data

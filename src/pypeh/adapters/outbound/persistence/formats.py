@@ -79,6 +79,9 @@ def validate_pydantic(
 
 
 class IOAdapter(PersistenceInterface):
+    read_mode: str = NotImplementedError  # type: ignore
+    write_mode: str = NotImplementedError  # type: ignore
+
     """Adapter for loading from file."""
 
     def load(self, source: IOLike) -> Any:
@@ -89,12 +92,16 @@ class IOAdapter(PersistenceInterface):
 
 
 class JsonIO(IOAdapter):
+    read_mode: str = "r"
+    write_mode: str = "w"
     """
     Adapter for loading from json file/stream.
     Assuming jsonfiles can be directly loaded by linkml
     """
 
-    def load(self, source: Union[str, Path, IO[str]], target_class: Type[T_Dataclass] = EntityList, **kwargs) -> Any:
+    def load(
+        self, source: Union[str, Path, IO[str], IO[bytes]], target_class: Type[T_Dataclass] = EntityList, **kwargs
+    ) -> Any:
         """
         Load JSON data from a file-like object (e.g., a context manager).
         # TODO: test with: fake_file = StringIO('{"key": "value"}')
@@ -118,18 +125,20 @@ class JsonIO(IOAdapter):
 
     def dump(self, destination: str, entity: BaseModel, **kwargs) -> None:
         # LinkML-based version JSONDumper().dump
-        with open(destination, "w") as f:
+        with open(destination, self.write_mode) as f:
             json.dump(entity.model_dump(), f, indent=2)
 
 
 class YamlIO(IOAdapter):
+    read_mode: str = "r"
+    write_mode: str = "w"
     """
     Adapter for loading from Yaml file/stream
     Assuming yaml files can be directly loaded by linkml
     """
 
     def load(
-        self, source: Union[str, Path, IO[str]], target_class: Type[T_Dataclass] = EntityList, **kwargs
+        self, source: Union[str, Path, IO[str], IO[bytes]], target_class: Type[T_Dataclass] = EntityList, **kwargs
     ) -> Union[BaseModel, YAMLRoot, dict]:
         """
         Load YAML data from a file-like object (e.g., a context manager).
@@ -137,7 +146,7 @@ class YamlIO(IOAdapter):
         """
         try:
             if isinstance(source, (str, Path)):
-                with open(source, "r") as f:
+                with open(source, self.read_mode) as f:
                     data_dict = yaml.safe_load(f)  # type: ignore ## pyyaml lacks type hints
             else:
                 data_dict = yaml.safe_load(source)  # type: ignore ## pyyaml lacks type hints
@@ -159,12 +168,14 @@ class YamlIO(IOAdapter):
 
 
 class CsvIO(IOAdapter):
+    read_mode: str = "r"
+    write_mode: str = "w"
     """
     Public interace for the Csv Adapter
     Actual implementation is in persistence/dataframe adapter
     """
 
-    def load(self, source: Union[str, Path, IO[str]], **kwargs):
+    def load(self, source: Union[str, Path, IO[str], IO[bytes]], **kwargs):
         try:
             from pypeh.adapters.outbound.persistence.dataframe import CsvIOImpl
         except ImportError:
@@ -178,6 +189,8 @@ class CsvIO(IOAdapter):
 
 
 class ExcelIO(IOAdapter):
+    read_mode: str = "rb"
+    write_mode: str = "wb"
     """
     Public interface for Excel repository
     Actual implementation is in external/persistence/dataframe adapter
@@ -186,7 +199,7 @@ class ExcelIO(IOAdapter):
     # source = StringIO(response.text)
     # df = pd.read_csv(source)
 
-    def load(self, source: Union[str, Path, IO[str]], **kwargs):
+    def load(self, source: Union[str, Path, IO[str], IO[bytes]], **kwargs) -> dict:
         try:
             from pypeh.adapters.outbound.persistence.dataframe import ExcelIOImpl
         except ImportError:

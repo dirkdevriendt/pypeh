@@ -1,10 +1,12 @@
 import pytest
 import logging
+import fsspec
 
-from pypeh.adapters.outbound.persistence.formats import IOAdapterFactory, IOAdapter, YamlIO
+from pypeh.adapters.outbound.persistence.formats import IOAdapterFactory, IOAdapter, JsonIO, YamlIO, ExcelIO, CsvIO
 
 from pydantic import BaseModel
 from peh_model.peh import EntityList
+
 from tests.test_utils.dirutils import get_absolute_path
 
 
@@ -78,15 +80,34 @@ class TestYamlIO:
 @pytest.mark.core
 class TestJsonIO:
     def test_basic(self):
-        pass
+        source = get_absolute_path("./input/observation_results.json")
+        json_io = JsonIO()
+        with open(source, "r") as f:
+            data = json_io.load(f)
+        assert isinstance(data, EntityList)
 
-    def test_wrong_schema(self):
-        pass
 
-
+@pytest.mark.dataframe
 class TestCsvIO:
-    pass
+    def test_basic_import(self):
+        source = get_absolute_path("./input/config_basic/_Tabular_Data/sampling_data_to_import.csv")
+        csv_io = CsvIO()
+        with fsspec.open(source, "r") as f:
+            data = csv_io.load(f, raise_if_empty=False, infer_schema_length=5)  # type: ignore
+        from polars import DataFrame
+
+        assert isinstance(data, DataFrame)
+
+        with fsspec.open(source, "rb") as f:
+            data = csv_io.load(f, raise_if_empty=False, infer_schema_length=5)  # type: ignore
+        assert isinstance(data, DataFrame)
 
 
+@pytest.mark.dataframe
 class TestXlsIO:
-    pass
+    def test_basic_import(self):
+        source = get_absolute_path("./input/config_basic/_Tabular_Data/sampling_data_to_import.xlsx")
+        excel_io = ExcelIO()
+        with fsspec.open(source, "rb") as f:
+            data = excel_io.load(f)  # type: ignore
+        assert isinstance(data, dict)

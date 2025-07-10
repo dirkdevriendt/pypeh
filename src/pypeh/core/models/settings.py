@@ -2,14 +2,25 @@ from __future__ import annotations
 
 import logging
 
+from abc import abstractmethod
 from pydantic_settings import BaseSettings, SettingsConfigDict, PydanticBaseSettingsSource
-from pydantic import BaseModel, Field, ValidationError
-from typing import Optional, ClassVar
+from pydantic import BaseModel, Field, ValidationError, field_validator
+from typing import Optional
+
+from pypeh.core.utils.namespaces import ImportMap
 
 logger = logging.getLogger(__name__)
 
 
-class S3Settings(BaseSettings):
+class FileSystemSettings(BaseSettings):
+    pass
+
+
+class LocalFileSettings(FileSystemSettings):
+    pass
+
+
+class S3Settings(FileSystemSettings):
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
     aws_session_token: Optional[str] = None
@@ -27,7 +38,18 @@ class S3Settings(BaseSettings):
         }
 
 
-class S3Config(BaseModel):
+class SettingsConfig(BaseModel):
+    @abstractmethod
+    def make_settings(self) -> FileSystemSettings:
+        raise NotImplementedError
+
+
+class LocalFileConfig(SettingsConfig):
+    def make_settings(self) -> LocalFileSettings:
+        return LocalFileSettings()
+
+
+class S3Config(SettingsConfig):
     env_prefix: str = "S3_"
     config_dict: Optional[dict[str, str]] = Field(default_factory=dict)
 
@@ -57,3 +79,16 @@ class S3Config(BaseModel):
             return CustomisedSettings(**config_data)
         except ValidationError as e:
             raise ValueError(f"Failed to load config with prefix '{self.env_prefix}': {e}") from e
+
+
+class ImportConfig(BaseModel):
+    connection_map: dict[str, SettingsConfig]
+    import_map: dict[str, str]
+
+    @field_validator("import_map", mode="after")
+    @classmethod
+    def dict_to_trie(cls, namespace_map: dict[str, str]) -> ImportMap:
+        new_import_map = ImportMap()
+        for key, value in namespace_map.items():
+            new_import_map[key] = value
+        return new_import_map

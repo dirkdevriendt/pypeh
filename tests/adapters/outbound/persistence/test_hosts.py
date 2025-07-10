@@ -2,8 +2,8 @@ import pytest
 
 from peh_model.peh import EntityList
 
-from pypeh.adapters.outbound.persistence.hosts import FileIO, DirectoryIO, S3StorageProvider
-from pypeh.core.models.settings import S3Config
+from pypeh.adapters.outbound.persistence.hosts import FileIO, DirectoryIO, S3StorageProvider, HostFactory
+from pypeh.core.models.settings import LocalFileSettings, S3Config
 
 from tests.test_utils.dirutils import get_absolute_path
 
@@ -38,8 +38,28 @@ class TestFileIO:
         pass
 
 
+@pytest.mark.dataframe
+class TestFileIOCsv:
+    def test_basic(self):
+        source = get_absolute_path("./input/config_basic/_Tabular_Data/sampling_data_to_import.csv")
+        fio = FileIO()
+        data = fio.load(source, raise_if_empty=False)
+        from polars import DataFrame
+
+        assert isinstance(data, DataFrame)
+
+
+@pytest.mark.dataframe
+class TestFileIOExcel:
+    def test_basic(self):
+        source = get_absolute_path("./input/config_basic/_Tabular_Data/sampling_data_to_import.xlsx")
+        fio = FileIO()
+        data = fio.load(source)
+        assert isinstance(data, dict)
+
+
 class TestDirectoryIO:
-    @pytest.mark.core
+    @pytest.mark.dataframe
     def test_basic(self):
         directory_io = DirectoryIO()
         source = get_absolute_path("./input/config_basic")
@@ -101,3 +121,11 @@ class TestWebserviceAdapter:
     @pytest.mark.core
     def test_json(self):
         pass
+
+
+@pytest.mark.core
+class TestHostFactory:
+    def test_factory(self):
+        local_file_settings = LocalFileSettings()
+        file_service = HostFactory.create(local_file_settings)
+        assert isinstance(file_service, FileIO)

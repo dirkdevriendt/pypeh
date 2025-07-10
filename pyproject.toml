@@ -16,10 +16,13 @@ dependencies = [
 [project.optional-dependencies]
 core = []
 rocrate-adapter = ["rocrate"]
-pandera-adapter = [
+dataframe-adapter = [
     "dataguard",
+	"polars",
+	"fastexcel",
 ]
 s3-adapter = ["s3fs"]
+polars-adapter=["polars", "fastexcel"]
 test-core = ["pytest>=8.2.0,<9"]
 
 [dependency-groups]
@@ -28,6 +31,8 @@ test-core = [
 ]
 test-dataframe = [
     "dataguard",
+	"polars",
+	"fastexcel",
 ]
 test-rocrate = [
     "rocrate",
@@ -78,6 +83,7 @@ markers = [
     "dataframe: tests for dataframe-based adapters",
     "rocrate: tests for rocrate-based adapter",
     "interface: tests for shared interfaces",
+	"s3: tests for the s3 adapter"
 ]
 
 [tool.ruff]

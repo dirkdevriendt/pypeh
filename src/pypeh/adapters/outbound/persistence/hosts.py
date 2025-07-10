@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Generic
 from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
 from pypeh.adapters.outbound.persistence import formats
 from pypeh.core.models.typing import T_Dataclass
-from pypeh.core.models.settings import S3Settings
+from pypeh.core.models.settings import LocalFileSettings, S3Settings, FileSystemSettings
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,11 @@ if TYPE_CHECKING:
     from pypeh.core.models.transform import FieldMapping
 
 
-class WebServiceAdapter(PersistenceInterface):
+class HostAdapter(PersistenceInterface):
+    pass
+
+
+class WebServiceAdapter(HostAdapter):
     def load(self, source: str, format: str = "json", **kwargs) -> Any:
         is_pid = kwargs.get("is_pid", False)
 
@@ -75,7 +79,7 @@ class WebServiceAdapter(PersistenceInterface):
 ## fsspec-based file interactions: local or cloud
 
 
-class FileIO(PersistenceInterface):
+class FileIO(HostAdapter):
     def __init__(self, file_system: fsspec.AbstractFileSystem | None = None):
         self.file_system = file_system
 
@@ -90,7 +94,7 @@ class FileIO(PersistenceInterface):
         adapter = formats.IOAdapterFactory.create(format.lower())
         open_func = self.file_system.open if self.file_system is not None else fsspec.open
 
-        with open_func(source, "r") as f:
+        with open_func(source, adapter.read_mode) as f:
             try:
                 return adapter.load(f, **kwargs)  # type: ignore ## fsspec does not provide type hints
             except Exception as e:
@@ -101,7 +105,7 @@ class FileIO(PersistenceInterface):
         raise NotImplementedError
 
 
-class DirectoryIO(PersistenceInterface):
+class DirectoryIO(HostAdapter):
     supported_formats = formats.IOAdapterFactory._adapters.keys()
 
     def __init__(self, protocol: str = "file", **storage_options):
@@ -134,7 +138,8 @@ class DirectoryIO(PersistenceInterface):
         path = Path(source)
 
         if path.is_file():
-            return
+            file_io = FileIO(file_system=self.file_system)
+            return file_io.load(source, **load_options)
         elif path.is_dir():
             return list(self.walk(path, maxdepth=maxdepth, **load_options))
         else:
@@ -151,11 +156,13 @@ class S3StorageProvider(DirectoryIO):
         self.bucket = settings.bucket_name
         super().__init__(protocol="s3", storage_options=session_kwargs)
 
+    ## TODO: check how should bucket names, ... be dealt with?
+
 
 ## initial implementation to database adapter: UNDER CONSTRUCTION
 
 
-class DatabaseAdapter(PersistenceInterface, Generic[T_Dataclass]):
+class DatabaseAdapter(HostAdapter, Generic[T_Dataclass]):
     def __init__(self, registry: ResourceRegistry, connection: Optional[Any] = None, **kwargs):
         self.config = kwargs
         self.conn = connection
@@ -239,3 +246,16 @@ class ResourceRegistry:
             "mapping": field_mapping or FieldMapping(),
             "id_field": id_field,
         }
+
+
+class HostFactory:
+    @classmethod
+    def create(cls, settings: FileSystemSettings, **kwargs) -> HostAdapter:
+        if isinstance(settings, S3Settings):
+            return S3StorageProvider(settings, **kwargs)
+        elif isinstance(settings, LocalFileSettings):
+            return FileIO()
+        else:
+            me = f"No adapter registered for settings: {type(settings)}"
+            logger.error(me)
+            raise ValueError(me)

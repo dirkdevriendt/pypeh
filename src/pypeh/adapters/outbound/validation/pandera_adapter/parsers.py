@@ -1,5 +1,8 @@
-from typing import Mapping, Sequence
+from __future__ import annotations
+
 import importlib
+
+from typing import Mapping, Sequence, TYPE_CHECKING, List
 from datetime import datetime
 
 from pypeh.core.models.constants import ValidationErrorLevel
@@ -15,6 +18,15 @@ from pypeh.core.models.validation_errors import (
     ValidationError,
     DataFrameLocation,
 )
+
+
+if TYPE_CHECKING:
+    from dataguard.error_report.error_schemas import (
+        ErrorCollectorSchema,
+        ErrorSchema,
+        ExceptionSchema,
+    )
+    from dataguard.core.utils.enums import ErrorLevel
 
 
 def parse_single_expression(expression: ValidationExpression) -> Mapping:
@@ -44,15 +56,18 @@ def parse_validation_expression(expression: ValidationExpression) -> Mapping:
             "expressions": [exp_1, exp_2],
         }
     if expression.command in ("conjunction", "disjunction"):
-        if len(expression.arg_expressions) != 2:
-            raise NotImplementedError
-        case = expression.command
-        exp_1 = parse_validation_expression(expression.arg_expressions[0])
-        exp_2 = parse_validation_expression(expression.arg_expressions[1])
-        return {
-            "check_case": case,
-            "expressions": [exp_1, exp_2],
-        }
+        if expression.arg_expressions is not None:
+            if len(expression.arg_expressions) != 2:
+                raise NotImplementedError
+            case = expression.command
+            exp_1 = parse_validation_expression(expression.arg_expressions[0])
+            exp_2 = parse_validation_expression(expression.arg_expressions[1])
+            return {
+                "check_case": case,
+                "expressions": [exp_1, exp_2],
+            }
+        else:
+            raise ValueError
     return parse_single_expression(expression)
 
 
@@ -60,10 +75,10 @@ def parse_validation_design(validation_design: ValidationDesign) -> Mapping:
     return {
         "name": validation_design.name,
         "error_level": validation_design.error_level.name.lower(),
-    } | parse_validation_expression(validation_design.expression)
+    } | dict(parse_validation_expression(validation_design.expression))
 
 
-def parse_columns(columns: Sequence[ColumnValidation]) -> Mapping:
+def parse_columns(columns: Sequence[ColumnValidation]) -> List:
     parsed_columns = []
     for column in columns:
         parsed_columns.append(
@@ -90,8 +105,8 @@ def parse_config(config: ValidationConfig) -> Mapping:
     }
 
 
-def map_error_level(level: str) -> ValidationErrorLevel:
-    match level.lower():
+def map_error_level(level: ErrorLevel | str) -> ValidationErrorLevel:
+    match str(level).lower():
         case "warning":
             return ValidationErrorLevel.WARNING
         case "error":
@@ -102,7 +117,9 @@ def map_error_level(level: str) -> ValidationErrorLevel:
             raise ValueError(f"Unknown error level: {level}")
 
 
-def parse_collected_exception(exception: Mapping) -> ValidationError:
+def parse_collected_exception(exception: ExceptionSchema) -> ValidationError:
+    if exception.error_context is not None:
+        raise NotImplementedError
     return ValidationError(
         message=exception.error_message,
         type=exception.error_type,
@@ -123,7 +140,7 @@ def parse_validation_error_group(group) -> ValidationErrorGroup:
     )
 
 
-def parse_error_schema(error_schema: Mapping) -> ValidationError:
+def parse_error_schema(error_schema: ErrorSchema) -> ValidationError:
     level = map_error_level(error_schema.level)
 
     return ValidationError(
@@ -142,7 +159,7 @@ def parse_error_schema(error_schema: Mapping) -> ValidationError:
     )
 
 
-def parse_error_report(error_collector_schema: Mapping) -> ValidationErrorReport:
+def parse_error_report(error_collector_schema: ErrorCollectorSchema) -> ValidationErrorReport:
     error_reports = error_collector_schema.error_reports
     exceptions = error_collector_schema.exceptions
 
