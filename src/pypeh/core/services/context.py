@@ -6,8 +6,11 @@ from typing import TYPE_CHECKING
 
 from pypeh.core.interfaces.inbound.dataops import InDataOpsInterface
 from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface
+from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
-
+from pypeh.core.models.settings import ImportConfig
+from pypeh.adapters.outbound.persistence.formats import load_entities_from_tree
+from pypeh.adapters.outbound.persistence.hosts import HostFactory
 
 if TYPE_CHECKING:
     pass
@@ -19,29 +22,45 @@ class ContextService:
     def __init__(
         self,
         inbound_adapter: InDataOpsInterface,
-        outbound_adapter: OutDataOpsInterface,
+        outbound_adapter: PersistenceInterface = HostFactory.create(settings=None),
+        import_config: ImportConfig | None = None,
         cache: CacheContainer = CacheContainerFactory.new(),
     ):
         self.inbound_adapter = inbound_adapter
         self.outbound_adapter = outbound_adapter
         self.cache = cache
+        if import_config is not None:
+            self.import_config = import_config.to_validated_import_config()
 
-    def import_context(self):
-        # load in file
+    def _set_outbound_adapter(self, adapter: PersistenceInterface) -> bool:
+        self.outbound_adapter = adapter
+        return True
 
-        # pass to cache: load_entities_from_tree
+    def import_context(self, source: str) -> bool:
+        connection_settings = None
+        if self.import_config is not None:
+            connection_settings = self.import_config.get_connection(source)
+        if connection_settings is not None:
+            adapter = HostFactory.create(connection_settings)  # issue is transform
+            _ = self._set_outbound_adapter(adapter)
 
-        # validate newly added context
-        # does one need the entire context for validation?
+        root_stream = self.outbound_adapter.load(source)
+        new_entities = []
+        for entity in load_entities_from_tree(root_stream, create_proxy=None):
+            new_entities.append(entity)
+        _ = self.validate_new_context()
 
-        pass
+        for entity in new_entities:
+            self.cache.add(entity)
 
-    def validate_new_context(self):
+        return True
+
+    def validate_new_context(self) -> bool:
         # validation requirements
         # are identifiers dereferencable
         # are they all in the same format
 
-        pass
+        return True
 
     def update_context(self):
         pass
