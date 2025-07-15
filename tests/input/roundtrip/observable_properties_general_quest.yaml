@@ -1,0 +1,401 @@
+observable_properties:
+- id: adults_id_subject
+  unique_name: None_id_subject
+  name: id_subject
+  description: UID of the subject
+  label: UID of the subject
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '1'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - UniqueIdentifier
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: id_subject
+- id: adults_gq_sex
+  unique_name: gq_sex
+  name: sex
+  description: sex of the subject
+  label: sex of the subject
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: F
+    value: female
+  - key: M
+    value: male
+  value_metadata:
+  - field: id_line
+    value: '2'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: sex
+- id: adults_gq_country
+  unique_name: gq_country
+  name: country
+  description: country of residence of the subject according to ISO 3166-1 alpha-2
+    at sampling
+  label: country of residence of the subject according to ISO 3166-1 alpha-2 at sampling
+  remark: 'Source: https://op.europa.eu/en/web/eu-vocabularies/samples: Use the 2-letter
+    code (ISO 3166-1 alpha-2 in column interinstitutional_style_guide_code), e.g.
+    ''BE'' = Belgium'
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '3'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: country
+- id: adults_gq_nuts1
+  unique_name: gq_nuts1
+  name: nuts1
+  description: 'NUTS Level 1 of residence of the subject: (Nomenclature of Territorial
+    Units for Statistics), by regional level, version 2021 (NUTS 2021) at sampling'
+  label: 'NUTS Level 1 of residence of the subject: (Nomenclature of Territorial Units
+    for Statistics), by regional level, version 2021 (NUTS 2021) at sampling'
+  remark: 'Source: https://ec.europa.eu/eurostat/web/nuts/overview
+
+
+    Note: nuts is not available for all countries. In that case, please provide "subdivision".'
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '4'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: nuts1
+- id: adults_gq_nuts2
+  unique_name: gq_nuts2
+  name: nuts2
+  description: 'NUTS Level 2 of residence of the subject: (Nomenclature of Territorial
+    Units for Statistics), by regional level, version 2021 (NUTS 2021) at sampling'
+  label: 'NUTS Level 2 of residence of the subject: (Nomenclature of Territorial Units
+    for Statistics), by regional level, version 2021 (NUTS 2021) at sampling'
+  remark: 'Source: https://ec.europa.eu/eurostat/web/nuts/overview
+
+
+    Note: nuts is not available for all countries. In that case, please provide "subdivision".'
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '5'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: nuts2
+- id: adults_gq_nuts3
+  unique_name: gq_nuts3
+  name: nuts3
+  description: 'NUTS Level 3 of residence of the subject: (Nomenclature of Territorial
+    Units for Statistics), by regional level, version 2021 (NUTS 2021) at sampling'
+  label: 'NUTS Level 3 of residence of the subject: (Nomenclature of Territorial Units
+    for Statistics), by regional level, version 2021 (NUTS 2021) at sampling'
+  remark: 'Source: https://ec.europa.eu/eurostat/web/nuts/overview
+
+
+    Note: nuts is not available for all countries. In that case, please provide "subdivision".'
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '6'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: nuts3
+- id: adults_gq_subdivision
+  unique_name: gq_subdivision
+  name: subdivision
+  description: subdivision of country of residence of the subject according to ISO
+    3166-2 at sampling
+  label: subdivision of country of residence of the subject according to ISO 3166-2
+    at sampling
+  remark: 'Provide only when NUTS classification is not available for the country;
+    click on English short name of the country, to gather the ISO 3166-2 code (e.g.
+    ''BE-VAN'' = Antwerpen); provide the highest possible resolution (e.g. not BE-VLG
+    (Vlaams Gewest / Flemish region), which is a partent subdivision of BE-VAN)
+
+
+    [ISO 3166-2 CODE from https://www.iso.org/obp/ui/#search/code/]'
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '7'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: subdivision
+- id: adults_gq_degurba
+  unique_name: gq_degurba
+  name: degurba
+  description: Degree of urbanization of residence at sampling of the subject.
+  label: Degree of urbanization of residence at sampling of the subject.
+  remark: 'In the files present in the following webpage (https://ec.europa.eu/eurostat/web/nuts/local-administrative-units),
+    you will find a series of sheets with the country codes. After selecting your
+    country, you will find a column which provides the names of the cities, towns
+    and rural areas for each country, and a column called DEGURBA code with the corresponding
+    DEGURBA code. Looking at those two columns and matching them with each subject
+    of the study, the Degurba number can be extracted.
+
+
+    For additional information about this, you can read the following file: http://ec.europa.eu/regional_policy/sources/docgener/work/2014_01_new_urban.pdf
+
+
+    '
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: '1'
+    value: Densely populated area (cities)
+  - key: '2'
+    value: Intermediate density area (towns or suburbs)
+  - key: '3'
+    value: Thinly populated area (rural area)
+  value_metadata:
+  - field: id_line
+    value: '8'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: degurba
+- id: adults_gq_ageyears
+  unique_name: gq_ageyears
+  name: ageyears
+  description: age in years of the subject at sampling
+  label: age in years of the subject at sampling
+  remark: 'birth date is not used to reduce risk of re-identification
+
+
+    If this is calculated using the fielworkd date and the birthdate in R, please
+    use the following R function and formula: ageyears = floor(difftime(fieldwork_date,
+    birth_date, units = "days")/365.25)'
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: max
+    value: '150.0'
+  - field: id_line
+    value: '9'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: ageyears
+- id: adults_gq_isced_raw
+  unique_name: gq_isced_raw
+  name: isced_raw
+  description: education level of the subject  (ISCED scale) at sampling
+  label: education level of the subject  (ISCED scale) at sampling
+  remark: 'According to ISCED 2011 with 9 levels of education: ISCED level 0 - Early
+    childhood education; ISCED level 1 - Primary education; ISCED level 2 - Lower
+    secondary education; ISCED level 3 - Upper secondary education; ; ISCED level
+    4 - Post-secondary non-tertiary education; ISCED level 5 - Short-cycle tertiary
+    education; ISCED level 6 - Bachelor''s or equivalent level; ISCED level 7 - Master''s
+    or equivalent level; ISCED level 8 - Doctoral or equivalent level; Eurostat uses
+    this level of aggregation, as data are comparable over time for all participating
+    EU countries except Austria where reclassification of one education programma
+    from ISCED level 4 to level 5 caused the increase of tertiary education.'
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: '0'
+    value: Early childhood education
+  - key: '1'
+    value: Primary education
+  - key: '2'
+    value: Lower secondary education
+  - key: '3'
+    value: Upper secondary education
+  - key: '4'
+    value: Post-secondary non-tertiary education
+  - key: '5'
+    value: Short-cycle tertiary education
+  - key: '6'
+    value: Bachelor's or equivalent level
+  - key: '7'
+    value: Master's or equivalent level
+  - key: '8'
+    value: Doctoral or equivalent level
+  value_metadata:
+  - field: id_line
+    value: '10'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: isced_raw
+- id: adults_gq_isced
+  unique_name: gq_isced
+  name: isced
+  description: education level of the subject  (ISCED scale) at sampling
+  label: education level of the subject  (ISCED scale) at sampling
+  remark: 'According to ISCED 2011 with 9 levels of education: ISCED level 0 - Early
+    childhood education; ISCED level 1 - Primary education; ISCED level 2 - Lower
+    secondary education; ISCED level 3 - Upper secondary education; ; ISCED level
+    4 - Post-secondary non-tertiary education; ISCED level 5 - Short-cycle tertiary
+    education; ISCED level 6 - Bachelor''s or equivalent level; ISCED level 7 - Master''s
+    or equivalent level; ISCED level 8 - Doctoral or equivalent level; Eurostat uses
+    this level of aggregation, as data are comparable over time for all participating
+    EU countries except Austria where reclassification of one education programma
+    from ISCED level 4 to level 5 caused the increase of tertiary education.'
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: '1'
+    value: Low education (ISCED 0-2)
+  - key: '2'
+    value: Medium education (ISCED 3-4)
+  - key: '3'
+    value: High education (ISCED >
+  value_metadata:
+  - field: id_line
+    value: '11'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: isced
+- id: adults_gq_isced_hh_raw
+  unique_name: gq_isced_hh_raw
+  name: isced_hh_raw
+  description: Highest education level of the household of the  subject (ISCED scale)
+    at sampling
+  label: Highest education level of the household of the  subject (ISCED scale) at
+    sampling
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: '0'
+    value: Early childhood education
+  - key: '1'
+    value: Primary education
+  - key: '2'
+    value: Lower secondary education
+  - key: '3'
+    value: Upper secondary education
+  - key: '4'
+    value: Post-secondary non-tertiary education
+  - key: '5'
+    value: Short-cycle tertiary education
+  - key: '6'
+    value: Bachelor's or equivalent level
+  - key: '7'
+    value: Master's or equivalent level
+  - key: '8'
+    value: Doctoral or equivalent level
+  value_metadata:
+  - field: id_line
+    value: '12'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: isced_hh_raw
+- id: adults_gq_isced_hh
+  unique_name: gq_isced_hh
+  name: isced_hh
+  description: Highest education level of the household of the  subject (ISCED scale)
+    at sampling
+  label: Highest education level of the household of the  subject (ISCED scale) at
+    sampling
+  remark: see remark isced
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: '1'
+    value: Low education (ISCED 0-2)
+  - key: '2'
+    value: Medium education (ISCED 3-4)
+  - key: '3'
+    value: High education (ISCED >
+  value_metadata:
+  - field: id_line
+    value: '13'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: isced_hh

@@ -13,8 +13,9 @@ from __future__ import annotations
 import logging
 
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from peh_model.peh import NamedThing
-from typing import Dict, Type, TYPE_CHECKING
+from typing import Dict, Type, TYPE_CHECKING, Set, TypeVar, Generic
 
 from pypeh.core.cache.utils import get_entity_type
 from pypeh.core.models.proxy import TypedLazyProxy
@@ -25,12 +26,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+T_Container = TypeVar("T_Container")
 
-class CacheContainer(ABC):
+
+class CacheContainer(ABC, Generic[T_Container]):
     """Abstract base class for cache backends"""
 
     def __init__(self):
-        self._storage = None
+        self._storage = T_Container
 
     @abstractmethod
     def add(self, entity: T_NamedThingLike) -> None:
@@ -43,7 +46,7 @@ class CacheContainer(ABC):
         pass
 
     @abstractmethod
-    def get_all(self) -> Generator[T_NamedThingLike, None, None]:
+    def get_all(self, entity_type: str | None = None) -> Generator[T_NamedThingLike, None, None]:
         """Retrieve all entities"""
         pass
 
@@ -62,13 +65,19 @@ class CacheContainer(ABC):
         """Return entry and delete from cache"""
         pass
 
+    @abstractmethod
+    def __len__(self) -> int:
+        pass
 
-class MappingContainer(CacheContainer):
+
+class MappingContainer(CacheContainer[Dict]):
     def __init__(self):
         self._storage: Dict[str, T_NamedThingLike] = dict()
+        self._class_index: Dict[str, Set[str]] = defaultdict(set)
 
     def _add_object(self, entity: T_NamedThingLike, entity_id: str, entity_type: str) -> None:
         self._storage[entity_id] = entity
+        self._class_index[entity_type].add(entity_id)
 
     def exists(self, entity_id: str, entity_type: str) -> bool:
         return entity_id in self._storage.keys()
@@ -96,13 +105,24 @@ class MappingContainer(CacheContainer):
 
     def clear(self) -> None:
         self._storage.clear()
+        self._class_index.clear()
 
     def pop(self, entity_id: str, entity_type: str) -> Optional[T_NamedThingLike]:
+        if entity_type in self._class_index:
+            self._class_index[entity_type].remove(entity_id)
         return self._storage.pop(entity_id, None)
 
-    def get_all(self) -> Generator[T_NamedThingLike, None, None]:
-        for entity_id in self._storage.keys():
-            yield self._storage[entity_id]
+    def get_all(self, entity_type: str | None = None) -> Generator[T_NamedThingLike, None, None]:
+        if entity_type is None:
+            for entity_id in self._storage.keys():
+                yield self._storage[entity_id]
+        else:
+            if entity_type in self._class_index:
+                for entity_id in self._class_index[entity_type]:
+                    yield self._storage[entity_id]
+
+    def __len__(self) -> int:
+        return len(self._storage)
 
     def __repr__(self):
         return self._storage.__repr__()

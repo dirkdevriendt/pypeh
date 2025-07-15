@@ -1,0 +1,337 @@
+observable_properties:
+- id: adults_id_subject
+  unique_name: None_id_subject
+  name: id_subject
+  description: UID of the subject
+  label: UID of the subject
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '1'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - UniqueIdentifier
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: id_subject
+- id: adults_bs_matrix
+  unique_name: bs_matrix
+  name: matrix
+  description: matrix of the sample
+  label: matrix of the sample
+  remark: 'Required unit:  µg/L if matrix =  ''BWB'' OR matrix = ''BP'' OR matrix
+    = ''BS'' OR matrix = ''CBWB'' OR matrix = ''CBP'' OR matrix =''CBS'' OR matrix
+    = ''US'' OR matrix = ''UD'' OR matrix = ''UM'' OR matrix = ''SA'' OR matrix =
+    ''SEM'' OR matrix = ''EBC'' OR matrix = ''RBC'' OR matrix = ''BM'' OR matrix =
+    ''ADI'' = Adipose Tissue/Fat OR matrix = ''AF'';  ng/g if matrix =  ''H'' OR matrix
+    = ''PLT''; µg/cm2 if matrix  =''DW'''
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: BWB
+    value: Blood-whole blood
+  - key: BP
+    value: Blood -plasma
+  - key: BS
+    value: Blood -serum
+  - key: CBWB
+    value: Cord blood-whole blood
+  - key: CBP
+    value: Cord blood-plasma
+  - key: CBS
+    value: Cord blood-serum
+  - key: US
+    value: Urine- random spot
+  - key: UD
+    value: Urine-24h
+  - key: UM
+    value: Urine-first morning urine
+  - key: SA
+    value: Saliva/sputum
+  - key: SEM
+    value: Semen
+  - key: EBC
+    value: exhaled breath condensate
+  - key: RBC
+    value: red blood cells
+  - key: BM
+    value: Breast milk
+  - key: ADI
+    value: Adipose Tissue/Fat
+  - key: H
+    value: Hair
+  - key: DW
+    value: dermal wipes
+  - key: AF
+    value: Amniotic Fluid
+  - key: PLT
+    value: placenta tissue
+  value_metadata:
+  - field: id_line
+    value: '2'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: matrix
+- id: adults_bs_analysisyear
+  unique_name: bs_analysisyear
+  name: analysisyear
+  description: Year in which the sample was analyzed in the lab
+  label: Year in which the sample was analyzed in the lab
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '1900.0'
+  - field: max
+    value: '2024.0'
+  - field: id_line
+    value: '3'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: analysisyear
+- id: adults_bs_analysismonth
+  unique_name: bs_analysismonth
+  name: analysismonth
+  description: Month in which the sample was analyzed in the lab
+  label: Month in which the sample was analyzed in the lab
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: '1'
+    value: January
+  - key: '2'
+    value: February
+  - key: '3'
+    value: March
+  - key: '4'
+    value: April
+  - key: '5'
+    value: May
+  - key: '6'
+    value: June
+  - key: '7'
+    value: July
+  - key: '8'
+    value: August
+  - key: '9'
+    value: September
+  - key: '10'
+    value: October
+  - key: '11'
+    value: November
+  - key: '12'
+    value: December
+  value_metadata:
+  - field: id_line
+    value: '4'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: analysismonth
+- id: adults_bs_analysisday
+  unique_name: bs_analysisday
+  name: analysisday
+  description: Day in which the sample was analyzed in the lab
+  label: Day in which the sample was analyzed in the lab
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '1.0'
+  - field: max
+    value: '31.0'
+  - field: id_line
+    value: '5'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: analysisday
+- id: adults_bs_chol
+  unique_name: bs_chol
+  name: chol
+  description: Cholesterol in sample
+  label: Cholesterol in sample
+  remark: "measured values (X) are given;\n\n-10 = measurement was planned for a participant,\
+    \ but unexpected reasons prevented the sample to be measured (eg. not enough sample,\
+    \ broken tube, analytical issue, etc.)\n\n\n\nif LOD as well as LOQ is known:\
+    \ \n\n-1 for X < LOD\n\n-2 for LOD <= X < LOQ\n\nif LOQ is known, but LOD is not:\n\
+    \n-3 for X < LOQ\n\nif LOD is known, but LOQ is not:\n\n-1 for X < LOD"
+  value_type: decimal
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '6'
+  - field: cb_source
+    value: basic
+  default_unit: MilliGM-PER-DeciL
+  default_unit_label: mg/dL
+  default_required: false
+  default_zeroallowed: true
+  default_significantdecimals: 6
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: chol
+  validation_designs:
+  - validation_expression:
+      validation_subject_source_paths:
+      - chol
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - matrix
+        validation_command: is_in
+        validation_arg_values:
+        - BWB
+        - BP
+        - BS
+        - CBWB
+        - CBP
+        - CBS
+        - BM
+        - BWBG
+        - BPG
+        - BSG
+        - CBWBG
+        - CBPG
+        - CBSG
+        - BMG
+        - DBS
+        - VAMS
+      validation_command: is_not_null
+    conditional: "IF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BM,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,BMG,DBS,VAMS)\
+      \  THEN chol IS not empty; \n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
+      \  THEN chol [50,250]; \n\nIF matrix IS (BM,BMG)  THEN chol [5,100]"
+  - validation_expression:
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - matrix
+        validation_command: is_in
+        validation_arg_values:
+        - BWB
+        - BP
+        - BS
+        - CBWB
+        - CBP
+        - CBS
+        - BWBG
+        - BPG
+        - BSG
+        - CBWBG
+        - CBPG
+        - CBSG
+        - DBS
+        - VAMS
+      validation_arg_expressions:
+      - validation_subject_source_paths:
+        - chol
+        validation_command: is_greater_than_or_equal_to
+        validation_arg_values:
+        - '50'
+      - validation_subject_source_paths:
+        - chol
+        validation_command: is_less_than_or_equal_to
+        validation_arg_values:
+        - '250'
+    conditional: "IF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BM,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,BMG,DBS,VAMS)\
+      \  THEN chol IS not empty; \n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
+      \  THEN chol [50,250]; \n\nIF matrix IS (BM,BMG)  THEN chol [5,100]"
+  - validation_expression:
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - matrix
+        validation_command: is_in
+        validation_arg_values:
+        - BM
+        - BMG
+      validation_arg_expressions:
+      - validation_subject_source_paths:
+        - chol
+        validation_command: is_greater_than_or_equal_to
+        validation_arg_values:
+        - '5'
+      - validation_subject_source_paths:
+        - chol
+        validation_command: is_less_than_or_equal_to
+        validation_arg_values:
+        - '100'
+    conditional: "IF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BM,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,BMG,DBS,VAMS)\
+      \  THEN chol IS not empty; \n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
+      \  THEN chol [50,250]; \n\nIF matrix IS (BM,BMG)  THEN chol [5,100]"
+- id: adults_bs_chol_lod
+  unique_name: bs_chol_lod
+  name: chol_lod
+  description: lod associated with the cholesterol measurement of the sample
+  label: lod associated with the cholesterol measurement of the sample
+  value_type: decimal
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '7'
+  - field: cb_source
+    value: basic
+  default_unit: MilliGM-PER-DeciL
+  default_unit_label: mg/dL
+  default_required: false
+  default_zeroallowed: true
+  default_significantdecimals: 6
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: chol_lod
+- id: adults_bs_chol_loq
+  unique_name: bs_chol_loq
+  name: chol_loq
+  description: loq associated with the cholesterol measurement of the sample
+  label: loq associated with the cholesterol measurement of the sample
+  value_type: decimal
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '8'
+  - field: cb_source
+    value: basic
+  default_unit: MilliGM-PER-DeciL
+  default_unit_label: mg/dL
+  default_required: false
+  default_zeroallowed: true
+  default_significantdecimals: 6
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: chol_loq

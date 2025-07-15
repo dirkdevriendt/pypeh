@@ -5,11 +5,10 @@ import logging
 from typing import TYPE_CHECKING
 
 from pypeh.core.interfaces.inbound.dataops import InDataOpsInterface
-from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface
 from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from pypeh.core.models.settings import ImportConfig
-from pypeh.adapters.outbound.persistence.formats import load_entities_from_tree
+from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.adapters.outbound.persistence.hosts import HostFactory
 
 if TYPE_CHECKING:

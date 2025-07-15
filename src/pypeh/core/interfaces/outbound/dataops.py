@@ -40,9 +40,9 @@ class OutDataOpsInterface:
     pass
 
 
-class ValidationInterface(OutDataOpsInterface):
+class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
     @abstractmethod
-    def validate(self, data: dict[str, Sequence], config: ValidationConfig) -> ValidationErrorReport:
+    def validate(self, data: dict[str, Sequence] | T_DataType, config: ValidationConfig) -> ValidationErrorReport:
         raise NotImplementedError
 
 
