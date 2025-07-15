@@ -83,7 +83,8 @@ markers = [
     "dataframe: tests for dataframe-based adapters",
     "rocrate: tests for rocrate-based adapter",
     "interface: tests for shared interfaces",
-	"s3: tests for the s3 adapter"
+	"s3: tests for the s3 adapter",
+	"other: placeholder",
 ]
 
 [tool.ruff]

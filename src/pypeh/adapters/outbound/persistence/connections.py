@@ -29,6 +29,9 @@ class FileConnection(BaseConnection):
     def __init__(self, path: str | pathlib.Path):
         self.path = path
 
+    def resolve(self) -> pathlib.Path:
+        return pathlib.Path(self.path)
+
 
 class ROCrateConnection(BaseConnection):
     def __init__(self, root: str | pathlib.Path):

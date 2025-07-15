@@ -51,7 +51,7 @@ CLASS_REFERENCES = {
 
 
 class TypedLazyProxy:
-    def __init__(self, identifier: str, expected_type: Type[peh.NamedThing], loader: Callable):
+    def __init__(self, identifier: str, expected_type: Type[peh.NamedThing], loader: Callable | None):
         self._id: str = identifier
         self._expected_type = expected_type
         self._loader = loader
@@ -65,19 +65,33 @@ class TypedLazyProxy:
     def expected_type(self):
         return self._expected_type
 
+    @classmethod
+    def create_proxy(cls, entity: str, loader: Callable | None) -> "TypedLazyProxy":
+        name = entity.__class__.__name__
+        expected_type = CLASS_REFERENCES.get(name, None)
+        if expected_type is None:
+            logger.error(f"No mapping for object of type {name}")
+            raise ValueError
+
+        return cls(entity, expected_type, loader)
+
     def set_loader(self, loader: Callable) -> bool:
         self._loader = loader
         return True
 
     def _ensure_loaded(self):
         if self._target is None:
-            self._target = self._loader()
-            if self._expected_type and not isinstance(self._target, self._expected_type):
-                raise TypeError(f"Loaded object is not of expected type {self._expected_type}")
+            if self._loader is not None:
+                self._target = self._loader()
+                if self._expected_type and not isinstance(self._target, self._expected_type):
+                    raise TypeError(f"Loaded object is not of expected type {self._expected_type}")
 
     def __getattr__(self, name):
-        self._ensure_loaded()
-        return getattr(self._target, name)
+        if self._loader is not None:
+            self._ensure_loaded()
+            return getattr(self._target, name)
+        else:
+            return getattr(self._target, name, None)
 
     def __repr__(self):
         if self._target is None:

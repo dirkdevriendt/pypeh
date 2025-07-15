@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import dataclasses
 import logging
 
 from abc import abstractmethod
 from pydantic_settings import BaseSettings, SettingsConfigDict, PydanticBaseSettingsSource
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 from typing import Optional
 
 from pypeh.core.utils.namespaces import ImportMap
@@ -81,14 +82,42 @@ class S3Config(SettingsConfig):
             raise ValueError(f"Failed to load config with prefix '{self.env_prefix}': {e}") from e
 
 
+@dataclasses.dataclass
+class ValidatedImportConfig:
+    connection_map: dict[str, FileSystemSettings]
+    import_map: ImportMap
+
+    def get_connection(self, namespace: str):
+        connection_str = self.import_map.get(namespace)
+        if connection_str is not None:
+            return self.connection_map.get(connection_str, None)
+
+
 class ImportConfig(BaseModel):
     connection_map: dict[str, SettingsConfig]
     import_map: dict[str, str]
 
-    @field_validator("import_map", mode="after")
     @classmethod
     def dict_to_trie(cls, namespace_map: dict[str, str]) -> ImportMap:
         new_import_map = ImportMap()
         for key, value in namespace_map.items():
             new_import_map[key] = value
         return new_import_map
+
+    @classmethod
+    def config_to_settings(cls, connection_map: dict[str, SettingsConfig]) -> dict[str, FileSystemSettings]:
+        return {key: value.make_settings() for key, value in connection_map.items()}
+
+    @model_validator(mode="after")
+    def validate_import_targets(self):
+        if self.import_map is not None:
+            for target in self.import_map.values():
+                if target not in self.connection_map:
+                    raise ValueError(f"Import target {target} missing from connection_map")
+
+        return self
+
+    def to_validated_import_config(self) -> ValidatedImportConfig:
+        connection_map = self.config_to_settings(self.connection_map)
+        import_map = self.dict_to_trie(self.import_map)
+        return ValidatedImportConfig(connection_map=connection_map, import_map=import_map)

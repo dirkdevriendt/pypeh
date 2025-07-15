@@ -43,10 +43,17 @@ class ImportMapTrieNode:
 
 
 class ImportMap:
+    """
+    Implementation of a trie with dict-like behaviour. For any namespace the
+    closest matching namespace and its connection string will be returned.
+    """
+
     def __init__(self):
         self.root = ImportMapTrieNode()
+        self._data = set()
 
     def insert(self, namespace, connection_str):
+        self._data.add(namespace)
         parts = self._split_namespace(namespace)
         node = self.root
         for part in parts:
@@ -78,6 +85,24 @@ class ImportMap:
     def __contains__(self, key):
         value = self.match(key)
         return value is not None
+
+    def get(self, key, default=None):
+        ret = self.match(key)
+        if ret is None:
+            return default
+        return ret
+
+    def keys(self):
+        return list(self._data)
+
+    def values(self):
+        return [self.match(key) for key in self._data]
+
+    def items(self):
+        return {key: self.match(key) for key in self._data}
+
+    def __iter__(self):
+        return iter(self.keys())
 
     def _split_namespace(self, uri):
         # Split only on "/" and "#"

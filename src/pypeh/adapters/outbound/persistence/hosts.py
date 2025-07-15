@@ -250,12 +250,20 @@ class ResourceRegistry:
 
 class HostFactory:
     @classmethod
-    def create(cls, settings: FileSystemSettings, **kwargs) -> HostAdapter:
-        if isinstance(settings, S3Settings):
-            return S3StorageProvider(settings, **kwargs)
-        elif isinstance(settings, LocalFileSettings):
-            return FileIO()
+    def default(cls):
+        return WebServiceAdapter()
+
+    @classmethod
+    def create(cls, settings: FileSystemSettings | None, **kwargs) -> HostAdapter:
+        if settings is None:
+            return cls.default()
+
         else:
-            me = f"No adapter registered for settings: {type(settings)}"
-            logger.error(me)
-            raise ValueError(me)
+            if isinstance(settings, S3Settings):
+                return S3StorageProvider(settings, **kwargs)
+            elif isinstance(settings, LocalFileSettings):
+                return FileIO()
+            else:
+                me = f"No adapter registered for settings: {type(settings)}"
+                logger.error(me)
+                raise ValueError(me)
