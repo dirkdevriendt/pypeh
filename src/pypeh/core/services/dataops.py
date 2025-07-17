@@ -8,12 +8,12 @@ from peh_model import peh
 from pypeh.core.interfaces.inbound.dataops import InDataOpsInterface
 from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface, ValidationInterface, DataImportInterface
 from pypeh.core.models.settings import SettingsConfig
-from pypeh.core.models.validation_dto import ValidationConfig
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
+from pypeh.core.models.validation_dto import ValidationConfig
 
 
 if TYPE_CHECKING:
-    pass
+    from polars import DataFrame
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +22,11 @@ class DataOpsService:
     def __init__(
         self,
         inbound_adapter: InDataOpsInterface,
-        outbound_adapter: OutDataOpsInterface,
+        processing_adapter: OutDataOpsInterface,
         cache: CacheContainer = CacheContainerFactory.new(),
     ):
         self.inbound_adapter = inbound_adapter
-        self.outbound_adapter = outbound_adapter
+        self.processing_adapter = processing_adapter
         self.cache = cache
 
 
@@ -40,29 +40,47 @@ class ValidationService(DataOpsService):
         super().__init__(inbound_adapter, outbound_adapter, cache)
         self.outbound_adapter: ValidationInterface = outbound_adapter
 
-    def validate_data(
+    def _validate_data(
         self,
-        data: dict[str, Sequence],
+        data: dict[str, Sequence] | DataFrame,
         observation: peh.Observation,
         observable_property_dict: dict[str, peh.ObservableProperty],
     ) -> dict:
         result_dict = {}
-        observation_design = observation.observation_design
-        observable_entity_property_sets = getattr(observation_design, "observable_entity_property_sets", None)
-        if observable_entity_property_sets is None:
-            raise AttributeError
-        for cnt, oep_set in enumerate(observable_entity_property_sets):
-            oep_set_name = (
-                f"{oep_set}_{cnt:0>2}"  # TODO: document why an observable_entity_property_set gets a label like this
-            )
-            validation_config = ValidationConfig.from_peh(
-                oep_set,
-                oep_set_name,
-                observable_property_dict,
-            )
+        for oep_set_name, validation_config in ValidationConfig.from_observation(
+            observation,
+            observable_property_dict,
+        ):
             result_dict[oep_set_name] = self.outbound_adapter.validate(data, validation_config)
 
         return result_dict
+
+    def validate_data(
+        self,
+        data: dict[str, Sequence] | DataFrame,
+        observation_id: str,
+        observable_property_id_list: list[str],
+    ) -> dict:
+        observation_entity = self.cache.get(observation_id, "Observation")
+        if not isinstance(observation_entity, peh.Observation):
+            me = f"Provided observation_id {observation_id} does not point to an Observation"
+            logger.error(me)
+            raise TypeError(me)
+        observable_property_dict = {}
+
+        for _id in observable_property_id_list:
+            entity = self.cache.get(_id, "ObservableProperty")
+            if not isinstance(entity, peh.ObservableProperty):
+                me = f"Provided observable_property_id {_id} does not point to an ObservableProperty"
+                logger.error(me)
+                raise TypeError(me)
+            observable_property_dict[_id] = entity
+
+        return self._validate_data(
+            data,
+            observation_entity,
+            observable_property_dict,
+        )
 
 
 class DataImportService(DataOpsService):

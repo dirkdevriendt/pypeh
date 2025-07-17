@@ -1,0 +1,990 @@
+observable_properties:
+- id: adults_id_subject
+  unique_name: None_id_subject
+  name: id_subject
+  description: UID of the subject
+  label: UID of the subject
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '1'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - UniqueIdentifier
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: id_subject
+- id: adults_bq_samplingyear
+  unique_name: bq_samplingyear
+  name: samplingyear
+  description: year of sample collection
+  label: year of sample collection
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '1900.0'
+  - field: max
+    value: '2025.0'
+  - field: id_line
+    value: '2'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: samplingyear
+- id: adults_bq_samplingmonth
+  unique_name: bq_samplingmonth
+  name: samplingmonth
+  description: month of sample collection (1 is the first month of the year)
+  label: month of sample collection (1 is the first month of the year)
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: '1'
+    value: January
+  - key: '2'
+    value: February
+  - key: '3'
+    value: March
+  - key: '4'
+    value: April
+  - key: '5'
+    value: May
+  - key: '6'
+    value: June
+  - key: '7'
+    value: July
+  - key: '8'
+    value: August
+  - key: '9'
+    value: September
+  - key: '10'
+    value: October
+  - key: '11'
+    value: November
+  - key: '12'
+    value: December
+  value_metadata:
+  - field: id_line
+    value: '3'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: samplingmonth
+- id: adults_bq_samplingday
+  unique_name: bq_samplingday
+  name: samplingday
+  description: day of sample collection (1 is the first day of the month)
+  label: day of sample collection (1 is the first day of the month)
+  remark: Note that this may reveal birth date for newborns sampled at birth. Balance
+    risk of re-identification with necessity to answer research question on case by
+    case basis.
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '1.0'
+  - field: max
+    value: '31.0'
+  - field: id_line
+    value: '4'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: samplingday
+- id: adults_bq_samplingseason
+  unique_name: bq_samplingseason
+  name: samplingseason
+  description: Season of sampling
+  label: Season of sampling
+  remark: 'Spring: From March 21st to June 20th
+
+
+    Summer: From June 21st to September 20th
+
+
+    Autumn: From September 21st to December 20th
+
+
+    Winter: From December 21st to March 20th'
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: '1'
+    value: spring
+  - key: '2'
+    value: summer
+  - key: '3'
+    value: autumn
+  - key: '4'
+    value: winter
+  value_metadata:
+  - field: id_line
+    value: '5'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: samplingseason
+- id: adults_bq_samplinghour
+  unique_name: bq_samplinghour
+  name: samplinghour
+  description: Hour of sampling
+  label: Hour of sampling
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: max
+    value: '24.0'
+  - field: id_line
+    value: '6'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: samplinghour
+- id: adults_bq_samplingminutes
+  unique_name: bq_samplingminutes
+  name: samplingminutes
+  description: Minutes of sampling
+  label: Minutes of sampling
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: max
+    value: '60.0'
+  - field: id_line
+    value: '7'
+  - field: cb_source
+    value: basic
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: samplingminutes
+- id: adults_bq_id_subject_original
+  unique_name: bq_id_subject_original
+  name: id_subject_original
+  description: unique ID number of the subject
+  label: ID (PARTICIPANT)
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '8'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q093
+  - field: Section
+    value: I.00
+  - field: SectionDescription
+    value: Questionnaire information
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: id_subject_original
+- id: adults_bq_id_interviewer
+  unique_name: bq_id_interviewer
+  name: id_interviewer
+  description: unique ID number of the interviewer
+  label: ID (INTERVIEWER)
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '9'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q094
+  - field: Section
+    value: I.00
+  - field: SectionDescription
+    value: Questionnaire information
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: id_interviewer
+- id: adults_bq_interviewday
+  unique_name: bq_interviewday
+  name: interviewday
+  description: date of the interview/filling in the questionnaire - day
+  label: DATE OF THE INTERVIEW ||| day
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '1.0'
+  - field: max
+    value: '31.0'
+  - field: id_line
+    value: '10'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q095; Q095.1
+  - field: Section
+    value: I.00
+  - field: SectionDescription
+    value: Questionnaire information
+  default_unit: DAY
+  default_unit_label: days
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: interviewday
+- id: adults_bq_interviewmonth
+  unique_name: bq_interviewmonth
+  name: interviewmonth
+  description: date of the interview/filling in the questionnaire - month
+  label: DATE OF THE INTERVIEW ||| month
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '1.0'
+  - field: max
+    value: '12.0'
+  - field: id_line
+    value: '11'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q095; Q095.2
+  - field: Section
+    value: I.00
+  - field: SectionDescription
+    value: Questionnaire information
+  default_unit: MO
+  default_unit_label: months
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: interviewmonth
+- id: adults_bq_interviewyear
+  unique_name: bq_interviewyear
+  name: interviewyear
+  description: date of the interview/filling in the questionnaire - year
+  label: DATE OF THE INTERVIEW ||| year
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '2023.0'
+  - field: max
+    value: '2026.0'
+  - field: id_line
+    value: '12'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q095; Q095.3
+  - field: Section
+    value: I.00
+  - field: SectionDescription
+    value: Questionnaire information
+  default_unit: YR
+  default_unit_label: years
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: interviewyear
+- id: adults_bq_interviewstarthour
+  unique_name: bq_interviewstarthour
+  name: interviewstarthour
+  description: start time of the interview/filling in the questionnaire - hour
+  label: START TIME ||| hours
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: max
+    value: '23.0'
+  - field: id_line
+    value: '13'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q096; Q096.1
+  - field: Section
+    value: I.00
+  - field: SectionDescription
+    value: Questionnaire information
+  default_unit: HR
+  default_unit_label: hours
+  default_required: false
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_NOT_APPLICABLE
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: interviewstarthour
+- id: adults_bq_interviewstartminutes
+  unique_name: bq_interviewstartminutes
+  name: interviewstartminutes
+  description: start time of the interview/filling in the questionnaire - minutes
+  label: START TIME ||| minutes
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: max
+    value: '59.0'
+  - field: id_line
+    value: '14'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q096; Q096.2
+  - field: Section
+    value: I.00
+  - field: SectionDescription
+    value: Questionnaire information
+  default_unit: MIN
+  default_unit_label: minutes
+  default_required: false
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_NOT_APPLICABLE
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: interviewstartminutes
+- id: adults_bq_interviewendhour
+  unique_name: bq_interviewendhour
+  name: interviewendhour
+  description: end time of the interview/filling in the questionnaire - hour
+  label: END TIME ||| hours
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: max
+    value: '23.0'
+  - field: id_line
+    value: '15'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q097; Q097.1
+  - field: Section
+    value: I.00
+  - field: SectionDescription
+    value: Questionnaire information
+  default_unit: HR
+  default_unit_label: hours
+  default_required: false
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_NOT_APPLICABLE
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: interviewendhour
+- id: adults_bq_interviewendminutes
+  unique_name: bq_interviewendminutes
+  name: interviewendminutes
+  description: end time of the interview/filling in the questionnaire - minutes
+  label: END TIME ||| minutes
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: max
+    value: '59.0'
+  - field: id_line
+    value: '16'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q097; Q097.2
+  - field: Section
+    value: I.00
+  - field: SectionDescription
+    value: Questionnaire information
+  default_unit: MIN
+  default_unit_label: minutes
+  default_required: false
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_NOT_APPLICABLE
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: interviewendminutes
+- id: adults_bq_interviewplace
+  unique_name: bq_interviewplace
+  name: interviewplace
+  description: place/platform were the interview/filling in the questionnaire took
+    place
+  label: INTERVIEW PLACE / INTERVIEW PLATFORM
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '17'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q098
+  - field: Section
+    value: I.00
+  - field: SectionDescription
+    value: Questionnaire information
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OPTIONAL
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: interviewplace
+- id: adults_bq_bloodtaken
+  unique_name: bq_bloodtaken
+  name: bloodtaken
+  description: blood sample taken
+  label: Has the blood sample been taken?
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: '1'
+    value: 'Yes'
+  - key: '0'
+    value: 'No'
+  value_metadata:
+  - field: id_line
+    value: '18'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q130
+  - field: Section
+    value: B.01
+  - field: SectionDescription
+    value: Question for fieldworker about blood sample collection
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: bloodtaken
+- id: adults_bq_bloodnottaken
+  unique_name: bq_bloodnottaken
+  name: bloodnottaken
+  description: reason for missing blood sample
+  label: Has the blood sample been taken? ||| Please indicate the reason for missing
+    submission of the blood sample
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: '1'
+    value: Unsuccessful puncture
+  - key: '2'
+    value: No consent
+  - key: '3'
+    value: Sampling was spontaneously refused
+  - key: '4'
+    value: Other reason
+  value_metadata:
+  - field: id_line
+    value: '19'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q130; Q130.1
+  - field: Section
+    value: B.01
+  - field: SectionDescription
+    value: Question for fieldworker about blood sample collection
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: bloodnottaken
+  validation_designs:
+  - validation_expression:
+      validation_subject_source_paths:
+      - bloodnottaken
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - bloodtaken
+        validation_command: is_equal_to
+        validation_arg_values:
+        - '0.0'
+      validation_command: is_not_null
+    conditional: IF bloodtaken IS 0 THEN bloodnottaken IS not empty
+- id: adults_bq_bloodnottakenother
+  unique_name: bq_bloodnottakenother
+  name: bloodnottakenother
+  description: other reason for missing blood sample
+  label: Has the blood sample been taken? ||| Please indicate the reason for missing
+    submission of the blood sample ||| Other reason, that being
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '20'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q130; Q130.1; Q130.1.1
+  - field: Section
+    value: B.01
+  - field: SectionDescription
+    value: Question for fieldworker about blood sample collection
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: bloodnottakenother
+  validation_designs:
+  - validation_expression:
+      validation_subject_source_paths:
+      - bloodnottakenother
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - bloodnottaken
+        validation_command: is_equal_to
+        validation_arg_values:
+        - '4.0'
+      validation_command: is_not_null
+    conditional: IF bloodnottaken IS 4 THEN bloodnottakenother IS not empty
+- id: adults_bq_bloodsampleday
+  unique_name: bq_bloodsampleday
+  name: bloodsampleday
+  description: date of blood sample collection - day
+  label: When was the blood sample obtained? ||| on ||| Day
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '1.0'
+  - field: max
+    value: '31.0'
+  - field: id_line
+    value: '21'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q131; Q131.1; Q131.1.1
+  - field: Section
+    value: B.01
+  - field: SectionDescription
+    value: Question for fieldworker about blood sample collection
+  default_unit: DAY
+  default_unit_label: days
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: bloodsampleday
+  validation_designs:
+  - validation_expression:
+      validation_subject_source_paths:
+      - bloodsampleday
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - bloodtaken
+        validation_command: is_equal_to
+        validation_arg_values:
+        - '1.0'
+      validation_command: is_not_null
+    conditional: IF bloodtaken IS 1 THEN bloodsampleday IS not empty
+- id: adults_bq_bloodsamplemonth
+  unique_name: bq_bloodsamplemonth
+  name: bloodsamplemonth
+  description: date of blood sample collection - month
+  label: When was the blood sample obtained? ||| on ||| Month
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '1.0'
+  - field: max
+    value: '12.0'
+  - field: id_line
+    value: '22'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q131; Q131.1; Q131.1.2
+  - field: Section
+    value: B.01
+  - field: SectionDescription
+    value: Question for fieldworker about blood sample collection
+  default_unit: MO
+  default_unit_label: months
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: bloodsamplemonth
+  validation_designs:
+  - validation_expression:
+      validation_subject_source_paths:
+      - bloodsamplemonth
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - bloodtaken
+        validation_command: is_equal_to
+        validation_arg_values:
+        - '1.0'
+      validation_command: is_not_null
+    conditional: IF bloodtaken IS 1 THEN bloodsamplemonth IS not empty
+- id: adults_bq_bloodsampleyear
+  unique_name: bq_bloodsampleyear
+  name: bloodsampleyear
+  description: date of blood sample collection - year
+  label: When was the blood sample obtained? ||| on ||| Year
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '2023.0'
+  - field: max
+    value: '2026.0'
+  - field: id_line
+    value: '23'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q131; Q131.1; Q131.1.3
+  - field: Section
+    value: B.01
+  - field: SectionDescription
+    value: Question for fieldworker about blood sample collection
+  default_unit: YR
+  default_unit_label: years
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: bloodsampleyear
+  validation_designs:
+  - validation_expression:
+      validation_subject_source_paths:
+      - bloodsampleyear
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - bloodtaken
+        validation_command: is_equal_to
+        validation_arg_values:
+        - '1.0'
+      validation_command: is_not_null
+    conditional: IF bloodtaken IS 1 THEN bloodsampleyear IS not empty
+- id: adults_bq_bloodsamplehour
+  unique_name: bq_bloodsamplehour
+  name: bloodsamplehour
+  description: time of blood sample collection - hour
+  label: When was the blood sample obtained? ||| at ||| Hour
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: max
+    value: '23.0'
+  - field: id_line
+    value: '24'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q131; Q131.2; Q131.2.1
+  - field: Section
+    value: B.01
+  - field: SectionDescription
+    value: Question for fieldworker about blood sample collection
+  default_unit: HR
+  default_unit_label: hour
+  default_required: false
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: bloodsamplehour
+  validation_designs:
+  - validation_expression:
+      validation_subject_source_paths:
+      - bloodsamplehour
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - bloodtaken
+        validation_command: is_equal_to
+        validation_arg_values:
+        - '1.0'
+      validation_command: is_not_null
+    conditional: IF bloodtaken IS 1 THEN bloodsamplehour IS not empty
+- id: adults_bq_bloodsampleminute
+  unique_name: bq_bloodsampleminute
+  name: bloodsampleminute
+  description: time of blood sample collection - minute
+  label: When was the blood sample obtained? ||| at ||| Minute
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: max
+    value: '59.0'
+  - field: id_line
+    value: '25'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q131; Q131.2; Q131.2.2
+  - field: Section
+    value: B.01
+  - field: SectionDescription
+    value: Question for fieldworker about blood sample collection
+  default_unit: MIN
+  default_unit_label: minute
+  default_required: false
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: bloodsampleminute
+  validation_designs:
+  - validation_expression:
+      validation_subject_source_paths:
+      - bloodsampleminute
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - bloodtaken
+        validation_command: is_equal_to
+        validation_arg_values:
+        - '1.0'
+      validation_command: is_not_null
+    conditional: IF bloodtaken IS 1 THEN bloodsampleminute IS not empty
+- id: adults_bq_mealbeforebloodday
+  unique_name: bq_mealbeforebloodday
+  name: mealbeforebloodday
+  description: date of last meal before blood sample collection - day
+  label: When was your last meal before blood sample collection? ||| on ||| Day
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '1.0'
+  - field: max
+    value: '31.0'
+  - field: id_line
+    value: '26'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q132; Q132.1; Q132.1.1
+  - field: Section
+    value: B.02
+  - field: SectionDescription
+    value: Question for participant about blood sample collection
+  default_unit: DAY
+  default_unit_label: days
+  default_required: false
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_NICE_TO_HAVE
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: mealbeforebloodday
+  validation_designs:
+  - validation_expression:
+      validation_subject_source_paths:
+      - mealbeforebloodday
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - bloodtaken
+        validation_command: is_equal_to
+        validation_arg_values:
+        - '1.0'
+      validation_command: is_not_null
+    conditional: IF bloodtaken IS 1 THEN mealbeforebloodday IS not empty
+- id: adults_bq_mealbeforebloodmonth
+  unique_name: bq_mealbeforebloodmonth
+  name: mealbeforebloodmonth
+  description: date of last meal before blood sample collection - month
+  label: When was your last meal before blood sample collection? ||| on ||| Month
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '1.0'
+  - field: max
+    value: '12.0'
+  - field: id_line
+    value: '27'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q132; Q132.1; Q132.1.2
+  - field: Section
+    value: B.02
+  - field: SectionDescription
+    value: Question for participant about blood sample collection
+  default_unit: MO
+  default_unit_label: months
+  default_required: false
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_NICE_TO_HAVE
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: mealbeforebloodmonth
+  validation_designs:
+  - validation_expression:
+      validation_subject_source_paths:
+      - mealbeforebloodmonth
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - bloodtaken
+        validation_command: is_equal_to
+        validation_arg_values:
+        - '1.0'
+      validation_command: is_not_null
+    conditional: IF bloodtaken IS 1 THEN mealbeforebloodmonth IS not empty
+- id: adults_bq_mealbeforebloodyear
+  unique_name: bq_mealbeforebloodyear
+  name: mealbeforebloodyear
+  description: date of last meal before blood sample collection - year
+  label: When was your last meal before blood sample collection? ||| on ||| Year
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '2023.0'
+  - field: max
+    value: '2026.0'
+  - field: id_line
+    value: '28'
+  - field: cb_source
+    value: master
+  - field: QuestionNumber_list
+    value: Q132; Q132.1; Q132.1.3
+  - field: Section
+    value: B.02
+  - field: SectionDescription
+    value: Question for participant about blood sample collection
+  default_unit: YR
+  default_unit_label: years
+  default_required: false
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_NICE_TO_HAVE
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: mealbeforebloodyear
+  validation_designs:
+  - validation_expression:
+      validation_subject_source_paths:
+      - mealbeforebloodyear
+      validation_condition_expression:
+        validation_subject_source_paths:
+        - bloodtaken
+        validation_command: is_equal_to
+        validation_arg_values:
+        - '1.0'
+      validation_command: is_not_null
+    conditional: IF bloodtaken IS 1 THEN mealbeforebloodyear IS not empty

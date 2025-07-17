@@ -4,7 +4,7 @@ import logging
 import uuid
 
 from pydantic import BaseModel
-from typing import Any, Dict
+from typing import Any, Dict, Generator
 
 from pypeh.core.models.constants import ValidationErrorLevel
 from peh_model import peh
@@ -169,6 +169,28 @@ class ValidationConfig(BaseModel):
             identifying_column_names=oep_set.identifying_observable_property_id_list,
             validations=[],  # TODO: handle dataset-level validations if any
         )
+
+    @classmethod
+    def from_observation(
+        cls,
+        observation: peh.Observation,
+        observable_property_dict: dict[str, peh.ObservableProperty],
+    ) -> Generator[tuple[str, ValidationConfig], None, None]:
+        observation_design = observation.observation_design
+        observable_entity_property_sets = getattr(observation_design, "observable_entity_property_sets", None)
+        if observable_entity_property_sets is None:
+            logger.error("Cannot generate a ValidationConfig from an ObservationDesign that does not contain observable_entity_property_sets")
+            raise AttributeError
+        for cnt, oep_set in enumerate(observable_entity_property_sets):
+            oep_set_name = f"{oep_set}_{cnt:0>2}"
+            yield (
+                oep_set_name,
+                ValidationConfig.from_peh(
+                    oep_set,
+                    oep_set_name,
+                    observable_property_dict,
+                ),
+            )
 
 
 class ValidationDTO(BaseModel):

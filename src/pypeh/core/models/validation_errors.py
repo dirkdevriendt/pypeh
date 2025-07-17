@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from pypeh.core.models.constants import ValidationErrorLevel

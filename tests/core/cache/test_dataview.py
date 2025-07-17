@@ -10,7 +10,8 @@ from pypeh.core.cache.dataview import (
 )
 from pypeh.core.cache.containers import MappingContainer
 from pypeh.adapters.outbound.persistence.hosts import FileIO
-from pypeh.adapters.outbound.persistence.formats import YamlIO, load_entities_from_tree
+from pypeh.adapters.outbound.persistence.formats import YamlIO
+from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.models.proxy import TypedLazyProxy
 
 from tests.test_utils.dirutils import get_absolute_path

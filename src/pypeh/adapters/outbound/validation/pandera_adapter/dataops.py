@@ -12,7 +12,7 @@ import logging
 from dataguard import Validator, ErrorCollector
 from peh_model.peh import DataLayout
 from polars import DataFrame
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Dict
 
 from pypeh.core.interfaces.outbound.dataops import (
     ValidationInterface,
@@ -24,13 +24,13 @@ from pypeh.adapters.outbound.validation.pandera_adapter.parsers import parse_con
 from pypeh.adapters.outbound.persistence.hosts import HostFactory, FileIO
 
 if TYPE_CHECKING:
-    from typing import Mapping, List
+    from typing import Mapping
     from pypeh.core.models.settings import FileSystemSettings
 
 logger = logging.getLogger(__name__)
 
 
-class DataFrameAdapter(ValidationInterface, DataImportInterface[DataFrame]):
+class DataFrameAdapter(ValidationInterface[DataFrame], DataImportInterface[DataFrame]):
     """
     DataOpsInterface has process method that can be called like this:
     `self.process(dto, "validate")`
@@ -47,7 +47,7 @@ class DataFrameAdapter(ValidationInterface, DataImportInterface[DataFrame]):
     def cleanup(self):
         self.get_error_collector().clear_errors()
 
-    def validate(self, data: dict[str, list], config: ValidationConfig) -> ValidationErrorReport:
+    def validate(self, data: dict[str, list] | DataFrame, config: ValidationConfig) -> ValidationErrorReport:
         config_map = self.parse_configuration(config)
         validator = Validator.config_from_mapping(config=config_map, logger=logger)
         _ = validator.validate(data)
@@ -60,7 +60,7 @@ class DataFrameAdapter(ValidationInterface, DataImportInterface[DataFrame]):
     def summarize(self, data: Mapping, config: Mapping):
         pass
 
-    def import_data(self, source: str, config: FileSystemSettings, **kwargs) -> DataFrame | List[DataFrame]:
+    def import_data(self, source: str, config: FileSystemSettings, **kwargs) -> DataFrame | Dict[str, DataFrame]:
         provider = HostFactory.create(config)
         # format  = # should either be .csv or .xls/.xlsx
         # or provide additional info in kwargs
@@ -71,9 +71,9 @@ class DataFrameAdapter(ValidationInterface, DataImportInterface[DataFrame]):
             raise ValueError
         data = provider.load(source)
         if not isinstance(data, DataFrame):
-            me = "Imported data is not a dataframe or list of dataframes"
-            if isinstance(data, List):
-                if not all(isinstance(d, DataFrame) for d in data):
+            me = "Imported data is not a dataframe or dict of dataframes."
+            if isinstance(data, dict):
+                if not all(isinstance(d, DataFrame) for d in data.values()):
                     logger.error(me)
                     raise TypeError(me)
             else:

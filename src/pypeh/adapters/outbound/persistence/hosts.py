@@ -124,11 +124,13 @@ class DirectoryIO(HostAdapter):
             for file in files:
                 file_path = os.path.join(root, file)
 
+                inferred_format = FileIO.get_format(file_path)
                 if format is not None:
+                    if inferred_format != format:
+                        continue  # Skip different formats
                     yield file_io.load(file_path, format=format, **load_options)
 
                 else:
-                    inferred_format = FileIO.get_format(file_path)
                     if inferred_format in self.supported_formats:
                         yield file_io.load(file_path, format=inferred_format, **load_options)
                     else:
@@ -139,9 +141,9 @@ class DirectoryIO(HostAdapter):
 
         if path.is_file():
             file_io = FileIO(file_system=self.file_system)
-            return file_io.load(source, **load_options)
+            return file_io.load(source, format=format, **load_options)
         elif path.is_dir():
-            return list(self.walk(path, maxdepth=maxdepth, **load_options))
+            return list(self.walk(path, format=format, maxdepth=maxdepth, **load_options))
         else:
             logger.error(f"Source {source} could not be resolved as a path")
             raise ValueError

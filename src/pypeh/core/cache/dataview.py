@@ -13,7 +13,7 @@ from pypeh.core.models.typing import T_RootStream
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from pypeh.core.models import proxy
 from pypeh.adapters.outbound.persistence.hosts import FileIO, WebServiceAdapter
-from pypeh.adapters.outbound.persistence.formats import load_entities_from_tree
+from pypeh.core.cache.utils import load_entities_from_tree
 
 logger = logging.getLogger(__name__)
 

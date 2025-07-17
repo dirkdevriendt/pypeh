@@ -102,13 +102,21 @@ class TestDataImport(abc.ABC):
         else:
             assert isinstance(data, DataLayout)
 
-    def test_import_data(self):
+    def test_import_csv(self):
         adapter = self.get_adapter()
         source = "./input/data.csv"
         path = get_absolute_path(source)
         config = LocalFileSettings()
         data = adapter.import_data(path, config)
         assert isinstance(data, adapter.data_format)
+
+    def test_import_excel(self):
+        adapter = self.get_adapter()
+        source = "./input/data.xlsx"
+        path = get_absolute_path(source)
+        config = LocalFileSettings()
+        data = adapter.import_data(path, config)
+        assert all(isinstance(d, adapter.data_format) for d in data.values())
 
 
 @pytest.mark.dataframe

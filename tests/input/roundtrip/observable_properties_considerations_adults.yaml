@@ -1,0 +1,98 @@
+observable_properties:
+- id: adults_id_subject
+  unique_name: None_id_subject
+  name: id_subject
+  description: UID of the subject
+  label: UID of the subject
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '1'
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - UniqueIdentifier
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: id_subject
+- id: adults_id_household
+  unique_name: None_id_household
+  name: id_household
+  description: UID of the household of the subject
+  label: UID of the household of the subject
+  remark: To be used as id for environmental samples and to link data subjects from
+    different age groups that belong to same household. If different data subjects
+    from the same household participate in different age groups of the aligned studies,
+    the same id_household is to be used between studies.
+  value_type: string
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: id_line
+    value: '2'
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: id_household
+- id: adults_con_cst_ipchem
+  unique_name: con_cst_ipchem
+  name: cst_ipchem
+  description: data subject consents to share individual level data with IPCHEM
+  label: data subject consents to share individual level data with IPCHEM
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: '0'
+    value: 'No'
+  - key: '1'
+    value: 'Yes'
+  value_metadata:
+  - field: id_line
+    value: '3'
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: cst_ipchem
+- id: adults_con_parc_300
+  unique_name: con_parc_300
+  name: parc_300
+  description: indicates whether subject is part of reference set of 300 subjects
+    selected as representative sample for PARC or not
+  label: indicates whether subject is part of reference set of 300 subjects selected
+    as representative sample for PARC or not
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: '1'
+    value: subject is part of reference set
+  - key: '2'
+    value: additional subject
+  value_metadata:
+  - field: id_line
+    value: '4'
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  grouping_id_list:
+  - PRIORITY_OBLIGATORY
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  varname: parc_300
