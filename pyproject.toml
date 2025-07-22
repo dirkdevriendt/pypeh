@@ -84,6 +84,7 @@ markers = [
     "rocrate: tests for rocrate-based adapter",
     "interface: tests for shared interfaces",
 	"s3: tests for the s3 adapter",
+	"web: tests for web IO, requires internet connection",
 	"other: placeholder",
 ]
 

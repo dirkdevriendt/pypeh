@@ -9,11 +9,15 @@ import json
 import logging
 import os
 import requests
+import urllib3
 
 from abc import abstractmethod
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Generic
+from requests.adapters import HTTPAdapter
+from typing import TYPE_CHECKING, Generic, Callable, Any, Optional, Dict
+from urllib3.util.retry import Retry
+from urllib.parse import urlparse, urljoin
 
 from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
 from pypeh.adapters.outbound.persistence import formats
@@ -31,49 +35,6 @@ if TYPE_CHECKING:
 
 class HostAdapter(PersistenceInterface):
     pass
-
-
-class WebServiceAdapter(HostAdapter):
-    def load(self, source: str, format: str = "json", **kwargs) -> Any:
-        is_pid = kwargs.get("is_pid", False)
-
-        try:
-            response = requests.get(source, timeout=10)
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request error: {e}")
-            raise
-
-        data = None
-        if is_pid:
-            data = response.json()
-            response_code = data.get("responseCode")  # type: ignore
-            # check additional error codes defined by the API
-            if response_code == 2:
-                raise ValueError(f"Unexpected error during handle resolution of {source}.")
-            elif response_code == 100:
-                raise ValueError(f"Handle not found: {source}.")
-            elif response_code == 200:
-                raise ValueError(f"Values Not Found. The handle {source} exists but has no values.")
-            elif response_code == 1:
-                return True
-            else:
-                return False
-
-        if format is None:
-            # TODO: add auto format determination method
-            raise NotImplementedError
-        if data is None:
-            if format.lower() == "json":
-                data = response.json()
-            else:
-                data = response.text
-
-        adapter = formats.IOAdapterFactory.create(format.lower())
-        return adapter.load(data, **kwargs)
-
-    def dump(self, entity: Any, destination: str) -> None:
-        raise NotImplementedError
 
 
 ## fsspec-based file interactions: local or cloud
@@ -159,6 +120,179 @@ class S3StorageProvider(DirectoryIO):
         super().__init__(protocol="s3", storage_options=session_kwargs)
 
     ## TODO: check how should bucket names, ... be dealt with?
+
+
+## WebIO implementation
+
+CONTENT_TYPE_MAPPING = {
+    "application/json": "json",
+    "application/xml": "xml",
+    "text/xml": "xml",
+    "text/csv": "csv",
+    "application/rdf+xml": "rdf",
+    "application/trig": "trig",
+    "text/turtle": "ttl",
+    "application/ld+json": "jsonld",
+}
+
+
+class WebIO(HostAdapter):
+    def __init__(
+        self,
+        timeout: int = 30,
+        max_retries: int = 3,
+        custom_ca_bundle: Optional[str] = None,
+        verify_ssl: bool = True,
+        user_agent: str | None = None,
+    ):
+        self.timeout = timeout
+        self.max_retries = max_retries
+        self.custom_ca_bundle = custom_ca_bundle
+        self.user_agent = user_agent
+
+        # Dictionary to store format adapters
+        self.adapters: Dict[str, Callable] = formats.IOAdapterFactory._adapters
+        self.verify_ssl = verify_ssl
+        # Create a session with retry strategy
+        self.session = self._create_session()
+
+    def _create_session(self) -> requests.Session:
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=self.max_retries,
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        if self.user_agent is not None:
+            session.headers.update({"User-Agent": self.user_agent})
+        if self.custom_ca_bundle:
+            session.verify = self.custom_ca_bundle
+        elif not self.verify_ssl:
+            session.verify = False
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        self._open_session = True
+        return session
+
+    def _detect_format(self, url: str, content_type: str | None) -> str | None:
+        # First try to detect from Content-Type header
+        if content_type:
+            return CONTENT_TYPE_MAPPING.get(content_type, None)
+
+        # Try to detect from URL extension
+        parsed_url = urlparse(url)
+        path = Path(parsed_url.path)
+        extension = path.suffix.lower().lstrip(".")
+        if extension in formats.IOAdapterFactory._adapters:
+            return extension
+
+        return
+
+    def resolve_url(
+        self, url: str, format_type: str | None = None, follow_redirects: bool = True, max_redirects: int = 5
+    ) -> requests.Response:
+        try:
+            headers = None
+            if format_type:
+                headers = {"Accept": format_type}
+
+            response = self.session.get(
+                url,
+                timeout=self.timeout,
+                allow_redirects=follow_redirects,
+                stream=True,
+                headers=headers,
+            )
+
+            # OPTIONAL: Check for manual redirect handling if needed
+            if not follow_redirects and response.status_code in [301, 302, 303, 307, 308]:
+                redirect_url = response.headers.get("Location")
+                if redirect_url:
+                    # Handle relative redirects
+                    redirect_url = urljoin(url, redirect_url)
+                    logger.info(f"Redirect detected: {url} -> {redirect_url}")
+                    if max_redirects > 0:
+                        return self.resolve_url(
+                            redirect_url, follow_redirects=follow_redirects, max_redirects=max_redirects - 1
+                        )
+                    else:
+                        raise requests.exceptions.TooManyRedirects("Maximum redirects exceeded")
+
+            response.raise_for_status()
+            return response
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to resolve URL {url}: {e}")
+            raise
+
+    def retrieve_data(self, url: str, format_type: Optional[str] = None, **adapter_kwargs) -> Any:
+        logger.info(f"Retrieving data from: {url}")
+
+        # Resolve the URL
+        response = self.resolve_url(url, format_type=format_type)
+
+        # Get content and metadata
+        content = response.content
+        content_type = response.headers.get("Content-Type", None)
+
+        # Detect format if not specified
+        if format_type is None:
+            format_type = self._detect_format(url, content_type)
+        else:
+            if format_type in CONTENT_TYPE_MAPPING:
+                format_type = CONTENT_TYPE_MAPPING[format_type]
+            format_type = format_type.lower()
+        logger.info(f"Detected format: {format_type}")
+
+        # Check if we have an adapter for this format
+        if format_type is not None:
+            if format_type not in self.adapters:
+                raise ValueError(f"No adapter registered for format: {format_type}")
+
+            else:
+                result = formats.IOAdapterFactory.create(format_type).load(content, target_class=None)
+        else:
+            raise ValueError("Could not detect format type of request")
+        logger.info(f"Successfully processed data with {format_type} adapter")
+        return result
+
+    def load(self, source: str, format: str = "json", **kwargs):
+        return self.retrieve_data(source, format_type=format, **kwargs)
+
+    def get_metadata(self, url: str) -> Dict[str, Any]:
+        try:
+            response = self.session.head(url, timeout=self.timeout)
+            response.raise_for_status()
+
+            return {
+                "url": url,
+                "status_code": response.status_code,
+                "content_type": response.headers.get("Content-Type"),
+                "content_length": response.headers.get("Content-Length"),
+                "last_modified": response.headers.get("Last-Modified"),
+                "headers": dict(response.headers),
+            }
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to get metadata for {url}: {e}")
+            raise
+
+    def test_connectivity(self, url: str) -> bool:
+        try:
+            response = self.session.head(url, timeout=self.timeout)
+            return response.status_code < 400
+        except Exception:
+            return False
+
+    def close(self):
+        self.session.close()
+        self._open_session = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
 
 ## initial implementation to database adapter: UNDER CONSTRUCTION
@@ -252,13 +386,13 @@ class ResourceRegistry:
 
 class HostFactory:
     @classmethod
-    def default(cls):
-        return WebServiceAdapter()
+    def default(cls, **kwargs):
+        return WebIO(**kwargs)
 
     @classmethod
     def create(cls, settings: FileSystemSettings | None, **kwargs) -> HostAdapter:
         if settings is None:
-            return cls.default()
+            return cls.default(**kwargs)
 
         else:
             if isinstance(settings, S3Settings):
@@ -267,5 +401,5 @@ class HostFactory:
                 return FileIO()
             else:
                 me = f"No adapter registered for settings: {type(settings)}"
-                logger.error(me)
-                raise ValueError(me)
+                logger.warning(me)
+                return cls.default()

@@ -179,7 +179,9 @@ class ValidationConfig(BaseModel):
         observation_design = observation.observation_design
         observable_entity_property_sets = getattr(observation_design, "observable_entity_property_sets", None)
         if observable_entity_property_sets is None:
-            logger.error("Cannot generate a ValidationConfig from an ObservationDesign that does not contain observable_entity_property_sets")
+            logger.error(
+                "Cannot generate a ValidationConfig from an ObservationDesign that does not contain observable_entity_property_sets"
+            )
             raise AttributeError
         for cnt, oep_set in enumerate(observable_entity_property_sets):
             oep_set_name = f"{oep_set}_{cnt:0>2}"
