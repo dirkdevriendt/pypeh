@@ -12,7 +12,7 @@ from peh_model.peh import NamedThing
 from pypeh.core.models.typing import T_RootStream
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from pypeh.core.models import proxy
-from pypeh.adapters.outbound.persistence.hosts import FileIO, WebServiceAdapter
+from pypeh.adapters.outbound.persistence.hosts import FileIO, WebIO
 from pypeh.core.cache.utils import load_entities_from_tree
 
 logger = logging.getLogger(__name__)
@@ -231,7 +231,7 @@ def get_dataview(storage_container="default", importmap: Optional[Dict] = None) 
     if importmap is not None:
         importmap_view = get_importmapview(importmap=importmap)
 
-    loader = DataViewEntityLoader(WebServiceAdapter())
+    loader = DataViewEntityLoader(WebIO())
     data_view = DataView(loader=loader, cache_viewer=importmap_view)
 
     return data_view

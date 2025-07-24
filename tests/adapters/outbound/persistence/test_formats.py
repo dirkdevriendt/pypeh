@@ -16,7 +16,7 @@ class MockAdapter(IOAdapter):
 
 
 class MockModel(BaseModel):
-    pass
+    empty: str
 
 
 @pytest.mark.core
@@ -57,11 +57,8 @@ class TestYamlIO:
     def test_wrong_schema(self, caplog):
         source = get_absolute_path("./input/config_basic/_Reference_YAML/observable_entities.yaml")
         yaml_io = YamlIO()
-
-        with caplog.at_level(logging.WARNING):
+        with pytest.raises(ValueError):
             _ = yaml_io.load(source, target_class=MockModel)
-            logs = caplog.text.replace("\n", " ").strip()
-            assert f"target_class {MockModel} not implemented" in logs
 
     def test_wrong_input(self):
         source = get_absolute_path("./input/wrong_input/random.yaml")

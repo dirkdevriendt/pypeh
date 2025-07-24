@@ -1,20 +1,22 @@
 from __future__ import annotations
 
+import dataclasses
 import logging
 import json
 import yaml
 
 from dataclasses import is_dataclass
-from io import IOBase
-from linkml_runtime.loaders import YAMLLoader, JSONLoader
+from linkml_runtime.loaders import YAMLLoader, JSONLoader, RDFLibLoader
 from linkml_runtime.dumpers import YAMLDumper, JSONDumper
-from pydantic import TypeAdapter, BaseModel
+from pydantic import TypeAdapter, BaseModel, ConfigDict
 from pathlib import Path
-from typing import TYPE_CHECKING, Union, Any, IO
+from rdflib import Graph, Dataset
+from typing import TYPE_CHECKING, Union, Any, IO, get_type_hints, cast
 
 from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
+from pypeh.core.utils.linkml_schema import get_schema_view
 from peh_model.peh import EntityList, YAMLRoot
-from pypeh.core.models.typing import T_Dataclass, IOLike, JSONLike
+from pypeh.core.models.typing import T_Dataclass, IOLike
 
 if TYPE_CHECKING:
     from typing import Callable, Type
@@ -22,36 +24,60 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def validate_dataclass(
-    json_data: JSONLike,
-    target_class: Type[T_Dataclass],
-) -> T_Dataclass:
-    """
-    Validate JSON data against a dataclass using Pydantic's TypeAdapter.
-    """
-    # Create TypeAdapter for the target dataclass
-    adapter = TypeAdapter(target_class)
-    # Validate and return instance
-    if isinstance(json_data, str):
-        return adapter.validate_json(json_data)
-    elif isinstance(json_data, IOBase):
-        json_data = json.load(json_data)
-    return adapter.validate_python(json_data)
+def is_dataclass_type(cls: Any) -> bool:
+    return dataclasses.is_dataclass(cls) and isinstance(cls, type)
+
+
+def validate_dataclass(data: dict, target_class: Type[T_Dataclass] | Any) -> T_Dataclass | Any:
+    if not dataclasses.is_dataclass(target_class):
+        raise TypeError(f"{target_class} is not a dataclass")
+
+    # Get type hints to resolve forward references and generic types
+    type_hints = get_type_hints(target_class)
+
+    processed_data = {}
+
+    for field in dataclasses.fields(target_class):
+        field_name = field.name
+        field_type = type_hints.get(field_name)
+        assert field_type is not None
+        value = data.get(field_name)
+
+        if is_dataclass_type(field_type) and isinstance(value, dict):
+            # Recursively validate nested dataclass
+            processed_data[field_name] = validate_dataclass(value, field_type)
+        elif (
+            hasattr(field_type, "__origin__")
+            and field_type.__origin__ in (list, tuple)
+            and is_dataclass_type(field_type.__args__[0])
+        ):
+            # Handle list/tuple of dataclasses
+            assert value is not None
+            processed_data[field_name] = [
+                validate_dataclass(item, field_type.__args__[0]) if isinstance(item, dict) else item for item in value
+            ]
+        else:
+            # Use Pydantic to validate scalar or complex non-dataclass field
+            if value is not None:
+                adapter = TypeAdapter(
+                    field_type,
+                    config=ConfigDict(arbitrary_types_allowed=True),
+                )
+                processed_data[field_name] = adapter.validate_python(value)
+            else:
+                processed_data[field_name] = None
+
+    return target_class(**processed_data)
 
 
 def validate_pydantic(
-    json_data: JSONLike,
-    target_class: BaseModel,
+    data: dict,
+    target_class: Type[BaseModel],
 ) -> BaseModel:
     """
-    Validate JSON data against a dataclass using Pydantic's TypeAdapter.
+    Validate data against a dataclass using Pydantic's TypeAdapter.
     """
-    if isinstance(json_data, str):
-        return target_class.model_validate_json(json_data)
-    elif isinstance(json_data, IOBase):
-        json_data = json.load(json_data)
-
-    return target_class.model_validate(json_data)
+    return target_class.model_validate(data)
 
 
 class IOAdapter(PersistenceInterface):
@@ -60,7 +86,13 @@ class IOAdapter(PersistenceInterface):
 
     """Adapter for loading from file."""
 
-    def load(self, source: IOLike) -> Any:
+    def _loads(self, data: Union[str, bytes]) -> Any:
+        raise NotImplementedError
+
+    def _load(self, stream: IO) -> Any:
+        raise NotImplementedError
+
+    def load(self, source: Union[str, Path, IO[str], IO[bytes], bytes], target_class: Type[T_Dataclass] | Any | None, **kwargs) -> Any:
         raise NotImplementedError
 
     def dump(self, destination: IOLike, entity: BaseModel) -> None:
@@ -75,26 +107,77 @@ class JsonIO(IOAdapter):
     Assuming jsonfiles can be directly loaded by linkml
     """
 
-    def load(
-        self, source: Union[str, Path, IO[str], IO[bytes]], target_class: Type[T_Dataclass] = EntityList, **kwargs
-    ) -> Any:
+    def _validate(self, data_dict: dict, target_class: Type[T_Dataclass] | Any | None) -> T_Dataclass | Any | dict:
+        if target_class is None:
+            return data_dict  # return plain dict
+        if issubclass(target_class, EntityList):
+            return JSONLoader().load(data_dict, target_class)
+            # Note we do not need to depend on linkml here
+            # return validate_dataclass(data_dict, EntityList)
+        elif is_dataclass(target_class):
+            return validate_dataclass(data_dict, target_class)
+        elif issubclass(target_class, BaseModel):
+            return validate_pydantic(data_dict, target_class)
+        else:
+            return data_dict
+
+    def _load(
+        self,
+        stream: IO,
+        target_class: Type[T_Dataclass] | None = EntityList,
+        **kwargs,
+    ) -> dict | T_Dataclass | Any:
         """
         Load JSON data from a file-like object (e.g., a context manager).
         # TODO: test with: fake_file = StringIO('{"key": "value"}')
 
         """
+        data_dict = json.load(stream)
+        return self._validate(data_dict, target_class)
+
+    def _loads(self, data: Union[str, bytes], target_class: Type[T_Dataclass] | None) -> dict | T_Dataclass | Any:
+        if isinstance(data, bytes):
+            data = data.decode("utf-8")
         try:
-            data_dict = json.load(source)  # type: ignore
-            if issubclass(target_class, EntityList):
-                return JSONLoader().load(data_dict, target_class)
-            elif is_dataclass(target_class):
-                return validate_dataclass(data_dict, target_class)
-            elif issubclass(target_class, BaseModel):
-                return validate_pydantic(data_dict, target_class)
+            data_dict = json.loads(data)
+            return self._validate(data_dict, target_class)
+        except Exception as e:
+            logger.error("Failed to parse JSON data from string or bytes.")
+            raise e
+
+    def load(
+        self,
+        source: Union[str, Path, IO[str], IO[bytes], bytes],
+        target_class: Type[T_Dataclass] | None = EntityList,
+        **kwargs,
+    ) -> Any:
+        """
+        The load function handles:
+        - file paths (str/Path)
+        - file-like objects (IO)
+        - raw JSON strings or bytes (e.g., from requests)
+        """
+        try:
+            if isinstance(source, str):
+                source_path = Path(source)
+                if source_path.exists():
+                    source = source_path
+
+            if isinstance(source, Path):
+                with open(source, self.read_mode, encoding="utf-8") as f:
+                    return self._load(f, target_class)
+            elif hasattr(source, "read"):
+                # File-like object
+                stream = cast(IO, source)
+                return self._load(stream, target_class)
+            elif isinstance(source, (bytes, str)):
+                return self._loads(source, target_class)
             else:
-                return data_dict
+                raise TypeError(f"Unsupported source type for JSON loading: {type(source)}")
+
         except ValueError as e:
-            raise ValueError(f"Could not validate the provided data at {source} as {target_class}")
+            logger.error(f"Could not validate the provided data at {source} as {target_class}")
+            raise e
         except Exception as e:
             logger.error(f"Error in JsonIO adapter: {e}")
             raise e
@@ -113,31 +196,80 @@ class YamlIO(IOAdapter):
     Assuming yaml files can be directly loaded by linkml
     """
 
-    def load(
-        self, source: Union[str, Path, IO[str], IO[bytes]], target_class: Type[T_Dataclass] = EntityList, **kwargs
-    ) -> Union[BaseModel, YAMLRoot, dict]:
+    def _validate(self, data_dict: dict, target_class: Type[T_Dataclass] | Any | None) -> T_Dataclass | Any | dict:
+        if target_class is None:
+            return data_dict  # return plain dict
+        if issubclass(target_class, EntityList):
+            return YAMLLoader().load(data_dict, target_class)
+            # Note we do not need to depend on linkml here
+            # return validate_dataclass(data_dict, EntityList)
+        elif is_dataclass(target_class):
+            return validate_dataclass(data_dict, target_class)
+        elif issubclass(target_class, BaseModel):
+            return validate_pydantic(data_dict, target_class)
+        else:
+            return data_dict
+
+    def _load(
+        self,
+        stream: IO,
+        target_class: Type[T_Dataclass] | None = EntityList,
+        **kwargs,
+    ) -> dict | T_Dataclass | Any:
         """
         Load YAML data from a file-like object (e.g., a context manager).
-        Args:
+        # TODO: test with: fake_file = StringIO('{"key": "value"}')
+
+        """
+        data_dict = yaml.safe_load(stream)
+        return self._validate(data_dict, target_class)
+
+    def _loads(self, data: Union[str, bytes], target_class: Type[T_Dataclass] | None) -> dict | T_Dataclass | Any:
+        if isinstance(data, bytes):
+            data = data.decode("utf-8")
+        try:
+            data_dict = json.loads(data)
+            return self._validate(data_dict, target_class)
+        except Exception as e:
+            logger.error("Failed to parse JSON data from string or bytes.")
+            raise e
+
+    def load(
+        self,
+        source: Union[str, Path, IO[str], IO[bytes], bytes],
+        target_class: Type[T_Dataclass] | None = EntityList,
+        **kwargs,
+    ) -> BaseModel | EntityList | dict | Any:
+        """
+        The load function handles:
+        - file paths (str/Path)
+        - file-like objects (IO)
+        - raw YAML strings or bytes (e.g., from requests)
         """
         try:
-            if isinstance(source, (str, Path)):
-                with open(source, self.read_mode) as f:
-                    data_dict = yaml.safe_load(f)  # type: ignore ## pyyaml lacks type hints
+            if isinstance(source, str):
+                source_path = Path(source)
+                if source_path.exists():
+                    source = source_path
+
+            if isinstance(source, Path):
+                with open(source, self.read_mode, encoding="utf-8") as f:
+                    return self._load(f, target_class)
+            elif hasattr(source, "read"):
+                # File-like object
+                stream = cast(IO, source)
+                return self._load(stream, target_class)
+            elif isinstance(source, (bytes, str)):
+                return self._loads(source, target_class)
             else:
-                data_dict = yaml.safe_load(source)  # type: ignore ## pyyaml lacks type hints
-            if issubclass(target_class, EntityList):
-                return YAMLLoader().load(data_dict, target_class)
-            else:
-                logger.warning(f"target_class {target_class} not implemented")
-                return data_dict
+                raise TypeError(f"Unsupported source type for YAML loading: {type(source)}")
+
         except ValueError as e:
-            raise ValueError(f"Could not validate the provided data at {source} as {target_class}")
-        except TypeError as e:
-            raise TypeError(f"Could not validate the provided data at {source} as {target_class}")
+            logger.error(f"Could not validate the provided data at {source} as {target_class}")
+            raise e
         except Exception as e:
             logger.error(f"Error in YamlIO adapter: {e}")
-            raise
+            raise e
 
     def dump(self, destination: str, entity: EntityList, fn: Callable = YAMLDumper().dump, **kwargs):
         raise NotImplementedError
@@ -181,11 +313,59 @@ class ExcelIO(IOAdapter):
         except ImportError:
             message = "The ExcelIO class requires the 'dataframe_adapter' module. Please install it."
             logging.error(message)
-            raise ImportError(message)
+            raise
         return ExcelIOImpl().load(source, **kwargs)
 
     def dump(self, source: str, **kwargs):
         pass
+
+
+class RdfIO(IOAdapter):
+    read_mode: str = "r"
+    write_mode: str = "w"
+
+    def _validate(self, graph: Graph, target_class: Type[Union[BaseModel, YAMLRoot]]):
+        schema_view = get_schema_view()
+        # extract info from graph and transform to relevant dataclass
+        rdf_loader = RDFLibLoader()
+        entities = rdf_loader.from_rdf_graph(graph, schema_view, target_class)
+        return entities
+
+    def load(self, source: Union[str, bytes], **kwargs) -> Graph:
+        if isinstance(source, bytes):
+            source = source.decode("utf-8")
+        format = "rdf"
+        if format in kwargs:
+            format = kwargs.pop("format")
+        # Assume every graph consists of quads (required for nanopubs)
+        g = Graph()
+        # restrict dataset to single graph
+        g.parse(source, format=format)
+        return g
+
+
+class JsonldIO(RdfIO):
+    read_mode: str = "r"
+    write_mode: str = "w"
+
+    def load(self, source: Union[str, bytes], **kwargs) -> Graph:
+        return super().load(source, format="json-ld", **kwargs)
+
+
+class TrigIO(RdfIO):
+    read_mode: str = "r"
+    write_mode: str = "w"
+
+    def load(self, source: Union[str, bytes], **kwargs) -> Graph:
+        return super().load(source, format="trig", **kwargs)
+
+
+class TurtleIO(RdfIO):
+    read_mode: str = "r"
+    write_mode: str = "w"
+
+    def load(self, source: Union[str, bytes], **kwargs) -> Graph:
+        return super().load(source, format="ttl", **kwargs)
 
 
 class IOAdapterFactory:
@@ -196,6 +376,10 @@ class IOAdapterFactory:
         "csv": CsvIO,
         "xlsx": ExcelIO,
         "xls": ExcelIO,
+        "rdf": RdfIO,
+        "trig": TrigIO,
+        "jsonld": JsonldIO,
+        "ttl": TurtleIO,
     }
 
     @classmethod
