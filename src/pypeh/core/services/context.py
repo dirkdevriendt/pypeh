@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class ContextService:
     def __init__(
         self,
-        inbound_adapter: InDataOpsInterface,
+        inbound_adapter: InDataOpsInterface | None = None,
         outbound_adapter: PersistenceInterface = HostFactory.create(settings=None),
         import_config: ImportConfig | None = None,
         cache: CacheContainer = CacheContainerFactory.new(),

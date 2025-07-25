@@ -37,7 +37,7 @@ class TestValidationService:
         return {"test": list(range(10))}
 
     def test_validate_data(self, mockdata):
-        service = ValidationService(InboundTestAdapter(), OutboundTestAdapter())
+        service = ValidationService(outbound_adapter=OutboundTestAdapter())
         # populate cache
         source = get_absolute_path("../../input/roundtrip")
         container = CacheContainerFactory.new()

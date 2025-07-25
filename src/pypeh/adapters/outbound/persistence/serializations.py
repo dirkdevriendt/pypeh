@@ -92,7 +92,12 @@ class IOAdapter(PersistenceInterface):
     def _load(self, stream: IO) -> Any:
         raise NotImplementedError
 
-    def load(self, source: Union[str, Path, IO[str], IO[bytes], bytes], target_class: Type[T_Dataclass] | Any | None, **kwargs) -> Any:
+    def load(
+        self,
+        source: Union[str, Path, IO[str], IO[bytes], bytes],
+        target_class: Type[T_Dataclass] | Any | None,
+        **kwargs,
+    ) -> Any:
         raise NotImplementedError
 
     def dump(self, destination: IOLike, entity: BaseModel) -> None:

@@ -20,15 +20,16 @@ from urllib3.util.retry import Retry
 from urllib.parse import urlparse, urljoin
 
 from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
-from pypeh.adapters.outbound.persistence import formats
+from pypeh.adapters.outbound.persistence import serializations
 from pypeh.core.models.typing import T_Dataclass
-from pypeh.core.models.settings import LocalFileSettings, S3Settings, FileSystemSettings
+from pypeh.core.models.settings import LocalFileSettings, S3Settings
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from typing import Optional, Any, Dict, List, Generator, Type, Union
     from pydantic import BaseModel
+    from pydantic_settings import BaseSettings
 
     from pypeh.core.models.transform import FieldMapping
 
@@ -52,7 +53,7 @@ class FileIO(HostAdapter):
         """Load data from file using the appropriate adapter."""
         if format is None:
             format = self.get_format(source)
-        adapter = formats.IOAdapterFactory.create(format.lower())
+        adapter = serializations.IOAdapterFactory.create(format.lower())
         open_func = self.file_system.open if self.file_system is not None else fsspec.open
 
         with open_func(source, adapter.read_mode) as f:
@@ -67,7 +68,7 @@ class FileIO(HostAdapter):
 
 
 class DirectoryIO(HostAdapter):
-    supported_formats = formats.IOAdapterFactory._adapters.keys()
+    supported_formats = serializations.IOAdapterFactory._adapters.keys()
 
     def __init__(self, protocol: str = "file", **storage_options):
         self.file_system = fsspec.filesystem(protocol, **storage_options)
@@ -151,7 +152,7 @@ class WebIO(HostAdapter):
         self.user_agent = user_agent
 
         # Dictionary to store format adapters
-        self.adapters: Dict[str, Callable] = formats.IOAdapterFactory._adapters
+        self.adapters: Dict[str, Callable] = serializations.IOAdapterFactory._adapters
         self.verify_ssl = verify_ssl
         # Create a session with retry strategy
         self.session = self._create_session()
@@ -184,7 +185,7 @@ class WebIO(HostAdapter):
         parsed_url = urlparse(url)
         path = Path(parsed_url.path)
         extension = path.suffix.lower().lstrip(".")
-        if extension in formats.IOAdapterFactory._adapters:
+        if extension in serializations.IOAdapterFactory._adapters:
             return extension
 
         return
@@ -251,7 +252,7 @@ class WebIO(HostAdapter):
                 raise ValueError(f"No adapter registered for format: {format_type}")
 
             else:
-                result = formats.IOAdapterFactory.create(format_type).load(content, target_class=None)
+                result = serializations.IOAdapterFactory.create(format_type).load(content, target_class=None)
         else:
             raise ValueError("Could not detect format type of request")
         logger.info(f"Successfully processed data with {format_type} adapter")
@@ -354,7 +355,7 @@ class DatabaseAdapter(HostAdapter, Generic[T_Dataclass]):
             return target_class.model_validate(data)  # type: ignore
         else:
             # Fall back to your existing validation methods
-            from pypeh.adapters.outbound.persistence.formats import validate_dataclass, validate_pydantic
+            from pypeh.adapters.outbound.persistence.serializations import validate_dataclass, validate_pydantic
             from dataclasses import is_dataclass
 
             if is_dataclass(target_class):
@@ -390,7 +391,7 @@ class HostFactory:
         return WebIO(**kwargs)
 
     @classmethod
-    def create(cls, settings: FileSystemSettings | None, **kwargs) -> HostAdapter:
+    def create(cls, settings: BaseSettings | None, **kwargs) -> HostAdapter:
         if settings is None:
             return cls.default(**kwargs)
 
