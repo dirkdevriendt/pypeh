@@ -39,7 +39,7 @@ class PrefixMap:
 class ImportMapTrieNode:
     def __init__(self):
         self.children = {}
-        self.connection_str = None
+        self.connection_str: str | None = None
 
 
 class ImportMap:

@@ -136,5 +136,7 @@ class CacheContainerFactory:
         cls._default_container = container_class
 
     @classmethod
-    def new(cls) -> CacheContainer:
+    def new(cls, container_type: str | None = None) -> CacheContainer:
+        if container_type is not None:
+            raise ValueError("Only a single Cachecontainer adapter has been implemented")
         return cls._default_container()

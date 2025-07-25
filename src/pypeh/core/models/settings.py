@@ -17,6 +17,10 @@ class FileSystemSettings(BaseSettings):
     pass
 
 
+class DataBaseSettings(BaseSettings):
+    pass
+
+
 class LocalFileSettings(FileSystemSettings):
     pass
 
@@ -84,18 +88,22 @@ class S3Config(SettingsConfig):
 
 @dataclasses.dataclass
 class ValidatedImportConfig:
-    connection_map: dict[str, FileSystemSettings]
-    import_map: ImportMap
+    connection_map: dict[str, BaseSettings]
+    import_map: ImportMap | None
 
-    def get_connection(self, namespace: str):
-        connection_str = self.import_map.get(namespace)
+    def get_connection(self, namespace: str) -> BaseSettings | None:
+        if self.import_map is not None:
+            connection_str = self.import_map.get(namespace)
+        else:
+            logger.debug(f"ImportMap is empty, cannot resolve {namespace}")
+            return None
         if connection_str is not None:
             return self.connection_map.get(connection_str, None)
 
 
 class ImportConfig(BaseModel):
     connection_map: dict[str, SettingsConfig]
-    import_map: dict[str, str]
+    import_map: dict[str, str] | None
 
     @classmethod
     def dict_to_trie(cls, namespace_map: dict[str, str]) -> ImportMap:
@@ -105,7 +113,7 @@ class ImportConfig(BaseModel):
         return new_import_map
 
     @classmethod
-    def config_to_settings(cls, connection_map: dict[str, SettingsConfig]) -> dict[str, FileSystemSettings]:
+    def config_to_settings(cls, connection_map: dict[str, SettingsConfig]) -> dict[str, BaseSettings]:
         return {key: value.make_settings() for key, value in connection_map.items()}
 
     @model_validator(mode="after")
@@ -119,5 +127,7 @@ class ImportConfig(BaseModel):
 
     def to_validated_import_config(self) -> ValidatedImportConfig:
         connection_map = self.config_to_settings(self.connection_map)
-        import_map = self.dict_to_trie(self.import_map)
+        import_map = None
+        if self.import_map is not None:
+            import_map = self.dict_to_trie(self.import_map)
         return ValidatedImportConfig(connection_map=connection_map, import_map=import_map)

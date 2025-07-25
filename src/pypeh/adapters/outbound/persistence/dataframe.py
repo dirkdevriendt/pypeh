@@ -7,7 +7,7 @@ import io
 from pathlib import Path
 from typing import TYPE_CHECKING, Union, IO
 
-from pypeh.adapters.outbound.persistence.formats import IOAdapter
+from pypeh.adapters.outbound.persistence.serializations import IOAdapter
 
 if TYPE_CHECKING:
     pass

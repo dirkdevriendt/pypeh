@@ -2,7 +2,14 @@ import pytest
 import logging
 import fsspec
 
-from pypeh.adapters.outbound.persistence.formats import IOAdapterFactory, IOAdapter, JsonIO, YamlIO, ExcelIO, CsvIO
+from pypeh.adapters.outbound.persistence.serializations import (
+    IOAdapterFactory,
+    IOAdapter,
+    JsonIO,
+    YamlIO,
+    ExcelIO,
+    CsvIO,
+)
 
 from pydantic import BaseModel
 from peh_model.peh import EntityList

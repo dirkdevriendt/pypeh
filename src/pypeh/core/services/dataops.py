@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class DataOpsService:
     def __init__(
         self,
-        inbound_adapter: InDataOpsInterface,
+        inbound_adapter: InDataOpsInterface | None,
         processing_adapter: OutDataOpsInterface,
         cache: CacheContainer = CacheContainerFactory.new(),
     ):
@@ -33,8 +33,8 @@ class DataOpsService:
 class ValidationService(DataOpsService):
     def __init__(
         self,
-        inbound_adapter: InDataOpsInterface,
         outbound_adapter: ValidationInterface,
+        inbound_adapter: InDataOpsInterface | None = None,
         cache: CacheContainer = CacheContainerFactory.new(),
     ):
         super().__init__(inbound_adapter, outbound_adapter, cache)
@@ -86,8 +86,8 @@ class ValidationService(DataOpsService):
 class DataImportService(DataOpsService):
     def __init__(
         self,
-        inbound_adapter: InDataOpsInterface,
         outbound_adapter: DataImportInterface,
+        inbound_adapter: InDataOpsInterface | None = None,
         cache: CacheContainer = CacheContainerFactory.new(),
     ):
         super().__init__(inbound_adapter, outbound_adapter, cache)
