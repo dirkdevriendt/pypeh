@@ -97,7 +97,7 @@ class SettingsConfig(BaseModel, Generic[T_BaseSettings]):
 
 
 class LocalFileConfig(SettingsConfig[LocalFileSettings]):
-    env_prefix: str = "DEFAULT_PERSISTED_CACHE_"
+    env_prefix: str = "LOCALFILE_"
     config_dict: dict[str, str] = Field(default_factory=dict)
 
     def settings_class(self) -> Type[LocalFileSettings]:
