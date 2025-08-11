@@ -13,8 +13,8 @@ class TestSessionDefaultLocalFile:
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", "/my/root/path")
 
         session = Session()
-        assert isinstance(session.default_storage, LocalFileSettings)
-        assert session.default_storage.root_folder == "/my/root/path"
+        assert isinstance(session.default_persisted_cache, LocalFileSettings)
+        assert session.default_persisted_cache.root_folder == "/my/root/path"
 
     def test_session_default_localfile_cache(self, monkeypatch):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")

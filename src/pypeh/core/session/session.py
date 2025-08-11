@@ -36,8 +36,7 @@ class Session:
         *,
         connection_config: SettingsConfig | Dict[str, SettingsConfig] | None = None,
         import_map: Dict[str, str] | None = None,
-        default_storage: str | SettingsConfig | None = None,
-        cache_type: str | None = None,
+        default_persisted_cache: str | SettingsConfig | None = None,
     ):
         """
         Initializes a new pypeh Session.
@@ -47,65 +46,88 @@ class Session:
                 A mapping of connection identifiers to SettingsConfig instances. Or
                 a single SettingsConfig if all identifiers can be resolved by means of
                 a single connection.
-                Required if using an import_map or a string-based default_storage.
+                Required if using an import_map or a string-based default_persisted_cache.
             import_map (Dict[str, str] | None):
                 Optional mapping relating namespaces to connection instances in the connection_config.
                 Requires connection_config to be provided. If import_map is provided then the length of
                 import_map should be the same as the length of the connection_config.
-            default_storage (str | SettingsConfig | None):
+            default_persisted_cache (str | SettingsConfig | None):
                 Specifies the default storage for the session. Can either be:
                     - A string key referring to a connection in connection_config,
                     - A SettingsConfig instance to directly generate BaseSettings.
-            cache_type (str | None):
-                Indicates the type of caching strategy to use. Defaults to dictionnary-based cache.
         """
 
+        connection_config, default_persisted_cache = self._normalize_configs(
+            connection_config, import_map, default_persisted_cache
+        )
+
+        self.import_config: ValidatedImportConfig | None = None
+        if isinstance(connection_config, dict):
+            self.import_config = ImportConfig(
+                connection_map=connection_config,
+                import_map=import_map,
+            ).to_validated_import_config()
+
+        self.default_persisted_cache: BaseSettings | None = self._init_default_persisted_cache(
+            default_persisted_cache, connection_config
+        )
+
+        self.cache: CacheContainer = CacheContainerFactory.new()
+
+    def _normalize_configs(
+        self,
+        connection_config,
+        import_map,
+        default_persisted_cache,
+    ) -> tuple[SettingsConfig | dict[str, SettingsConfig] | None, str | SettingsConfig | None]:
+        """Validates and normalizes configs before init proceeds."""
+        # import_map dependency
+        if import_map is not None and connection_config is None:
+            raise ValueError("If import_map is provided, connection_config cannot be None")
+
+        # Handle missing connection_config
         if connection_config is None:
-            if "DEFAULT_PERSISTED_CACHE_TYPE" in os.environ:
-                if os.environ["DEFAULT_PERSISTED_CACHE_TYPE"].upper() == "LOCALFILE":
-                    connection_config = LocalFileConfig(env_prefix="DEFAULT_PERSISTED_CACHE_")
-                else:
-                    raise NotImplementedError
-            else:
+            if default_persisted_cache is None:
+                default_persisted_cache = self._env_default_persisted_cache()
+            elif isinstance(default_persisted_cache, str):
+                raise ValueError("String value for default_persisted_cache requires a connection_config")
+            elif not isinstance(default_persisted_cache, SettingsConfig):
                 logger.debug("All resources will be loaded as linked open data")
 
-        else:
-            if import_map is not None and connection_config is None:
-                raise ValueError("If import_map is provided, connection_config cannot be None")
+        # Validate string cache references
+        if isinstance(default_persisted_cache, str):
+            if not (isinstance(connection_config, dict) and default_persisted_cache in connection_config):
+                raise ValueError("Default cache string must refer to a key in connection_config")
 
-        if isinstance(default_storage, str):
-            if (
-                connection_config is None
-                or not isinstance(connection_config, dict)
-                or default_storage not in connection_config
-            ):
-                raise ValueError("Default storage string must refer to an entry in connection_config")
+        return connection_config, default_persisted_cache
 
-        if connection_config is not None:
-            if isinstance(connection_config, SettingsConfig):
-                default_storage = connection_config
-            else:
-                self.import_config: ValidatedImportConfig = ImportConfig(
-                    connection_map=connection_config,
-                    import_map=import_map,
-                ).to_validated_import_config()
+    def _env_default_persisted_cache(self) -> SettingsConfig | None:
+        """Derives a default cache config from environment variables."""
+        if os.environ.get("DEFAULT_PERSISTED_CACHE_TYPE", "").upper() == "LOCALFILE":
+            return LocalFileConfig(env_prefix="DEFAULT_PERSISTED_CACHE_")
 
-        if isinstance(default_storage, SettingsConfig):
-            self.default_storage: BaseSettings = default_storage.make_settings()
-        elif isinstance(default_storage, str):
-            if connection_config is not None:  # KEEPING TYPER HAPPY
-                connection = connection_config[default_storage]
-                assert isinstance(connection, BaseSettings)
-                self.default_storage: BaseSettings = connection
-
-        self.cache: CacheContainer = CacheContainerFactory.new(cache_type)
+    def _init_default_persisted_cache(
+        self,
+        default_persisted_cache: str | SettingsConfig | None,
+        connection_config: SettingsConfig | dict[str, SettingsConfig] | None,
+    ) -> BaseSettings | None:
+        """Creates the BaseSettings instance for the default cache."""
+        if isinstance(default_persisted_cache, SettingsConfig):
+            return default_persisted_cache.make_settings()
+        if isinstance(default_persisted_cache, str) and isinstance(connection_config, dict):
+            connection = connection_config[default_persisted_cache]
+            assert isinstance(connection, BaseSettings)
+            return connection
+        if isinstance(connection_config, SettingsConfig):
+            return connection_config.make_settings()
+        return None
 
     def load_persisted_cache(self):
         """Load all resources from the default cache persistence location into cache"""
-        host = HostFactory.create(self.default_storage)
+        host = HostFactory.create(self.default_persisted_cache)
         if isinstance(host, LocalStorageProvider):
-            assert isinstance(self.default_storage, LocalFileSettings)
-            root_folder = self.default_storage.root_folder
+            assert isinstance(self.default_persisted_cache, LocalFileSettings)
+            root_folder = self.default_persisted_cache.root_folder
             assert root_folder is not None
             roots = host.load("", format="yaml")
         else:
@@ -147,8 +169,8 @@ class Session:
 
         # TODO: check importmap and create connection
         # if self.import_config is not None:
-            # connection = self.import_config.get_connection(resource_identifier)
-            # connection.do_stuff()
+        # connection = self.import_config.get_connection(resource_identifier)
+        # connection.do_stuff()
 
         # TODO: final step resolve as linked data
 
