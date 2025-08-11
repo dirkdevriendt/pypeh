@@ -43,7 +43,9 @@ class CsvIOImpl(IOAdapter):
 
 
 class ExcelIOImpl(IOAdapter):
-    def load(self, source: Union[str, Path, IO[str], IO[bytes]], validation_layout: DataLayout = None, **kwargs) -> dict[str, pl.DataFrame]:
+    def load(
+        self, source: Union[str, Path, IO[str], IO[bytes]], validation_layout: DataLayout | None = None, **kwargs
+    ) -> dict[str, pl.DataFrame]:
         try:
             result = None
             default = {

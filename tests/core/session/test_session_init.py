@@ -1,11 +1,10 @@
 import pytest
 
-import logging
-
 from pypeh import Session
-from pypeh.core.models.settings import SettingsConfig, LocalFileConfig, LocalFileSettings
+from pypeh.core.models.settings import LocalFileSettings
 
 from tests.test_utils.dirutils import get_absolute_path
+
 
 @pytest.mark.session
 class TestSessionDefaultLocalFile:
@@ -22,6 +21,6 @@ class TestSessionDefaultLocalFile:
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input/default_localfile_data"))
 
         session = Session()
-        session.load_cache()
+        session.load_persisted_cache()
         observation = session.cache.get("peh:OBSERVATION_ADULTS_ANALYTICALINFO", "Observation")
         assert observation.id == "peh:OBSERVATION_ADULTS_ANALYTICALINFO"

@@ -2,22 +2,25 @@ from __future__ import annotations
 
 import logging
 import os
-import fsspec
 
 from peh_model.peh import DataLayout
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
-from pypeh.core.models.settings import LocalFileConfig, ImportConfig, SettingsConfig, ValidatedImportConfig
-from pypeh.core.models.settings import LocalFileSettings
+from pypeh.core.models.settings import (
+    LocalFileConfig,
+    ImportConfig,
+    LocalFileSettings,
+    SettingsConfig,
+    ValidatedImportConfig,
+)
 from pypeh.core.models.typing import T_NamedThingLike
 from pypeh.core.models.validation_errors import ValidationError, ValidationErrorLevel
 
 from typing import TYPE_CHECKING
 
-from pypeh.adapters.outbound.persistence.hosts import DirectoryIO, FileIO
+from pypeh.adapters.outbound.persistence.hosts import HostFactory, LocalStorageProvider
 from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
 
-from tests.test_utils.dirutils import get_absolute_path
 from pypeh.core.cache.utils import load_entities_from_tree
 
 logger = logging.getLogger(__name__)
@@ -59,7 +62,7 @@ class Session:
 
         if connection_config is None:
             if "DEFAULT_PERSISTED_CACHE_TYPE" in os.environ:
-                if os.environ["DEFAULT_PERSISTED_CACHE_TYPE"].upper()=="LOCALFILE":
+                if os.environ["DEFAULT_PERSISTED_CACHE_TYPE"].upper() == "LOCALFILE":
                     connection_config = LocalFileConfig(env_prefix="DEFAULT_PERSISTED_CACHE_")
                 else:
                     raise NotImplementedError
@@ -97,24 +100,33 @@ class Session:
 
         self.cache: CacheContainer = CacheContainerFactory.new(cache_type)
 
-    def load_cache(self):
+    def load_persisted_cache(self):
         """Load all resources from the default cache persistence location into cache"""
-        if isinstance(self.default_storage, LocalFileSettings):
-            host = DirectoryIO()
-            roots = host.load(self.default_storage.root_folder, format="yaml")
-            for root in roots:
-                for entity in load_entities_from_tree(root):
-                    self.cache.add(entity)
+        host = HostFactory.create(self.default_storage)
+        if isinstance(host, LocalStorageProvider):
+            assert isinstance(self.default_storage, LocalFileSettings)
+            root_folder = self.default_storage.root_folder
+            assert root_folder is not None
+            roots = host.load("", format="yaml")
         else:
             raise NotImplementedError
+        for root in roots:
+            for entity in load_entities_from_tree(root):
+                self.cache.add(entity)
 
-    def load_tabular_data(self, persistence_adapter: PersistenceInterface, path: str, validation_layout: DataLayout = None):
+    def load_tabular_data(
+        self, persistence_adapter: PersistenceInterface, path: str, validation_layout: DataLayout | None = None
+    ):
         """Load a binary resource and return its content as tabular data in a dataframe"""
         try:
             io_adapter = persistence_adapter()
             return io_adapter.load(path, validation_layout=validation_layout)
-        except:
-            return ValidationError(message="File could not be read or validated", type="File Processing Error", level=ValidationErrorLevel.FATAL)
+        except Exception as _:
+            return ValidationError(
+                message="File could not be read or validated",
+                type="File Processing Error",
+                level=ValidationErrorLevel.FATAL,
+            )
 
     def get_resource(self, resource_identifier: str, resource_type: str) -> T_NamedThingLike | None:
         """Get resource from cache"""
@@ -135,7 +147,7 @@ class Session:
 
         # check importmap
         if self.import_config is not None:
-            connection = self.import_config.get_connection(resource_identifier)
+            _ = self.import_config.get_connection(resource_identifier)
             # connection.do_stuff()
 
         # TODO: final step resolve as linked data

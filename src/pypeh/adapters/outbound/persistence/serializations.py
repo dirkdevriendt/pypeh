@@ -10,7 +10,7 @@ from linkml_runtime.loaders import YAMLLoader, JSONLoader, RDFLibLoader
 from linkml_runtime.dumpers import YAMLDumper, JSONDumper
 from pydantic import TypeAdapter, BaseModel, ConfigDict
 from pathlib import Path
-from rdflib import Graph, Dataset
+from rdflib import Graph
 from typing import TYPE_CHECKING, Union, Any, IO, get_type_hints, cast
 
 from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
@@ -84,8 +84,11 @@ def is_consistent_with_layout(data: dict, layout: DataLayout) -> bool:
     """
     Validate newly loaded data against a PEH DataLayout.
     """
-    layout_section_names = {section.label for section in layout.sections}
+    if layout.sections is not None:
+        layout_section_names = {section.label for section in layout.sections}  # type: ignore
+    ## FIXME: linkml dataclasses are making the typer behave weirdly
     return layout_section_names.issuperset(set(data.keys()))
+
 
 class IOAdapter(PersistenceInterface):
     read_mode: str = NotImplementedError  # type: ignore
@@ -319,7 +322,9 @@ class ExcelIO(IOAdapter):
     # source = StringIO(response.text)
     # df = pd.read_csv(source)
 
-    def load(self, source: Union[str, Path, IO[str], IO[bytes]], validation_layout: DataLayout = None, **kwargs) -> dict:
+    def load(
+        self, source: Union[str, Path, IO[str], IO[bytes]], validation_layout: DataLayout | None = None, **kwargs
+    ) -> dict:
         try:
             from pypeh.adapters.outbound.persistence.dataframe import ExcelIOImpl
         except ImportError:
