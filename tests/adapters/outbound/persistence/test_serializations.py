@@ -123,4 +123,3 @@ class TestXlsIO:
             with pytest.raises(Exception) as excinfo:
                 data = excel_io.load(f)  # type: ignore
         assert isinstance(excinfo.value, Exception)
-        

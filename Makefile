@@ -3,10 +3,12 @@
 test-core:
 	uv pip install -e ".[core, test-core]"
 	uv run pytest tests -m core --disable-warnings
+	uv run pytest tests -m session --disable-warnings
 
 test-dataframe:
 	uv pip install -e ".[dataframe-adapter, test-core]"
 	uv run pytest -s -vv tests/adapters tests/core/interfaces -m dataframe --disable-warnings
+	uv run pytest -s -vv tests/core -m dataframe --disable-warnings
 
 test-export:
 	uv pip install -e ".[export-adapter, test-core]"

@@ -1,7 +1,5 @@
 import pytest
 
-import logging
-
 from pypeh import Session
 
 from pypeh.adapters.outbound.persistence.serializations import ExcelIO
@@ -9,7 +7,8 @@ from pypeh.core.models.validation_errors import ValidationError
 
 from tests.test_utils.dirutils import get_absolute_path
 
-@pytest.mark.session
+
+@pytest.mark.dataframe
 class TestSessionValidation:
     def test_invalid_file(self):
         excel_path = get_absolute_path("./input/validation_files/invalid_excel.xlsx")
@@ -31,8 +30,9 @@ class TestSessionValidation:
         excel_path = get_absolute_path("./input/validation_files/valid_excel_wrong_format.xlsx")
 
         session = Session()
-        session.load_cache()
+        session.load_persisted_cache()
         layout = session.cache.get("TEST_DATA_LAYOUT", "DataLayout")
+        assert layout is not None
         result = session.load_tabular_data(ExcelIO, excel_path, validation_layout=layout)
         assert isinstance(result, ValidationError)
         assert result.type == "File Processing Error"
