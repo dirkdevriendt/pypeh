@@ -1,4 +1,4 @@
-.PHONY: test-core test-dataframe test-export test-rocrate test-all format
+.PHONY: test-core test-dataframe test-export test-rocrate test-all format format-diff
 
 test-core:
 	uv pip install -e ".[core, test-core]"
@@ -27,3 +27,7 @@ test-all: test-core test-dataframe test-export test-s3
 format:
 	uv pip install ruff
 	uv run ruff format .
+
+format-diff:
+	uv pip install ruff
+	uv run ruff format . --diff
