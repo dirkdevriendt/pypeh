@@ -106,7 +106,6 @@ class ColumnValidation(BaseModel):
     data_type: str
     required: bool
     nullable: bool
-    unique: bool = False
     validations: list[ValidationDesign] | None = None
 
     @classmethod
@@ -126,7 +125,6 @@ class ColumnValidation(BaseModel):
             data_type=data_type,
             required=required,
             nullable=nullable,
-            unique=False,  # TODO: Update when uniqueness is available
             validations=validations,
         )
 
