@@ -1,4 +1,4 @@
-import yaml # type: ignore[import-untyped]
+import yaml  # type: ignore[import-untyped]
 
 from importlib.resources import files
 from linkml_runtime import SchemaView

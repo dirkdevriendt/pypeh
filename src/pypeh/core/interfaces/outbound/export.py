@@ -10,7 +10,7 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Optional 
+    from typing import Optional
     from peh_model.peh import ObservationDesign, ObservationResult, DataLayout, ObservableProperty
 
 logger = logging.getLogger(__name__)
