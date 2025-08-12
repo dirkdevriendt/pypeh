@@ -1,5 +1,6 @@
 import pytest
 
+from pathlib import Path
 from peh_model.peh import EntityList
 
 from pypeh.adapters.outbound.persistence.hosts import (
@@ -75,40 +76,39 @@ class TestDirectoryIO:
     @pytest.mark.core
     def test_no_root(self):
         source = get_absolute_path("./input/config_basic/_Reference_YAML")
-        print("original_source", source)
         directory_io = DirectoryIO()
         all_data = directory_io.load(source)
         assert len(all_data) > 0
 
     @pytest.mark.core
     def test_unknown_format(self):
-        source = "input/unknown_format"
-        path = get_absolute_path("./" + source)
-        root = path.rstrip(source)
+        source = Path("input/unknown_format")
+        path = Path(get_absolute_path(str(source)))
+        root = path.parents[len(source.parts) - 1]
 
-        directory_io = DirectoryIO(root=root)
-        all_data = list(directory_io.load(source))
+        directory_io = DirectoryIO(root=str(root))
+        all_data = list(directory_io.load(str(source)))
         assert len(all_data) == 0
 
     @pytest.mark.core
     def test_incompatible_file(self):
-        source = "input/wrong_input"
-        path = get_absolute_path("./" + source)
-        root = path.rstrip(source)
+        source = Path("input/wrong_input")
+        path = Path(get_absolute_path(str(source)))
+        root = path.parents[len(source.parts) - 1]
 
-        directory_io = DirectoryIO(root=root)
+        directory_io = DirectoryIO(root=str(root))
         with pytest.raises(TypeError):
-            _ = list(directory_io.load(source))
+            _ = list(directory_io.load(str(source)))
 
     @pytest.mark.core
     def test_walk(self):
-        source = "input/config_basic"
-        path = get_absolute_path("./" + source)
-        root = path.rstrip(source)
+        source = Path("input/config_basic")
+        path = Path(get_absolute_path(str(source)))
+        root = path.parents[len(source.parts) - 1]
 
-        directory_io = DirectoryIO(root=root)
+        directory_io = DirectoryIO(root=str(root))
         i = 0
-        for _ in directory_io.walk(source, format="yaml"):
+        for _ in directory_io.walk(str(source), format="yaml"):
             i += 1
         assert i > 1
 
