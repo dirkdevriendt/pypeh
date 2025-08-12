@@ -8,12 +8,13 @@ import fsspec
 import json
 import logging
 import os
+import pathlib
+import posixpath
 import requests
 import urllib3
 
 from abc import abstractmethod
 from contextlib import contextmanager
-from pathlib import Path
 from requests.adapters import HTTPAdapter
 from typing import TYPE_CHECKING, Generic, Callable, Any, Optional, Dict
 from urllib3.util.retry import Retry
@@ -45,10 +46,10 @@ class FileIO(HostAdapter):
         self.file_system = file_system
 
     @classmethod
-    def get_format(cls, path: Union[str, Path]) -> str:
+    def get_format(cls, path: Union[str, pathlib.Path]) -> str:
         return os.path.splitext(str(path))[1].lower().lstrip(".")
 
-    def load(self, source: Union[str, Path], format: Optional[str] = None, **kwargs) -> Any:
+    def load(self, source: Union[str, pathlib.Path], format: Optional[str] = None, **kwargs) -> Any:
         """Load data from file using the appropriate adapter."""
         if format is None:
             format = self.get_format(source)
@@ -75,17 +76,21 @@ class DirectoryIO(HostAdapter):
         self.root = root.rstrip("/") if root is not None else None
         self.file_system: fsspec.AbstractFileSystem = fsspec.filesystem(protocol, **storage_options)
 
-    def _resolve_path(self, path: Union[str, Path]) -> str:
+    def _resolve_path(self, path: Union[str, pathlib.Path]) -> str:
+        path_str = str(path)
         if self.root is not None:
-            return f"{self.root}/{str(path)}"
-        else:
-            return f"{str(path)}"
+            return str(pathlib.Path(self.root) / path_str)
+        return path_str
 
-    def _join_paths(self, root: Any, path: str) -> str:
-        return f"{root}/{path}"
+    def _join_paths(self, root: str, path: str) -> str:
+        return str(pathlib.Path(root) / path)
 
     def walk(
-        self, source: Union[str, Path], format: Optional[str] = None, maxdepth: int | None = None, **load_options
+        self,
+        source: Union[str, pathlib.Path],
+        format: Optional[str] = None,
+        maxdepth: int | None = None,
+        **load_options,
     ) -> Generator[Any, None, None]:
         """
         Yield data loaded from files in a directory and its subdirectories.
@@ -97,6 +102,7 @@ class DirectoryIO(HostAdapter):
 
         for root, _, files in self.file_system.walk(full_source, maxdepth=maxdepth):
             for file in files:
+                assert isinstance(root, str)
                 file_path = self._join_paths(root, file)
                 inferred_format = FileIO.get_format(file_path)
                 if format is not None:
@@ -110,7 +116,9 @@ class DirectoryIO(HostAdapter):
                     else:
                         continue  # Skip unsupported formats
 
-    def load(self, source: Union[str, Path], format: Optional[str] = None, maxdepth: int = 1, **load_options) -> Any:
+    def load(
+        self, source: Union[str, pathlib.Path], format: Optional[str] = None, maxdepth: int = 1, **load_options
+    ) -> Any:
         full_source = self._resolve_path(source)
         file_io = FileIO(file_system=self.file_system)
         if self.file_system.isfile(full_source):
@@ -135,6 +143,15 @@ class S3StorageProvider(DirectoryIO):
         session_kwargs = {**storage_options, **settings.to_s3fs()}
         self.bucket = settings.bucket_name
         super().__init__(root=settings.bucket_name, protocol="s3", **session_kwargs)
+
+    def _resolve_path(self, path: Union[str, pathlib.Path]) -> str:
+        path_str = str(path)
+        if self.root is not None:
+            return posixpath.join(self.root.rstrip("/"), path_str)
+        return path_str
+
+    def _join_paths(self, root: str, path: str) -> str:
+        return posixpath.join(root.rstrip("/"), path)
 
 
 ## WebIO implementation
@@ -197,7 +214,7 @@ class WebIO(HostAdapter):
 
         # Try to detect from URL extension
         parsed_url = urlparse(url)
-        path = Path(parsed_url.path)
+        path = pathlib.Path(parsed_url.path)
         extension = path.suffix.lower().lstrip(".")
         if extension in serializations.IOAdapterFactory._adapters:
             return extension
