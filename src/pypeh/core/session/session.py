@@ -3,9 +3,11 @@ from __future__ import annotations
 import logging
 import os
 
-from peh_model.peh import DataLayout
+from peh_model.peh import DataLayout, Observation, NamedThing
+from typing import TYPE_CHECKING, cast
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
+from pypeh.core.models.proxy import TypedLazyProxy
 from pypeh.core.models.settings import (
     LocalFileConfig,
     ImportConfig,
@@ -14,10 +16,7 @@ from pypeh.core.models.settings import (
     ValidatedImportConfig,
 )
 from pypeh.core.models.typing import T_NamedThingLike
-from pypeh.core.models.validation_errors import ValidationError, ValidationErrorLevel
-
-from typing import TYPE_CHECKING
-
+from pypeh.core.models.validation_errors import ValidationError, ValidationErrorLevel, ValidationErrorReportCollection
 from pypeh.adapters.outbound.persistence.hosts import HostFactory, LocalStorageProvider
 from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
 
@@ -26,8 +25,9 @@ from pypeh.core.cache.utils import load_entities_from_tree
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from typing import Dict
+    from polars import DataFrame
     from pydantic_settings import BaseSettings
+    from typing import Dict, Sequence
 
 
 class Session:
@@ -158,6 +158,9 @@ class Session:
 
         return ret
 
+    def resolve_typed_lazy_proxy(self, proxy: TypedLazyProxy) -> NamedThing:
+        raise NotImplementedError()
+
     def load_resource(self, resource_identifier: str, resource_type: str) -> T_NamedThingLike | None:
         """Load resource into cache. First checks the cache,
         then configured persisted cache, and finally the `ImportConfig`"""
@@ -184,3 +187,41 @@ class Session:
 
     def dump_project(self, project_identifier: str, version: str | None) -> bool:
         return self.dump_resource(project_identifier, resource_type="Project", version=version)
+
+    def validate_tabular_data(
+        self,
+        data: dict[str, Sequence] | DataFrame,
+        observation: Observation | None = None,
+        observation_id: str | None = None,
+    ) -> ValidationErrorReportCollection:
+        # input checks
+        if observation is None and observation_id is None:
+            raise ValueError("Either observation or observation_id should be provided")
+        elif observation is not None and observation_id is not None:
+            raise ValueError("Either observation or observation_id should be provided")
+
+        # make objects
+        if observation_id is not None:
+            resource = self.load_resource(observation_id, "Observation")
+            if not isinstance(resource, Observation):
+                raise TypeError(f"Resource with id {observation_id} did not return an Observation object")
+            observation = cast(Observation, resource)
+        assert observation is not None
+
+        observable_property_ids = set()
+        for oep_set in observation.observation_design.observable_entity_property_sets:
+            observable_property_ids.update(
+                oep_set.identifying_observable_property_id_list,
+                oep_set.optional_observable_property_id_list,
+                oep_set.required_observable_property_id_list,
+            )
+        observable_properties = [
+            op for op in self.cache.get_all("ObservableProperty") if op.id in observable_property_ids
+        ]
+        assert len(observable_properties) > 0
+
+        # run validation
+        from pypeh.adapters.outbound.validation.pandera_adapter.dataops import DataFrameAdapter
+
+        adapter = DataFrameAdapter()
+        return adapter.validate(data, observation, observable_properties)
