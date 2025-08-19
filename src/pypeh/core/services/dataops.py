@@ -8,7 +8,7 @@ from peh_model import peh
 from pypeh.core.interfaces.inbound.dataops import InDataOpsInterface
 from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface, ValidationInterface
 from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
-from pypeh.core.models.settings import SettingsConfig
+from pypeh.core.models.settings import ConnectionConfig
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from pypeh.core.models.validation_dto import ValidationConfig
 
@@ -95,7 +95,7 @@ class DataImportService(DataOpsService):
         self.outbound_adapter: PersistenceInterface = outbound_adapter
 
     def import_data(
-        self, source: str, config: SettingsConfig, data_layout: str, layout_config: SettingsConfig | None = None
+        self, source: str, config: ConnectionConfig, data_layout: str, layout_config: ConnectionConfig | None = None
     ):
         # validate config
         settings = config.make_settings()

@@ -11,7 +11,7 @@ from pypeh.core.models.settings import (
     LocalFileConfig,
     ImportConfig,
     LocalFileSettings,
-    SettingsConfig,
+    ConnectionConfig,
     ValidatedImportConfig,
 )
 from pypeh.core.models.typing import T_NamedThingLike
@@ -23,7 +23,6 @@ from pypeh.core.utils.resolve_identifiers import is_url
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from typing import Dict
     from pydantic_settings import BaseSettings
 
 
@@ -31,92 +30,89 @@ class Session:
     def __init__(
         self,
         *,
-        connection_config: SettingsConfig | Dict[str, SettingsConfig] | None = None,
-        import_map: Dict[str, str] | None = None,
-        default_persisted_cache: str | SettingsConfig | None = None,
+        connection_config: ConnectionConfig | Sequence[ConnectionConfig] | None = None,
+        default_persisted_cache: str | ConnectionConfig | None = None,
     ):
         """
         Initializes a new pypeh Session.
 
         Args:
-            connection_config (SettingsConfig] | Dict[str, SettingsConfig] | None):
-                A mapping of connection identifiers to SettingsConfig instances. Or
-                a single SettingsConfig if all identifiers can be resolved by means of
-                a single connection.
-                Required if using an import_map or a string-based default_persisted_cache.
-            import_map (Dict[str, str] | None):
-                Optional mapping relating namespaces to connection instances in the connection_config.
-                Requires connection_config to be provided. If import_map is provided then the length of
-                import_map should be the same as the length of the connection_config.
-            default_persisted_cache (str | SettingsConfig | None):
+            connection_config (ConnectionConfig | Sequence[ConnectionConfig] | None):
+                A (list of) ConnectionConfig instance(s). Allows you to setup connection to local
+                or remote repositories.
+                Required if a string-based default_persisted_cache is used.
+            default_persisted_cache (str | ConnectionConfig | None):
                 Specifies the default storage for the session. Can either be:
                     - A string key referring to a connection in connection_config,
-                    - A SettingsConfig instance to directly generate BaseSettings.
+                    - A ConnectionConfig instance to directly generate BaseSettings.
         """
 
-        connection_config, default_persisted_cache = self._normalize_configs(
-            connection_config, import_map, default_persisted_cache
-        )
-
+        connection_map, default_persisted_cache = self._normalize_configs(connection_config, default_persisted_cache)
         self.import_config: ValidatedImportConfig | None = None
-        if isinstance(connection_config, dict):
-            self.import_config = ImportConfig(
-                connection_map=connection_config,
-                import_map=import_map,
-            ).to_validated_import_config()
+        if connection_map is not None:
+            self.import_config = ImportConfig(connection_map=connection_map).to_validated_import_config()
 
-        self.default_persisted_cache: BaseSettings | None = self._init_default_persisted_cache(
-            default_persisted_cache, connection_config
-        )
-
+        self.default_persisted_cache: BaseSettings | None = self._init_default_persisted_cache(default_persisted_cache)
         self.cache: CacheContainer = CacheContainerFactory.new()
 
     def _normalize_configs(
         self,
         connection_config,
-        import_map,
         default_persisted_cache,
-    ) -> tuple[SettingsConfig | dict[str, SettingsConfig] | None, str | SettingsConfig | None]:
+    ) -> tuple[dict[str, ConnectionConfig], ConnectionConfig | None]:
         """Validates and normalizes configs before init proceeds."""
-        # import_map dependency
-        if import_map is not None and connection_config is None:
-            raise ValueError("If import_map is provided, connection_config cannot be None")
-
+        connection_map = {}
         # Handle missing connection_config
         if connection_config is None:
             if default_persisted_cache is None:
                 default_persisted_cache = self._env_default_persisted_cache()
             elif isinstance(default_persisted_cache, str):
                 raise ValueError("String value for default_persisted_cache requires a connection_config")
-            elif not isinstance(default_persisted_cache, SettingsConfig):
+            elif not isinstance(default_persisted_cache, ConnectionConfig):
                 logger.debug("All resources will be loaded as linked open data")
+        else:
+            if isinstance(connection_config, ConnectionConfig):
+                connection_map = {connection_config.label: connection_config}
+            elif isinstance(connection_config, Sequence):
+                for config in connection_config:
+                    if not isinstance(config, ConnectionConfig):
+                        raise ValueError("connection_config argument is of wrong type")
+                    connection_map[config.label] = config
+            else:
+                raise ValueError("connection_config argument is of wrong type")
 
         # Validate string cache references
+        validated_default_persisted_cache = None
         if isinstance(default_persisted_cache, str):
-            if not (isinstance(connection_config, dict) and default_persisted_cache in connection_config):
+            if default_persisted_cache not in connection_map:
                 raise ValueError("Default cache string must refer to a key in connection_config")
+            validated_default_persisted_cache = connection_map[default_persisted_cache]
+        elif isinstance(default_persisted_cache, ConnectionConfig):
+            if default_persisted_cache.namespaces is not None:
+                logger.warning(
+                    "default_persisted_cache has namespaces associated to it. These are ignored."
+                    " Use the connection_config to achieve this"
+                )
+            validated_default_persisted_cache = default_persisted_cache
+            connection_map[validated_default_persisted_cache.label] = validated_default_persisted_cache
 
-        return connection_config, default_persisted_cache
+        if len(connection_map) == 0:
+            assert validated_default_persisted_cache is None
 
-    def _env_default_persisted_cache(self) -> SettingsConfig | None:
+        return connection_map, validated_default_persisted_cache
+
+    def _env_default_persisted_cache(self) -> ConnectionConfig | None:
         """Derives a default cache config from environment variables."""
         if os.environ.get("DEFAULT_PERSISTED_CACHE_TYPE", "").upper() == "LOCALFILE":
             return LocalFileConfig(env_prefix="DEFAULT_PERSISTED_CACHE_")
 
     def _init_default_persisted_cache(
         self,
-        default_persisted_cache: str | SettingsConfig | None,
-        connection_config: SettingsConfig | dict[str, SettingsConfig] | None,
+        default_persisted_cache: ConnectionConfig | None,
     ) -> BaseSettings | None:
         """Creates the BaseSettings instance for the default cache."""
-        if isinstance(default_persisted_cache, SettingsConfig):
+        if isinstance(default_persisted_cache, ConnectionConfig):
             return default_persisted_cache.make_settings()
-        if isinstance(default_persisted_cache, str) and isinstance(connection_config, dict):
-            connection = connection_config[default_persisted_cache]
-            assert isinstance(connection, BaseSettings)
-            return connection
-        if isinstance(connection_config, SettingsConfig):
-            return connection_config.make_settings()
         return None
 
     def load_persisted_cache(self):
