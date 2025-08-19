@@ -4,6 +4,7 @@ import logging
 import os
 
 from peh_model.peh import DataLayout
+from typing import TYPE_CHECKING, Sequence
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from pypeh.core.models.settings import (
@@ -15,13 +16,9 @@ from pypeh.core.models.settings import (
 )
 from pypeh.core.models.typing import T_NamedThingLike
 from pypeh.core.models.validation_errors import ValidationError, ValidationErrorLevel
-
-from typing import TYPE_CHECKING
-
 from pypeh.adapters.outbound.persistence.hosts import HostFactory, LocalStorageProvider
-from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
-
 from pypeh.core.cache.utils import load_entities_from_tree
+from pypeh.core.utils.resolve_identifiers import is_url
 
 logger = logging.getLogger(__name__)
 
@@ -137,15 +134,34 @@ class Session:
                 self.cache.add(entity)
 
     def load_tabular_data(
-        self, persistence_adapter: PersistenceInterface, path: str, validation_layout: DataLayout | None = None
-    ):
-        """Load a binary resource and return its content as tabular data in a dataframe"""
+        self, source: str, connection_id: str | None = None, validation_layout: DataLayout | None = None
+    ) -> dict[str, Sequence] | ValidationError:
+        """
+        Load a binary resource and return its content as tabular data in a dataframe
+        Args:
+            source (str): A path or url pointing to the data to be loaded in.
+            connection_id (str | None):
+                Optional key pointing to the connection to be used to
+                load in the data source. The connection_id should be a key of the provided
+                connection_config.
+            validation_layout: (DataLayout | None)L Optional DataLayout object used for validation.
+        """
         try:
-            io_adapter = persistence_adapter()
-            return io_adapter.load(path, validation_layout=validation_layout)
-        except Exception as _:
+            if is_url(source):
+                host = HostFactory.default()
+                return host.retrieve_data(source)
+            elif connection_id is not None:
+                # TODO: connect this to the connection_config created at setup
+                raise NotImplementedError
+            elif self.default_persisted_cache is not None:
+                host = HostFactory.create(self.default_persisted_cache)
+                return host.load(source, validation_layout=validation_layout)
+            else:
+                raise ValueError("Can't figure out how to load the data")
+
+        except Exception as e:
             return ValidationError(
-                message="File could not be read or validated",
+                message=f"File could not be read or validated: {e}",
                 type="File Processing Error",
                 level=ValidationErrorLevel.FATAL,
             )

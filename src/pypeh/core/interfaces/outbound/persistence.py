@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class PersistenceInterface:
     @abstractmethod
-    def load(self, source: str, validation_layout: DataLayout = None, **kwargs):
+    def load(self, source: str, validation_layout: DataLayout | None = None, **kwargs):
         raise NotImplementedError
 
     @abstractmethod

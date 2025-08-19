@@ -120,8 +120,8 @@ class DirectoryIO(HostAdapter):
         self, source: Union[str, pathlib.Path], format: Optional[str] = None, maxdepth: int = 1, **load_options
     ) -> Any:
         full_source = self._resolve_path(source)
-        file_io = FileIO(file_system=self.file_system)
         if self.file_system.isfile(full_source):
+            file_io = FileIO(file_system=self.file_system)
             return file_io.load(full_source, format=format, **load_options)
         elif self.file_system.isdir(full_source):
             return list(self.walk(source=source, format=format, maxdepth=maxdepth, **load_options))
