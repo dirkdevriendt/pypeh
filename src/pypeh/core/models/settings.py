@@ -45,7 +45,14 @@ class S3Settings(FileSystemSettings):
         }
 
 
-class SettingsConfig(BaseModel, Generic[T_BaseSettings]):
+class ConnectionConfig(BaseModel, Generic[T_BaseSettings]):
+    """
+    ConnectionConfigs can be given a label as well as a list of namespaces
+    the connection will be used for.
+    """
+
+    label: str = "default"
+    namespaces: list | None = None
     env_prefix: str = "DEFAULT_"
     config_dict: Optional[dict[str, str]] = Field(default_factory=dict)
 
@@ -96,7 +103,7 @@ class SettingsConfig(BaseModel, Generic[T_BaseSettings]):
             raise ValueError(f"Failed to load config with prefix '{self.env_prefix}': {e}") from e
 
 
-class LocalFileConfig(SettingsConfig[LocalFileSettings]):
+class LocalFileConfig(ConnectionConfig[LocalFileSettings]):
     env_prefix: str = "LOCALFILE_"
     config_dict: dict[str, str] = Field(default_factory=dict)
 
@@ -104,7 +111,7 @@ class LocalFileConfig(SettingsConfig[LocalFileSettings]):
         return LocalFileSettings
 
 
-class S3Config(SettingsConfig[S3Settings]):
+class S3Config(ConnectionConfig[S3Settings]):
     env_prefix: str = "S3_"
     config_dict: dict[str, str] = Field(default_factory=dict)
 
@@ -128,8 +135,7 @@ class ValidatedImportConfig:
 
 
 class ImportConfig(BaseModel):
-    connection_map: dict[str, SettingsConfig]
-    import_map: dict[str, str] | None
+    connection_map: dict[str, ConnectionConfig]
 
     @classmethod
     def dict_to_trie(cls, namespace_map: dict[str, str]) -> ImportMap:
@@ -139,21 +145,18 @@ class ImportConfig(BaseModel):
         return new_import_map
 
     @classmethod
-    def config_to_settings(cls, connection_map: dict[str, SettingsConfig]) -> dict[str, BaseSettings]:
+    def config_to_settings(cls, connection_map: dict[str, ConnectionConfig]) -> dict[str, BaseSettings]:
         return {key: value.make_settings() for key, value in connection_map.items()}
 
-    @model_validator(mode="after")
-    def validate_import_targets(self):
-        if self.import_map is not None:
-            for target in self.import_map.values():
-                if target not in self.connection_map:
-                    raise ValueError(f"Import target {target} missing from connection_map")
-
-        return self
-
     def to_validated_import_config(self) -> ValidatedImportConfig:
+        import_map = {}
+        if self.connection_map is not None:
+            for label, config in self.connection_map.items():
+                if config.namespaces is not None:
+                    for namespace in config.namespaces:
+                        import_map[namespace] = label
         connection_map = self.config_to_settings(self.connection_map)
-        import_map = None
-        if self.import_map is not None:
-            import_map = self.dict_to_trie(self.import_map)
-        return ValidatedImportConfig(connection_map=connection_map, import_map=import_map)
+        import_trie = None
+        if len(import_map) > 0:
+            import_trie = self.dict_to_trie(import_map)
+        return ValidatedImportConfig(connection_map=connection_map, import_map=import_trie)
