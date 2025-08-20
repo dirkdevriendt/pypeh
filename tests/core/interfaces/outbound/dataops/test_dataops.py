@@ -41,52 +41,344 @@ class TestValidation(abc.ABC):
         assert isinstance(adapter, ValidationInterface)
         assert isinstance(adapter, type(self.get_adapter()))
 
-    def test_validate(self):
-        adapter = self.get_adapter()
-
-        data = {
-            "col1": [1, 2, 3, None],
-            "col2": [2, 3, 1, None],
-        }
-
-        config = ValidationConfig(
-            name="test_config",
-            columns=[
-                ColumnValidation(
-                    unique_name="col1",
-                    data_type="integer",
-                    required=True,
-                    nullable=False,
+    @pytest.mark.parametrize(
+        "config, data, expected_output",
+        [
+            # Simple validation using integers
+            (
+                ValidationConfig(
+                    name="simple_validation_integer",
+                    columns=[
+                        ColumnValidation(
+                            unique_name="col1",
+                            data_type="integer",
+                            required=True,
+                            nullable=False,
+                            validations=[
+                                ValidationDesign(
+                                    name="is_greater_than_other_column",
+                                    error_level=ValidationErrorLevel.ERROR,
+                                    expression=ValidationExpression(
+                                        command="is_greater_than",
+                                        arg_columns=["col2"],
+                                    ),
+                                ),
+                                ValidationDesign(
+                                    name="is_greater_than_number",
+                                    error_level=ValidationErrorLevel.WARNING,
+                                    expression=ValidationExpression(
+                                        command="is_greater_than",
+                                        arg_values=[2],
+                                    ),
+                                ),
+                            ],
+                        )
+                    ],
+                    identifying_column_names=["col1"],
+                    validations=[],
+                ),
+                {
+                    "col1": [3, 1],
+                    "col2": [1, 2],
+                },
+                {
+                    "name": "simple_validation_integer",
+                    "total_errors": 2,
+                    "errors_counts": {
+                        ValidationErrorLevel.INFO: 0,
+                        ValidationErrorLevel.WARNING: 1,
+                        ValidationErrorLevel.ERROR: 1,
+                        ValidationErrorLevel.FATAL: 0,
+                    },
+                },
+            ),
+            # Simple validation using integers at df level
+            (
+                ValidationConfig(
+                    name="simple_validation_integer_df_level",
+                    columns=[
+                        ColumnValidation(
+                            unique_name="col1",
+                            data_type="integer",
+                            required=True,
+                            nullable=False,
+                            validations=[],
+                        )
+                    ],
+                    identifying_column_names=["col1"],
                     validations=[
                         ValidationDesign(
                             name="name",
                             error_level=ValidationErrorLevel.ERROR,
                             expression=ValidationExpression(
                                 command="is_greater_than",
-                                arg_columns=["col1"],
+                                arg_columns=["col2"],
+                                subject=["col1"],
                             ),
                         )
                     ],
-                )
-            ],
-            identifying_column_names=["col1"],
-            validations=[
-                ValidationDesign(
-                    name="name",
-                    error_level=ValidationErrorLevel.ERROR,
-                    expression=ValidationExpression(
-                        command="is_greater_than",
-                        arg_columns=["col2"],
-                        subject=["col1"],
-                    ),
-                )
-            ],
-        )
+                ),
+                {
+                    "col1": [3, 1],
+                    "col2": [1, 2],
+                },
+                {
+                    "name": "simple_validation_integer_df_level",
+                    "total_errors": 1,
+                    "errors_counts": {
+                        ValidationErrorLevel.INFO: 0,
+                        ValidationErrorLevel.WARNING: 0,
+                        ValidationErrorLevel.ERROR: 1,
+                        ValidationErrorLevel.FATAL: 0,
+                    },
+                },
+            ),
+            # disjunction validation using integers
+            (
+                ValidationConfig(
+                    name="disjunction_validation",
+                    columns=[
+                        ColumnValidation(
+                            unique_name="col1",
+                            data_type="integer",
+                            required=True,
+                            nullable=False,
+                            validations=[
+                                ValidationDesign(
+                                    name="name",
+                                    error_level=ValidationErrorLevel.ERROR,
+                                    expression=ValidationExpression(
+                                        command="disjunction",
+                                        arg_expressions=[
+                                            ValidationExpression(
+                                                command="is_greater_than",
+                                                arg_columns=["col2"],
+                                            ),
+                                            ValidationExpression(
+                                                command="is_less_than",
+                                                subject=["col2"],
+                                                arg_values=[0],
+                                            ),
+                                        ],
+                                    ),
+                                )
+                            ],
+                        )
+                    ],
+                    identifying_column_names=["col1"],
+                    validations=[],
+                ),
+                {
+                    "col1": [3, 1],
+                    "col2": [1, 2],
+                },
+                {
+                    "name": "disjunction_validation",
+                    "total_errors": 1,
+                    "errors_counts": {
+                        ValidationErrorLevel.INFO: 0,
+                        ValidationErrorLevel.WARNING: 0,
+                        ValidationErrorLevel.ERROR: 1,
+                        ValidationErrorLevel.FATAL: 0,
+                    },
+                },
+            ),
+            # Conjunction validation using integers
+            (
+                ValidationConfig(
+                    name="conjunction_validation",
+                    columns=[
+                        ColumnValidation(
+                            unique_name="col1",
+                            data_type="integer",
+                            required=True,
+                            nullable=False,
+                            validations=[
+                                ValidationDesign(
+                                    name="name",
+                                    error_level=ValidationErrorLevel.WARNING,
+                                    expression=ValidationExpression(
+                                        command="conjunction",
+                                        arg_expressions=[
+                                            ValidationExpression(
+                                                command="is_greater_than",
+                                                arg_columns=["col2"],
+                                            ),
+                                            ValidationExpression(
+                                                command="is_less_than",
+                                                subject=["col2"],
+                                                arg_values=[1],
+                                            ),
+                                        ],
+                                    ),
+                                )
+                            ],
+                        )
+                    ],
+                    identifying_column_names=["col1"],
+                    validations=[],
+                ),
+                {
+                    "col1": [3, 0],
+                    "col2": [1, -1],
+                },
+                {
+                    "name": "conjunction_validation",
+                    "total_errors": 1,
+                    "errors_counts": {
+                        ValidationErrorLevel.INFO: 0,
+                        ValidationErrorLevel.WARNING: 1,
+                        ValidationErrorLevel.ERROR: 0,
+                        ValidationErrorLevel.FATAL: 0,
+                    },
+                },
+            ),
+            # Simple validation using strings
+            (
+                ValidationConfig(
+                    name="simple_validation_strings",
+                    columns=[
+                        ColumnValidation(
+                            unique_name="col1",
+                            data_type="varchar",
+                            required=True,
+                            nullable=False,
+                            validations=[
+                                ValidationDesign(
+                                    name="name",
+                                    error_level=ValidationErrorLevel.ERROR,
+                                    expression=ValidationExpression(
+                                        command="is_in",
+                                        arg_values=["value1", "value2"],
+                                    ),
+                                )
+                            ],
+                        ),
+                        ColumnValidation(
+                            unique_name="col2",
+                            data_type="integer",
+                            required=True,
+                            nullable=False,
+                            validations=[],
+                        ),
+                    ],
+                    identifying_column_names=["col1", "col2"],
+                    validations=[],
+                ),
+                {
+                    "col1": ["value1", "value2", "value3"],
+                    "col2": [1, -1, None],
+                },
+                {
+                    "name": "simple_validation_strings",
+                    "total_errors": 2,
+                    "errors_counts": {
+                        ValidationErrorLevel.INFO: 0,
+                        ValidationErrorLevel.WARNING: 0,
+                        ValidationErrorLevel.ERROR: 2,
+                        ValidationErrorLevel.FATAL: 0,
+                    },
+                },
+            ),
+            # Duplicated ID
+            (
+                ValidationConfig(
+                    name="duplicate_id_validation",
+                    columns=[
+                        ColumnValidation(
+                            unique_name="col1",
+                            data_type="varchar",
+                            required=True,
+                            nullable=False,
+                            validations=[],
+                        ),
+                        ColumnValidation(
+                            unique_name="col2",
+                            data_type="integer",
+                            required=True,
+                            nullable=False,
+                            validations=[],
+                        ),
+                    ],
+                    identifying_column_names=["col1", "col2"],
+                    validations=[],
+                ),
+                {
+                    "col1": ["value1", "value2", "value1"],
+                    "col2": [1, -1, 1],
+                },
+                {
+                    "name": "duplicate_id_validation",
+                    "total_errors": 1,
+                    "errors_counts": {
+                        ValidationErrorLevel.INFO: 0,
+                        ValidationErrorLevel.WARNING: 0,
+                        ValidationErrorLevel.ERROR: 0,
+                        ValidationErrorLevel.FATAL: 1,
+                    },
+                },
+            ),
+            # function implementation test
+            (
+                ValidationConfig(
+                    name="function implementation test",
+                    columns=[
+                        ColumnValidation(
+                            unique_name="col1",
+                            data_type="decimal",
+                            required=True,
+                            nullable=False,
+                            # decimals_precision
+                            validations=[
+                                ValidationDesign(
+                                    name="fn",
+                                    error_level=ValidationErrorLevel.ERROR,
+                                    expression=ValidationExpression(
+                                        command="decimals_precision",
+                                        arg_values=["3"],
+                                    ),
+                                )
+                            ],
+                        ),
+                        ColumnValidation(
+                            unique_name="col2",
+                            data_type="integer",
+                            required=True,
+                            nullable=False,
+                            validations=[],
+                        ),
+                    ],
+                    identifying_column_names=["col2"],
+                    validations=[],
+                ),
+                {
+                    "col1": [1.234, 1.0, 1.123456],
+                    "col2": [1, 2, 3],
+                },
+                {
+                    "name": "function implementation test",
+                    "total_errors": 1,
+                    "errors_counts": {
+                        ValidationErrorLevel.INFO: 0,
+                        ValidationErrorLevel.WARNING: 0,
+                        ValidationErrorLevel.ERROR: 1,
+                        ValidationErrorLevel.FATAL: 0,
+                    },
+                },
+            ),
+        ],
+    )
+    def test_validate(self, config, data, expected_output):
+        adapter = self.get_adapter()
 
         result = adapter._validate(data, config)
 
         assert result is not None
-        assert result.total_errors == 3
+        assert result.groups[0].name == expected_output.get("name")
+        assert result.total_errors == expected_output.get("total_errors")
+        assert result.error_counts == expected_output.get("errors_counts")
+
+        adapter.cleanup()
 
 
 class TestDataImport(abc.ABC):

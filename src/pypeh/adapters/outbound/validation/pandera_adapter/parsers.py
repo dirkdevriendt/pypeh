@@ -142,6 +142,11 @@ def parse_validation_error_group(group) -> ValidationErrorGroup:
 
 def parse_error_schema(error_schema: ErrorSchema) -> ValidationError:
     level = map_error_level(error_schema.level)
+    column_names = (
+        [col_name for col_name in error_schema.column_names]
+        if isinstance(error_schema.column_names, list)
+        else [error_schema.column_names]
+    )
 
     return ValidationError(
         message=error_schema.message,
@@ -151,7 +156,7 @@ def parse_error_schema(error_schema: ErrorSchema) -> ValidationError:
             DataFrameLocation(
                 location_type="dataframe",
                 key_columns=error_schema.idx_columns,
-                column_names=[col_name for col_name in error_schema.column_names],
+                column_names=column_names,
                 row_ids=error_schema.row_ids,
             )
         ],
