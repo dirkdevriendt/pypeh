@@ -3,7 +3,7 @@ observable_properties:
   unique_name: id_sample
   name: id_sample
   label: id_sample
-  value_type: number
+  value_type: decimal
   categorical: false
   multivalued: false
   value_metadata:
@@ -375,7 +375,7 @@ observable_properties:
   description: id_subject of participant (main study subject) to which this subject
     is linked
   label: id_participant
-  value_type: number
+  value_type: decimal
   categorical: false
   multivalued: false
   default_unit: UNITLESS
@@ -812,7 +812,7 @@ observable_properties:
   name: ageweeks
   description: age in weeks of the subject at sampling
   label: ageweeks
-  value_type: number
+  value_type: decimal
   categorical: false
   multivalued: false
   value_metadata:
@@ -832,7 +832,7 @@ observable_properties:
   name: agedays
   description: age in days of the subject at sampling
   label: agedays
-  value_type: number
+  value_type: decimal
   categorical: false
   multivalued: false
   value_metadata:

@@ -77,6 +77,23 @@ import pandera.polars as pa
 import polars as pl
 
 
+AVAILABLE_CHECKS = {
+    "is_equal_to",
+    "is_equal_to_or_both_missing",
+    "is_greater_than_or_equal_to",
+    "is_greater_than",
+    "is_less_than_or_equal_to",
+    "is_less_than",
+    "is_not_equal_to",
+    "is_not_equal_to_and_not_both_missing",
+    "is_unique",
+    "is_duplicated",
+    "is_in",
+    "is_null",
+    "is_not_null",
+}
+
+
 def decimals_precision(
     data: pa.PolarsData,
     arg_values: Sequence[Any],

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import importlib
 
-from typing import Mapping, Sequence, TYPE_CHECKING, List
 from datetime import datetime
+from enum import Enum
+from typing import Mapping, Sequence, TYPE_CHECKING, List
 
 from pypeh.core.models.constants import ValidationErrorLevel
 from pypeh.core.models.validation_dto import (
@@ -36,7 +37,12 @@ def parse_single_expression(expression: ValidationExpression) -> Mapping:
             importlib.import_module("pypeh.adapters.outbound.validation.pandera_adapter.check_functions"), command
         )
     except AttributeError:
-        pass
+        try:
+            from pypeh.adapters.outbound.validation.pandera_adapter.check_functions import AVAILABLE_CHECKS
+        except Exception as _:
+            ImportError("Please install dataframe module.")
+        assert command in AVAILABLE_CHECKS
+
     return {
         "command": command,
         "arg_values": expression.arg_values,
@@ -106,7 +112,11 @@ def parse_config(config: ValidationConfig) -> Mapping:
 
 
 def map_error_level(level: ErrorLevel | str) -> ValidationErrorLevel:
-    match str(level).lower():
+    if isinstance(level, Enum):
+        error_level = level.name.lower()
+    else:
+        error_level = level.lower()
+    match error_level.lower():
         case "warning":
             return ValidationErrorLevel.WARNING
         case "error":
@@ -114,12 +124,10 @@ def map_error_level(level: ErrorLevel | str) -> ValidationErrorLevel:
         case "critical":
             return ValidationErrorLevel.FATAL
         case _:
-            raise ValueError(f"Unknown error level: {level}")
+            raise ValueError(f"Unknown error level: {error_level}")
 
 
 def parse_collected_exception(exception: ExceptionSchema) -> ValidationError:
-    if exception.error_context is not None:
-        raise NotImplementedError
     return ValidationError(
         message=exception.error_message,
         type=exception.error_type,
