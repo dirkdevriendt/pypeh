@@ -22,7 +22,7 @@ class DataFrameLocation(ValidationErrorLocation):
 class ValidationErrorContext(BaseModel):  # TODO: adapt, what type of context are we expecting
     """Context information about a validation error"""
 
-    failing_values: Optional[List[Any]] = None
+    failing_values: Optional[List[str]] = None
     additional_info: Optional[List[str]] = None
 
 

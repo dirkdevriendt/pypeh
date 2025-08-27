@@ -125,11 +125,15 @@ class Session:
         return None
 
     def register_default_adapter(self, interface_functionality: str):
+        adapter = None
         match interface_functionality:
             case "validation":
-                self._adapter_mapping[interface_functionality] = ValidationInterface.get_default_adapter_class()
+                adapter = ValidationInterface.get_default_adapter_class()
+                self._adapter_mapping[interface_functionality] = adapter
             case _:
                 raise NotImplementedError()
+
+        return adapter
 
     def register_adapter(self, interface_functionality: str, adapter: T_AdapterType):
         self._adapter_mapping[interface_functionality] = adapter
@@ -153,18 +157,21 @@ class Session:
     def get_adapter(self, interface_functionality: str):
         adapter = self._adapter_mapping.get(interface_functionality)
         if adapter is None:
-            self.register_default_adapter(interface_functionality)
-            adapter = self._adapter_mapping.get(interface_functionality)
+            adapter = self.register_default_adapter(interface_functionality)
+        assert adapter is not None
+
         return adapter()
 
-    def load_persisted_cache(self):
+    def load_persisted_cache(self, source: str | None = None):
         """Load all resources from the default cache persistence location into cache"""
         host = HostFactory.create(self.default_persisted_cache)
         if isinstance(host, LocalStorageProvider):
             assert isinstance(self.default_persisted_cache, LocalFileSettings)
             root_folder = self.default_persisted_cache.root_folder
             assert root_folder is not None
-            roots = host.load("", format="yaml")
+            if source is None:
+                source = ""
+            roots = host.load(source, format="yaml")
         else:
             raise NotImplementedError
         for root in roots:
@@ -173,7 +180,7 @@ class Session:
 
     def load_tabular_data(
         self, source: str, connection_id: str | None = None, validation_layout: DataLayout | None = None
-    ) -> dict[str, Sequence] | ValidationError:
+    ) -> dict[str, DataFrame] | ValidationError:
         """
         Load a binary resource and return its content as tabular data in a dataframe
         Args:
@@ -263,6 +270,8 @@ class Session:
         assert observation is not None
 
         observable_property_ids = set()
+        if observation.observation_design is None:
+            raise ValueError(f"Specfied observation {observation.id} has no ObservationDesign")
         for oep_set in observation.observation_design.observable_entity_property_sets:
             observable_property_ids.update(
                 oep_set.identifying_observable_property_id_list,

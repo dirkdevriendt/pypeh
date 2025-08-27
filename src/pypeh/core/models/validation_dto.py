@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 import uuid
 
-from decimal import Decimal
-from pydantic import BaseModel
+from decimal import Decimal, getcontext
+from pydantic import BaseModel, field_validator
 from typing import Any, Dict, Generator, Sequence
 
 from pypeh.core.models.constants import ValidationErrorLevel
@@ -13,6 +13,16 @@ from peh_model import peh
 
 
 logger = logging.getLogger(__name__)
+
+
+def get_max_decimal_value():
+    ctx = getcontext()
+    precision = ctx.prec
+    emax = ctx.Emax
+
+    max_digits = "9" * precision
+    max_value = Decimal(f"{max_digits}E{emax}")
+    return max_value
 
 
 def convert_peh_validation_error_level_to_validation_dto_error_level(peh_validation_error_level: str | None):
@@ -64,6 +74,8 @@ def cast_to_peh_value_type(value: Any, peh_value_type: str | None) -> Any:
             case "datetime":
                 return str(value)  # FIXME
             case "decimal":
+                if value.lower() in {"inf", "infinity"}:
+                    value = get_max_decimal_value()
                 return Decimal(value)
             case "integer":
                 return int(value)
@@ -80,6 +92,19 @@ class ValidationExpression(BaseModel):
     arg_values: list[Any] | None = None
     arg_columns: list[str] | None = None
     subject: list[str] | None = None
+
+    @field_validator("command", mode="before")
+    @classmethod
+    def command_to_str(cls, v):
+        if isinstance(v, peh.PermissibleValue):
+            return v.text
+        elif isinstance(v, str):
+            return v
+        elif isinstance(v, peh.ValidationCommand):
+            return str(v)
+        else:
+            logger.error(f"No conversion defined for {v} of type {v.__class__}")
+            raise NotImplementedError
 
     @classmethod
     def from_peh(
@@ -102,11 +127,8 @@ class ValidationExpression(BaseModel):
                 )
                 for nested_expr in arg_expressions
             ]
-        validation_command = getattr(expression, "validation_command", None)
-        if validation_command is None:
-            raise AttributeError
+        validation_command = getattr(expression, "validation_command", "conjunction")
         arg_values = getattr(expression, "validation_arg_values", None)
-        print(arg_values)
         source_paths = getattr(expression, "validation_subject_source_paths", None)
         arg_type = None
         if source_paths:
@@ -135,7 +157,7 @@ class ValidationExpression(BaseModel):
         return cls(
             conditional_expression=conditional_expression_instance,
             arg_expressions=arg_expression_instances,
-            command=str(validation_command),
+            command=validation_command,
             arg_values=arg_values,
             arg_columns=getattr(expression, "validation_arg_source_paths"),
             subject=getattr(expression, "validation_subject_source_paths"),
