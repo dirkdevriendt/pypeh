@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Union, IO
 
 from pypeh.adapters.outbound.persistence.serializations import IOAdapter
-from pypeh.adapters.outbound.persistence.serializations import is_consistent_with_layout
+from pypeh.adapters.outbound.persistence.serializations import is_consistent_with_layout, get_layout_inconsistencies
 
 if TYPE_CHECKING:
     from peh_model.peh import DataLayout
@@ -67,10 +67,18 @@ class ExcelIOImpl(IOAdapter):
                     source=str(source),  # type: ignore
                     **options,
                 )
-            if validation_layout is None or is_consistent_with_layout(result, validation_layout):
+            if validation_layout is None:
+                logger.info("No validation layout")
+                return result
+            elif is_consistent_with_layout(result, validation_layout):
                 return result
             else:
-                raise Exception("Excel layout validation failed while loading tabular data")
+                inconsistencies = get_layout_inconsistencies(result.keys(), validation_layout)
+                logger.info("Sheet names inconsistent with layout")
+                raise Exception(
+                    f"Sheet name(s) {', '.join(inconsistencies)} do not correspond with provided data layout"
+                )
+
         except Exception as e:
             logger.error(f"Error in ExcelIOImpl: {e}")
             raise
