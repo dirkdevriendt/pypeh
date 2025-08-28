@@ -55,8 +55,17 @@ def parse_validation_expression(expression: ValidationExpression) -> Mapping:
     if conditional_expr := expression.conditional_expression:
         case = "condition"
         exp_1 = parse_validation_expression(conditional_expr)
-        expression.conditional_expression = None
-        exp_2 = parse_validation_expression(expression)
+        arg_expressions = expression.arg_expressions
+        if arg_expressions is None or (isinstance(arg_expressions, list) and len(arg_expressions) == 0):
+            expression.conditional_expression = None
+            exp_2 = parse_validation_expression(expression)
+        else:
+            if len(arg_expressions) != 1:
+                raise NotImplementedError(
+                    f"Conditional expression {expression.conditional_expression} can only take a single validation_arg_expression"
+                )
+            exp_2 = parse_validation_expression(arg_expressions[0])
+
         return {
             "check_case": case,
             "expressions": [exp_1, exp_2],

@@ -96,7 +96,9 @@ class ValidationExpression(BaseModel):
     @field_validator("command", mode="before")
     @classmethod
     def command_to_str(cls, v):
-        if isinstance(v, peh.PermissibleValue):
+        if v is None:
+            return "conjunction"
+        elif isinstance(v, peh.PermissibleValue):
             return v.text
         elif isinstance(v, str):
             return v
