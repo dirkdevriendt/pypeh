@@ -19,7 +19,7 @@ from peh_model.peh import EntityList, YAMLRoot, DataLayout
 from pypeh.core.models.typing import T_Dataclass, IOLike
 
 if TYPE_CHECKING:
-    from typing import Callable, Type
+    from typing import Callable, Type, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +88,17 @@ def is_consistent_with_layout(data: dict, layout: DataLayout) -> bool:
         layout_section_names = {section.label for section in layout.sections}  # type: ignore
     ## FIXME: linkml dataclasses are making the typer behave weirdly
     return layout_section_names.issuperset(set(data.keys()))
+
+
+def get_layout_inconsistencies(sheet_labels: Sequence[str], layout: DataLayout) -> list[str]:
+    inconsistencies = []
+    if layout.sections is not None:
+        layout_section_names = {section.label for section in layout.sections}  # type: ignore
+        for sheet_label in sheet_labels:
+            if sheet_label not in layout_section_names:
+                inconsistencies.append(sheet_label)
+
+    return inconsistencies
 
 
 class IOAdapter(PersistenceInterface):

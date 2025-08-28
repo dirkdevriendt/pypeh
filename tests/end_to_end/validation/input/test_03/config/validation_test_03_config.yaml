@@ -44,8 +44,8 @@ layouts:
       observable_property: samplinghour
     - label: samplingminutes
       observable_property: samplingminutes
-  - id: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS
-    label: SAMPLETIMEPOINT_BSS
+  - id: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BS
+    label: SAMPLETIMEPOINT_BS
     section_type: data_table
     elements:
     - label: id_sample

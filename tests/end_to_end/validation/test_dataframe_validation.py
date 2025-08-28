@@ -4,7 +4,7 @@ import peh_model.peh as peh
 from tests.test_utils.dirutils import get_absolute_path
 
 from pypeh import Session
-from pypeh.core.models.validation_errors import ValidationErrorReport
+from pypeh.core.models.validation_errors import ValidationError, ValidationErrorReport, ValidationErrorReportCollection
 
 
 @pytest.mark.end_to_end
@@ -43,7 +43,7 @@ class TestRoundTrip:
     def layout_label(self):
         return "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
 
-    @pytest.mark.parametrize("test_label", ["01", "02", "03", "04", "05", "06"])
+    @pytest.mark.parametrize("test_label", ["01", "02", "04", "05", "06"])
     def test_load_data(self, monkeypatch, layout_label, test_label):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
@@ -62,7 +62,7 @@ class TestRoundTrip:
         assert len(data_dict) > 0
 
     @pytest.mark.parametrize("test_label", ["01", "02"])
-    def test_roundtrip(self, monkeypatch, layout_label, test_label):
+    def test_basic_roundtrip(self, monkeypatch, layout_label, test_label):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
         excel_path = f"validation_test_{test_label}_data.xlsx"
@@ -82,8 +82,36 @@ class TestRoundTrip:
         data_df = data_dict["SAMPLE"]
         assert data_df is not None
 
-        # data_dict contains key for each of the tabs
-        # these keys should correspond to the labels of the DataLayout sections
-
         observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
-        validation_result = session.validate_tabular_data(data_df, observation_id="peh:VALIDATION_TEST_SAMPLE_METADATA")
+        validation_result = session.validate_tabular_data(data_df, observation_id=observation_id)
+        assert validation_result is not None
+        assert isinstance(validation_result, dict)
+        for validation_report in validation_result.values():
+            assert isinstance(validation_report, ValidationErrorReport)
+            assert validation_report.total_errors >= 1
+            assert len(validation_report.unexpected_errors) == 0
+            assert sum(v for v in validation_report.error_counts.values()) == validation_report.total_errors
+
+    @pytest.mark.parametrize(
+        "test_label",
+        [
+            "03",
+        ],
+    )
+    def test_sheet_name_round_trip(self, monkeypatch, layout_label, test_label):
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
+        excel_path = f"validation_test_{test_label}_data.xlsx"
+
+        session = Session()
+        cache_path = "config"
+        session.load_persisted_cache(source=cache_path)
+        layout = session.cache.get(layout_label, "DataLayout")
+        assert isinstance(layout, peh.DataLayout)
+        ret = session.load_tabular_data(
+            source=excel_path,
+            validation_layout=layout,
+        )
+        print(ret.__class__)
+        assert isinstance(ret, ValidationError)
+        assert "SAMPLETIMEPOINT_BSS" in ret.message
