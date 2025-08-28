@@ -90,7 +90,7 @@ from pypeh.core.models.constants import ValidationErrorLevel
                 arg_values=[5],
             ),
             {
-                "check_case": "conditional",
+                "check_case": "condition",
                 "expressions": [
                     {
                         "check_case": "disjunction",

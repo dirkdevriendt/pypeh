@@ -366,11 +366,61 @@ class TestValidation(abc.ABC):
                     },
                 },
             ),
+            # conditional
+            (
+                ValidationConfig(
+                    name="conditional test",
+                    columns=[
+                        ColumnValidation(
+                            unique_name="col1",
+                            data_type="integer",
+                            required=True,
+                            nullable=False,
+                            validations=[
+                                ValidationDesign(
+                                    name="conditional",
+                                    error_level=ValidationErrorLevel.ERROR,
+                                    expression=ValidationExpression(
+                                        conditional_expression=ValidationExpression(
+                                            command="is_greater_than",
+                                            arg_columns=["col2"],
+                                        ),
+                                        command="is_equal_to",
+                                        arg_values=[5],
+                                    ),
+                                )
+                            ],
+                        ),
+                        ColumnValidation(
+                            unique_name="col2",
+                            data_type="integer",
+                            required=True,
+                            nullable=False,
+                            validations=[],
+                        ),
+                    ],
+                    identifying_column_names=["col2"],
+                    validations=[],
+                ),
+                {
+                    "col1": [20, 1, 5],
+                    "col2": [15, 20, 3],
+                },
+                {
+                    "name": "conditional test",
+                    "total_errors": 1,
+                    "errors_counts": {
+                        ValidationErrorLevel.INFO: 0,
+                        ValidationErrorLevel.WARNING: 0,
+                        ValidationErrorLevel.ERROR: 1,
+                        ValidationErrorLevel.FATAL: 0,
+                    },
+                },
+            ),
         ],
     )
     def test_validate(self, config, data, expected_output):
         adapter = self.get_adapter()
-
         result = adapter._validate(data, config)
 
         assert result is not None
