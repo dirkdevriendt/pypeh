@@ -53,7 +53,7 @@ def parse_single_expression(expression: ValidationExpression) -> Mapping:
 
 def parse_validation_expression(expression: ValidationExpression) -> Mapping:
     if conditional_expr := expression.conditional_expression:
-        case = "conditional"
+        case = "condition"
         exp_1 = parse_validation_expression(conditional_expr)
         expression.conditional_expression = None
         exp_2 = parse_validation_expression(expression)
