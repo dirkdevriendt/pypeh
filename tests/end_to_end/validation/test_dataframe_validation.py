@@ -1,10 +1,13 @@
 import pytest
 import peh_model.peh as peh
+import logging
 
 from tests.test_utils.dirutils import get_absolute_path
 
 from pypeh import Session
 from pypeh.core.models.validation_errors import ValidationError, ValidationErrorReport, ValidationErrorReportCollection
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.mark.end_to_end
@@ -112,6 +115,44 @@ class TestRoundTrip:
             source=excel_path,
             validation_layout=layout,
         )
-        print(ret.__class__)
         assert isinstance(ret, ValidationError)
         assert "SAMPLETIMEPOINT_BSS" in ret.message
+
+    @pytest.mark.parametrize(
+        "test_label",
+        [
+            "03",
+        ],
+    )
+    def test_sheet_name_round_trip_continued(self, monkeypatch, layout_label, test_label):
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
+        excel_path = f"validation_test_{test_label}_data.xlsx"
+
+        session = Session()
+        cache_path = "config_corrected"
+        session.load_persisted_cache(source=cache_path)
+        layout = session.cache.get(layout_label, "DataLayout")
+        assert isinstance(layout, peh.DataLayout)
+        data_dict = session.load_tabular_data(
+            source=excel_path,
+            validation_layout=layout,
+        )
+        assert isinstance(data_dict, dict)
+        assert len(data_dict) > 0
+
+        observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
+
+        sheet_label_to_observation_id = {
+            "SAMPLE": "peh:VALIDATION_TEST_SAMPLE_METADATA",
+            "SAMPLETIMEPOINT_BSS": "peh:VALIDATION_TEST_SAMPLE_METADATA",
+        }
+
+        for sheet_label, data_df in data_dict.items():
+            observation_id = sheet_label_to_observation_id[sheet_label]
+            validation_result = session.validate_tabular_data(data_df, observation_id=observation_id)
+            assert isinstance(validation_result, dict)
+            print(validation_result)
+            for validation_report in validation_result.values():
+                assert isinstance(validation_report, ValidationErrorReport)
+                logger.info(f"Validation completed for {sheet_label}")
