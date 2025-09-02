@@ -2,11 +2,12 @@ import pytest
 import peh_model.peh as peh
 import logging
 
+from pypeh.core.models.constants import ValidationErrorLevel
 from tests.test_utils.dirutils import get_absolute_path
 from typing import cast
 
 from pypeh import Session
-from pypeh.core.models.validation_errors import ValidationError, ValidationErrorReport
+from pypeh.core.models.validation_errors import ValidationError, ValidationErrorReport, ValidationErrorReportCollection
 
 logger = logging.getLogger(__name__)
 
@@ -160,3 +161,99 @@ class TestRoundTrip:
             for validation_report in validation_result.values():
                 assert isinstance(validation_report, ValidationErrorReport)
                 logger.info(f"Validation completed for {sheet_label}")
+
+    @pytest.mark.parametrize(
+        "test_label",
+        [
+            "04",
+        ],
+    )
+    def test_full(self, monkeypatch, layout_label, test_label):
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
+        excel_path = f"validation_test_{test_label}_data.xlsx"
+
+        session = Session()
+        cache_path = "config"
+        session.load_persisted_cache(source=cache_path)
+        layout = session.cache.get(layout_label, "DataLayout")
+        assert isinstance(layout, peh.DataLayout)
+        data_dict = session.load_tabular_data(
+            source=excel_path,
+            validation_layout=layout,
+        )
+        assert isinstance(data_dict, dict)
+        assert len(data_dict) > 0
+
+        observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
+
+        sheet_label_to_observation_id = {
+            "SAMPLE": "peh:VALIDATION_TEST_SAMPLE_SAMPLE",
+            "SUBJECTUNIQUE": "peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE",
+            "SUBJECTTIMEPOINT": "peh:VALIDATION_TEST_SAMPLE_SUBJECTTIMEPOINT",
+            "SAMPLETIMEPOINT_BWB": "peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB",
+        }
+        unexpected_errors = 0
+        for sheet_label in sheet_label_to_observation_id.keys():
+            data_df = data_dict.get(sheet_label, None)
+            if data_df is not None:
+                observation_id = sheet_label_to_observation_id[sheet_label]
+                observation = session.get_resource(observation_id, "Observation")
+                assert isinstance(observation, peh.Observation)
+                validation_result = session.validate_tabular_data(data_df, observation=observation)
+                assert validation_result is not None
+                assert isinstance(validation_result, dict)
+                for report in validation_result.values():
+                    assert isinstance(report, ValidationErrorReport)
+                    assert report.error_counts[ValidationErrorLevel.ERROR] > 1
+                    unexpected_errors += len(report.unexpected_errors)
+
+        assert unexpected_errors == 1
+
+    @pytest.mark.parametrize(
+        "test_label",
+        [
+            "05",
+        ],
+    )
+    def test_fuzzy(self, monkeypatch, layout_label, test_label):
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
+        excel_path = f"validation_test_{test_label}_data.xlsx"
+
+        session = Session()
+        cache_path = "config"
+        session.load_persisted_cache(source=cache_path)
+        layout = session.cache.get(layout_label, "DataLayout")
+        assert isinstance(layout, peh.DataLayout)
+        data_dict = session.load_tabular_data(
+            source=excel_path,
+            validation_layout=layout,
+        )
+        assert isinstance(data_dict, dict)
+        assert len(data_dict) > 0
+
+        observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
+
+        sheet_label_to_observation_id = {
+            "SAMPLE": "peh:VALIDATION_TEST_SAMPLE_SAMPLE",
+            "SUBJECTUNIQUE": "peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE",
+            "SUBJECTTIMEPOINT": "peh:VALIDATION_TEST_SAMPLE_SUBJECTTIMEPOINT",
+            "SAMPLETIMEPOINT_BWB": "peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB",
+        }
+        unexpected_errors = 0
+        for sheet_label in sheet_label_to_observation_id.keys():
+            data_df = data_dict.get(sheet_label, None)
+            if data_df is not None:
+                observation_id = sheet_label_to_observation_id[sheet_label]
+                observation = session.get_resource(observation_id, "Observation")
+                assert isinstance(observation, peh.Observation)
+                validation_result = session.validate_tabular_data(data_df, observation=observation)
+                assert validation_result is not None
+                assert isinstance(validation_result, dict)
+                for report in validation_result.values():
+                    assert isinstance(report, ValidationErrorReport)
+                    assert report.error_counts[ValidationErrorLevel.ERROR] >= 1
+                    unexpected_errors += len(report.unexpected_errors)
+
+        assert unexpected_errors == 4
