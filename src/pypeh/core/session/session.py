@@ -34,7 +34,9 @@ T_AdapterType = TypeVar("T_AdapterType")
 
 
 class Session:
-    _adapter_mapping: dict[str, T_AdapterType] = dict()
+    _adapter_map: dict[str, T_AdapterType] = None
+    _setting_map: dict[str, BaseSettings] = None
+    _cache_settings: BaseSettings = None
 
     def __init__(
         self,
@@ -107,6 +109,11 @@ class Session:
 
         if len(connection_map) == 0:
             assert validated_default_persisted_cache is None
+        else:
+            self._settings_map = {k: c.make_settings() for k, c in connection_map.items()}
+
+        if validated_default_persisted_cache is not None:
+            self._cache_settings = validated_default_persisted_cache.make_settings()
 
         return connection_map, validated_default_persisted_cache
 
@@ -129,14 +136,15 @@ class Session:
         match interface_functionality:
             case "validation":
                 adapter = ValidationInterface.get_default_adapter_class()
-                self._adapter_mapping[interface_functionality] = adapter
+                self.register_adapter(interface_functionality, adapter)
             case _:
                 raise NotImplementedError()
-
         return adapter
 
     def register_adapter(self, interface_functionality: str, adapter: T_AdapterType):
-        self._adapter_mapping[interface_functionality] = adapter
+        if self._adapter_map is None:
+            self._adapter_map = dict()
+        self._adapter_map[interface_functionality] = adapter
 
     def register_adapter_by_name(
         self,
@@ -154,13 +162,17 @@ class Session:
             raise e
         self.register_adapter(interface_functionality, adapter)
 
-    def get_adapter(self, interface_functionality: str):
-        adapter = self._adapter_mapping.get(interface_functionality)
-        if adapter is None:
+    def get_adapter_instance(self, interface_functionality: str):
+        """Get an adapter instance that will perform the required functionality"""
+        adapter = None
+        if self._adapter_map is not None and interface_functionality in self._adapter_map:
+            adapter = self._adapter_map.get(interface_functionality)
+        else:
             adapter = self.register_default_adapter(interface_functionality)
-        assert adapter is not None
-
         return adapter()
+
+    def get_connection_settings(self, label):
+        return self._settings_map.get(label)
 
     def load_persisted_cache(self, source: str | None = None):
         """Load all resources from the default cache persistence location into cache"""
@@ -179,15 +191,15 @@ class Session:
                 self.cache.add(entity)
 
     def load_tabular_data(
-        self, source: str, connection_id: str | None = None, validation_layout: DataLayout | None = None
+        self, source: str, connection_label: str | None = None, validation_layout: DataLayout | None = None
     ) -> dict[str, DataFrame] | ValidationError:
         """
         Load a binary resource and return its content as tabular data in a dataframe
         Args:
             source (str): A path or url pointing to the data to be loaded in.
-            connection_id (str | None):
+            connection_label (str | None):
                 Optional key pointing to the connection to be used to
-                load in the data source. The connection_id should be a key of the provided
+                load in the data source. The connection_label should be a key of the provided
                 connection_config.
             validation_layout: (DataLayout | None)L Optional DataLayout object used for validation.
         """
@@ -195,9 +207,9 @@ class Session:
             if is_url(source):
                 host = HostFactory.default()
                 return host.retrieve_data(source)
-            elif connection_id is not None:
-                # TODO: connect this to the connection_config created at setup
-                raise NotImplementedError
+            elif connection_label is not None:
+                host = HostFactory.create(self.get_connection_settings(connection_label))
+                return host.load(source, validation_layout=validation_layout)
             elif self.default_persisted_cache is not None:
                 host = HostFactory.create(self.default_persisted_cache)
                 return host.load(source, validation_layout=validation_layout)
@@ -283,5 +295,5 @@ class Session:
         ]
         assert len(observable_properties) > 0
 
-        validation_adapter = self.get_adapter("validation")
+        validation_adapter = self.get_adapter_instance("validation")
         return validation_adapter.validate(data, observation, observable_properties)
