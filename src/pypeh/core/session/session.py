@@ -3,9 +3,9 @@ from __future__ import annotations
 import os
 import importlib
 import logging
+import peh_model.peh as peh
 
-from peh_model.peh import NamedThing, Observation, DataLayout
-from typing import TYPE_CHECKING, TypeVar, Sequence, cast
+from typing import TYPE_CHECKING, TypeVar, Sequence, cast, Generic
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from pypeh.core.models.proxy import TypedLazyProxy
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 T_AdapterType = TypeVar("T_AdapterType")
 
 
-class Session:
+class Session(Generic[T_AdapterType]):
     _adapter_mapping: dict[str, T_AdapterType] = dict()
 
     def __init__(
@@ -162,42 +162,79 @@ class Session:
 
         return adapter()
 
-    def load_persisted_cache(self, source: str | None = None):
-        """Load all resources from the default cache persistence location into cache"""
-        host = HostFactory.create(self.default_persisted_cache)
+    def _root_to_cache(self, root: peh.EntityList) -> bool:
+        for entity in load_entities_from_tree(root):
+            _ = self.cache.add(entity)
+
+        return True
+
+    def _source_to_cache(self, roots: list | peh.EntityList) -> bool:
+        if isinstance(roots, list):
+            for root in roots:
+                ret = self._root_to_cache(root)
+                assert ret
+        else:
+            ret = self._root_to_cache(roots)
+
+        return True
+
+    def load_persisted_cache(self, source: str | None = None, connection_label: str | None = None):
+        """Load all resources from either the default cache persistence location or from the provided
+        connection into cache. The provided connection_label takes precedence over the default"""
+        # get host/connection
+        # TODO: fix host calls with unified ConnectionManager
+        if connection_label is not None:
+            if self.import_config is not None:
+                connection_settings = self.import_config.get_connection(connection_label=connection_label)
+                assert connection_settings is not None
+                host = HostFactory.create(connection_settings)
+
+        elif self.default_persisted_cache is not None:
+            host = HostFactory.create(self.default_persisted_cache)
+        else:
+            raise ValueError("No connection or default_persisted_cache was configured")
+
+        # do additional checks
         if isinstance(host, LocalStorageProvider):
             assert isinstance(self.default_persisted_cache, LocalFileSettings)
             root_folder = self.default_persisted_cache.root_folder
             assert root_folder is not None
-            if source is None:
-                source = ""
-            roots = host.load(source, format="yaml")
-        else:
-            raise NotImplementedError
-        for root in roots:
-            for entity in load_entities_from_tree(root):
-                self.cache.add(entity)
+
+        # load in data with host/connection
+        if source is None:
+            source = ""
+        roots = host.load(source, format="yaml")
+        ret = self._source_to_cache(roots)
+        assert ret
 
     def load_tabular_data(
-        self, source: str, connection_id: str | None = None, validation_layout: DataLayout | None = None
+        self, source: str, connection_label: str | None = None, validation_layout: peh.DataLayout | None = None
     ) -> dict[str, DataFrame] | ValidationError:
         """
         Load a binary resource and return its content as tabular data in a dataframe
         Args:
             source (str): A path or url pointing to the data to be loaded in.
-            connection_id (str | None):
+            connection_label (str | None):
                 Optional key pointing to the connection to be used to
-                load in the data source. The connection_id should be a key of the provided
+                load in the data source. The connection_label should be a key of the provided
                 connection_config.
             validation_layout: (DataLayout | None)L Optional DataLayout object used for validation.
         """
         try:
+            # TODO: fix host calls with unified ConnectionManager
             if is_url(source):
                 host = HostFactory.default()
                 return host.retrieve_data(source)
-            elif connection_id is not None:
-                # TODO: connect this to the connection_config created at setup
-                raise NotImplementedError
+            elif connection_label is not None:
+                if self.import_config is not None:
+                    connection_settings = self.import_config.get_connection(connection_label=connection_label)
+                    assert connection_settings is not None
+                else:
+                    me = "connection_label can only be specified if the session was initiated with a connection_config"
+                    logger.error(me)
+                    raise ValueError(me)
+                host = HostFactory.create(connection_settings)
+                return host.load(source, validation_layout=validation_layout)
             elif self.default_persisted_cache is not None:
                 host = HostFactory.create(self.default_persisted_cache)
                 return host.load(source, validation_layout=validation_layout)
@@ -219,29 +256,55 @@ class Session:
 
         return ret
 
-    def resolve_typed_lazy_proxy(self, proxy: TypedLazyProxy) -> NamedThing:
+    def resolve_typed_lazy_proxy(self, proxy: TypedLazyProxy) -> peh.NamedThing:
         raise NotImplementedError()
 
-    def load_resource(self, resource_identifier: str, resource_type: str) -> T_NamedThingLike | None:
+    def load_resource(
+        self,
+        resource_identifier: str,
+        resource_type: str,
+        resource_path: str | None = None,
+        connection_label: str | None = None,
+    ) -> T_NamedThingLike | None:
         """Load resource into cache. First checks the cache,
         then configured persisted cache, and finally the `ImportConfig`"""
         # cache
         ret = self.get_resource(resource_identifier, resource_type)
         if ret is not None:
             return ret
-        # setup ContextService
 
-        # TODO: check importmap and create connection
-        # if self.import_config is not None:
-        # connection = self.import_config.get_connection(resource_identifier)
-        # connection.do_stuff()
-
-        # TODO: final step resolve as linked data
+        if connection_label is not None:
+            # TODO: replace with ConnectionManager call
+            if self.import_config is not None:
+                connection_settings = self.import_config.get_connection(connection_label=connection_label)
+                assert connection_settings is not None
+                host = HostFactory.create(connection_settings)
+                # assuming connection points to a file-based system
+                # loading entire directory
+                logger.debug(f"Loading .yaml files recursively from {connection_label} root directory")
+                if resource_path is None:
+                    resource_path = ""
+                    roots = host.load(resource_path, format="yaml")
+                else:
+                    roots = host.load(resource_path)
+                ret = self._source_to_cache(roots)
+                assert ret
+            else:
+                me = "connection_label can only be specified if the session was initiated with a connection_config"
+                logger.error(me)
+                raise ValueError(me)
+            # resource should have been loaded into cache
+            ret = self.get_resource(resource_identifier, resource_type)
+            type_to_cast = getattr(peh, resource_type)
+            assert isinstance(ret, type_to_cast)
+        else:
+            # TODO: use linked data approach
+            raise NotImplementedError
 
         return ret
 
-    def load_project(self, project_identifier: str) -> T_NamedThingLike | None:
-        return self.load_resource(project_identifier, resource_type="Project")
+    def load_project(self, project_identifier: str, connection_label: str | None = None) -> T_NamedThingLike | None:
+        return self.load_resource(project_identifier, resource_type="Project", connection_label=connection_label)
 
     def dump_resource(self, resource_identifier: str, resource_type: str, version: str | None) -> bool:
         return True
@@ -252,23 +315,8 @@ class Session:
     def validate_tabular_data(
         self,
         data: dict[str, Sequence] | DataFrame,
-        observation: Observation | None = None,
-        observation_id: str | None = None,
+        observation: peh.Observation,
     ) -> ValidationErrorReportCollection:
-        # input checks
-        if observation is None and observation_id is None:
-            raise ValueError("Either observation or observation_id should be provided")
-        elif observation is not None and observation_id is not None:
-            raise ValueError("Either observation or observation_id should be provided")
-
-        # make objects
-        if observation_id is not None:
-            resource = self.load_resource(observation_id, "Observation")
-            if not isinstance(resource, Observation):
-                raise TypeError(f"Resource with id {observation_id} did not return an Observation object")
-            observation = cast(Observation, resource)
-        assert observation is not None
-
         observable_property_ids = set()
         if observation.observation_design is None:
             raise ValueError(f"Specfied observation {observation.id} has no ObservationDesign")
