@@ -3,9 +3,10 @@ import peh_model.peh as peh
 import logging
 
 from tests.test_utils.dirutils import get_absolute_path
+from typing import cast
 
 from pypeh import Session
-from pypeh.core.models.validation_errors import ValidationError, ValidationErrorReport, ValidationErrorReportCollection
+from pypeh.core.models.validation_errors import ValidationError, ValidationErrorReport
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +31,10 @@ class TestSessionDefaultLocalFile:
         assert isinstance(data_dict, dict)
         data_df = data_dict["SAMPLE"]
         assert data_df is not None
-
-        validation_result = session.validate_tabular_data(data_df, observation_id="peh:VALIDATION_TEST_SAMPLE_METADATA")
+        observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
+        observation = session.get_resource(resource_identifier=observation_id, resource_type="Observation")
+        observation = cast(peh.Observation, observation)
+        validation_result = session.validate_tabular_data(data_df, observation)
 
         report_to_check = list(validation_result.values())[0]
 
@@ -86,7 +89,9 @@ class TestRoundTrip:
         assert data_df is not None
 
         observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
-        validation_result = session.validate_tabular_data(data_df, observation_id=observation_id)
+        observation = session.get_resource(resource_identifier=observation_id, resource_type="Observation")
+        observation = cast(peh.Observation, observation)
+        validation_result = session.validate_tabular_data(data_df, observation=observation)
         assert validation_result is not None
         assert isinstance(validation_result, dict)
         for validation_report in validation_result.values():
@@ -141,8 +146,6 @@ class TestRoundTrip:
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
 
-        observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
-
         sheet_label_to_observation_id = {
             "SAMPLE": "peh:VALIDATION_TEST_SAMPLE_METADATA",
             "SAMPLETIMEPOINT_BSS": "peh:VALIDATION_TEST_SAMPLE_METADATA",
@@ -150,9 +153,10 @@ class TestRoundTrip:
 
         for sheet_label, data_df in data_dict.items():
             observation_id = sheet_label_to_observation_id[sheet_label]
-            validation_result = session.validate_tabular_data(data_df, observation_id=observation_id)
+            observation = session.get_resource(resource_identifier=observation_id, resource_type="Observation")
+            observation = cast(peh.Observation, observation)
+            validation_result = session.validate_tabular_data(data_df, observation=observation)
             assert isinstance(validation_result, dict)
-            print(validation_result)
             for validation_report in validation_result.values():
                 assert isinstance(validation_report, ValidationErrorReport)
                 logger.info(f"Validation completed for {sheet_label}")

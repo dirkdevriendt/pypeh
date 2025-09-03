@@ -124,14 +124,25 @@ class ValidatedImportConfig:
     connection_map: dict[str, BaseSettings]
     import_map: ImportMap | None
 
-    def get_connection(self, namespace: str) -> BaseSettings | None:
-        if self.import_map is not None:
-            connection_str = self.import_map.get(namespace)
-        else:
-            logger.debug(f"ImportMap is empty, cannot resolve {namespace}")
-            return None
-        if connection_str is not None:
-            return self.connection_map.get(connection_str, None)
+    def get_connection(self, namespace: str | None = None, connection_label: str | None = None) -> BaseSettings | None:
+        if not namespace and not connection_label:
+            raise ValueError("Either 'namespace' or 'connection_label' must be provided.")
+
+        # Resolve connection_label from namespace if needed
+        if connection_label is None:
+            if self.import_map is None:
+                logger.debug(f"ImportMap is empty, cannot resolve namespace '{namespace}'")
+                return None
+            connection_label = self.import_map.get(namespace)
+            if connection_label is None:
+                logger.debug(f"Namespace '{namespace}' not found in import_map")
+                return None
+
+        # Retrieve connection from connection_map
+        connection = self.connection_map.get(connection_label)
+        if connection is None:
+            logger.debug(f"Connection ID '{connection_label}' not found in connection_map")
+        return connection
 
 
 class ImportConfig(BaseModel):
