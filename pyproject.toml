@@ -19,7 +19,7 @@ rocrate-adapter = ["rocrate"]
 dataframe-adapter = [
     "dataguard",
     "polars",
-	"pyarrow",
+    "pyarrow",
     "fastexcel",
 ]
 s3-adapter = ["s3fs"]
@@ -58,7 +58,7 @@ default-groups = [
 ]
 
 [tool.uv.sources]
-dataguard = { git = "https://github.com/eu-parc/dataguard", tag = "v0.1.4" }
+dataguard = { git = "https://github.com/eu-parc/dataguard", tag = "v0.2.0" }
 
 [tool.hatch.build.targets.sdist]
 include = [

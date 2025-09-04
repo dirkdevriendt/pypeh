@@ -51,9 +51,7 @@ def convert_peh_value_type_to_validation_dto_datatype(peh_value_type: str):
         return None
     else:
         match peh_value_type:
-            case "string":
-                return "varchar"
-            case "boolean" | "date" | "datetime" | "decimal" | "integer":
+            case "boolean" | "date" | "datetime" | "decimal" | "string" | "integer":
                 return peh_value_type
             case _:
                 raise ValueError(f"Invalid data type encountered: {peh_value_type}")

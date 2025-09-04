@@ -29,7 +29,7 @@ class ValidationError(BaseModel):
     locations: Optional[List[ValidationErrorLocation]] = Field(
         default_factory=list, description="Where the error occurred"
     )
-    context: Optional[str] = None
+    context: Optional[list[str]] = None
     check_name: Optional[str] = None
     traceback: Optional[str] = None
     source: Optional[str] = None
