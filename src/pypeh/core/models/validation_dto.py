@@ -45,7 +45,7 @@ def convert_peh_validation_error_level_to_validation_dto_error_level(peh_validat
 def convert_peh_value_type_to_validation_dto_datatype(peh_value_type: str):
     # TODO: fix for "categorical" ?
     # TODO: review & extend potential input values
-    # valid input values: "string", "boolean", "date", "datetime", "decimal"
+    # valid input values: "string", "boolean", "date", "datetime", "decimal", "integer"
     # valid return values: 'date', 'datetime', 'boolean', 'decimal', 'integer', 'varchar' or 'categorical'
     if peh_value_type is None:
         return None
@@ -53,7 +53,7 @@ def convert_peh_value_type_to_validation_dto_datatype(peh_value_type: str):
         match peh_value_type:
             case "string":
                 return "varchar"
-            case "boolean" | "date" | "datetime" | "decimal":
+            case "boolean" | "date" | "datetime" | "decimal" | "integer":
                 return peh_value_type
             case _:
                 raise ValueError(f"Invalid data type encountered: {peh_value_type}")
@@ -181,6 +181,7 @@ class ValidationDesign(BaseModel):
         error_level = convert_peh_validation_error_level_to_validation_dto_error_level(error_level)
         expression = getattr(validation_design, "validation_expression", None)
         if expression is None:
+            print(validation_design)
             raise AttributeError
         expression = ValidationExpression.from_peh(
             expression, observable_property_varname_dict=observable_property_varname_dict

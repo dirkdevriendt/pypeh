@@ -560,8 +560,6 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   varname: subpopulation
-  validation_designs:
-  - conditional: IF population IS 0 THEN subpopulation IS not empty
 - id: subpopulation_other
   unique_name: subpopulation_other
   name: subpopulation_other
@@ -579,8 +577,6 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   varname: subpopulation_other
-  validation_designs:
-  - conditional: IF subpopulation IS 5 THEN subpopulation_other IS not empty
 - id: country
   unique_name: country
   name: country
@@ -825,8 +821,6 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   varname: ageweeks
-  validation_designs:
-  - conditional: IF ageyears IS >= 1 THEN ageweeks IS empty
 - id: agedays
   unique_name: agedays
   name: agedays
@@ -847,8 +841,6 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   varname: agedays
-  validation_designs:
-  - conditional: IF ageweeks IS > 1 THEN agedays IS empty
 - id: isced_raw
   unique_name: isced_raw
   name: isced_raw
@@ -1323,11 +1315,6 @@ observable_properties:
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '50'
-      - validation_subject_source_paths:
-        - chol
-        validation_command: is_less_than_or_equal_to
-        validation_arg_values:
-        - '250'
     conditional: "IF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BM,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,BMG,DBS,VAMS)\
       \  THEN chol IS not empty; \n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
       \  THEN chol [50,250]; \n\nIF matrix IS (BM,BMG)  THEN chol [5,100]"
@@ -1345,11 +1332,6 @@ observable_properties:
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '5'
-      - validation_subject_source_paths:
-        - chol
-        validation_command: is_less_than_or_equal_to
-        validation_arg_values:
-        - '100'
     conditional: "IF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BM,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,BMG,DBS,VAMS)\
       \  THEN chol IS not empty; \n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
       \  THEN chol [50,250]; \n\nIF matrix IS (BM,BMG)  THEN chol [5,100]"
@@ -1479,11 +1461,6 @@ observable_properties:
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '10'
-      - validation_subject_source_paths:
-        - trigl
-        validation_command: is_less_than_or_equal_to
-        validation_arg_values:
-        - '450'
     conditional: "IF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BM,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,BMG,DBS,VAMS)\
       \  THEN trigl IS not empty;\n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
       \  THEN trigl [10,450]; \n\nIF matrix IS (BM,BMG)  THEN trigl [500,50000]"
@@ -1501,11 +1478,6 @@ observable_properties:
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '500'
-      - validation_subject_source_paths:
-        - trigl
-        validation_command: is_less_than_or_equal_to
-        validation_arg_values:
-        - '50000'
     conditional: "IF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BM,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,BMG,DBS,VAMS)\
       \  THEN trigl IS not empty;\n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
       \  THEN trigl [10,450]; \n\nIF matrix IS (BM,BMG)  THEN trigl [500,50000]"
@@ -1651,11 +1623,6 @@ observable_properties:
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '150'
-      - validation_subject_source_paths:
-        - lipid
-        validation_command: is_less_than_or_equal_to
-        validation_arg_values:
-        - '900'
     conditional: "IF lipidassessment IS (1,3) THEN lipid IS not empty; IF matrix IS\
       \ (BWB,BP,BS,CBWB,CBP,CBS,BM,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,BMG,DBS,VAMS) THEN\
       \ lipid IS not empty;\n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
@@ -1674,11 +1641,6 @@ observable_properties:
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '500'
-      - validation_subject_source_paths:
-        - lipid
-        validation_command: is_less_than_or_equal_to
-        validation_arg_values:
-        - '50000'
     conditional: "IF lipidassessment IS (1,3) THEN lipid IS not empty; IF matrix IS\
       \ (BWB,BP,BS,CBWB,CBP,CBS,BM,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,BMG,DBS,VAMS) THEN\
       \ lipid IS not empty;\n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\

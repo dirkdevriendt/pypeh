@@ -19,13 +19,6 @@ class DataFrameLocation(ValidationErrorLocation):
     row_ids: List[int] = []
 
 
-class ValidationErrorContext(BaseModel):  # TODO: adapt, what type of context are we expecting
-    """Context information about a validation error"""
-
-    failing_values: Optional[List[str]] = None
-    additional_info: Optional[List[str]] = None
-
-
 class ValidationError(BaseModel):
     """Base validation error model"""
 
@@ -36,7 +29,7 @@ class ValidationError(BaseModel):
     locations: Optional[List[ValidationErrorLocation]] = Field(
         default_factory=list, description="Where the error occurred"
     )
-    context: Optional[ValidationErrorContext] = None
+    context: Optional[str] = None
     check_name: Optional[str] = None
     traceback: Optional[str] = None
     source: Optional[str] = None
