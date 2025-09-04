@@ -8,9 +8,9 @@ from pypeh.adapters.outbound.persistence.hosts import (
     DirectoryIO,
     LocalStorageProvider,
     S3StorageProvider,
-    HostFactory,
 )
 from pypeh.core.models.settings import LocalFileConfig, LocalFileSettings, S3Config, S3Settings
+from pypeh.core.session.connections import ConnectionManager
 
 from tests.test_utils.dirutils import get_absolute_path
 
@@ -121,7 +121,7 @@ class TestLocalStorageProvider:
         source_file = "observable_entities.yaml"
         config = LocalFileConfig(config_dict={"root_folder": abs_root_folder})
         settings = config.make_settings(_env_file=None)
-        provider = HostFactory.create(settings)
+        provider = ConnectionManager._create_adapter(settings)
 
         data = provider.load(source_file, format="yaml")
         assert data is not None
@@ -165,7 +165,7 @@ class TestHostFactory:
     @pytest.mark.core
     def test_factory_local(self):
         file_settings = LocalFileSettings()
-        file_service = HostFactory.create(file_settings)
+        file_service = ConnectionManager._create_adapter(file_settings)
         assert isinstance(file_service, LocalStorageProvider)
 
     @pytest.mark.s3
@@ -176,5 +176,5 @@ class TestHostFactory:
             aws_session_token="test",
             bucket_name="TEST",
         )
-        file_service = HostFactory.create(file_settings)
+        file_service = ConnectionManager._create_adapter(file_settings)
         assert isinstance(file_service, S3StorageProvider)

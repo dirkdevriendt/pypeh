@@ -2,7 +2,9 @@ import pytest
 import requests
 
 from unittest.mock import patch, MagicMock
-from pypeh.adapters.outbound.persistence.hosts import HostFactory
+
+from pypeh.adapters.outbound.persistence.hosts import WebIO
+from pypeh.core.session.connections import ConnectionManager
 
 
 class MockClass:
@@ -12,12 +14,14 @@ class MockClass:
 @pytest.mark.web
 class TestWebIO:
     def test_make_connection(self):
-        host = HostFactory.default()
+        host = ConnectionManager._create_adapter(settings=None)
+        assert isinstance(host, WebIO)
         _ = host.close()
         assert not host._open_session
 
     def test_resolve_url_success(self):
-        webio_instance = HostFactory.default()
+        webio_instance = ConnectionManager._create_adapter(settings=None)
+        assert isinstance(webio_instance, WebIO)
 
         url = "https://example.com/test.json"
         mock_response = MagicMock(spec=requests.Response)
@@ -35,6 +39,7 @@ class TestWebIO:
         # simple example
         url = "http://maps.googleapis.com/maps/api/directions/json?origin=Chicago,Il&destination=Los+Angeles,CA"
         # resp = requests.get(url=url, params=params)
-        webio_instance = HostFactory.default(verify_ssl=False)
+        webio_instance = ConnectionManager._create_adapter(settings=None, verify_ssl=False)
+        assert isinstance(webio_instance, WebIO)
         data = webio_instance.retrieve_data(url, format_type="application/json", target_class=None)
         assert data

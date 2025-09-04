@@ -9,7 +9,7 @@ from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from pypeh.core.models.settings import ImportConfig
 from pypeh.core.cache.utils import load_entities_from_tree
-from pypeh.adapters.outbound.persistence.hosts import HostFactory
+from pypeh.core.session.connections import ConnectionManager
 
 if TYPE_CHECKING:
     pass
@@ -21,7 +21,7 @@ class ContextService:
     def __init__(
         self,
         inbound_adapter: InDataOpsInterface | None = None,
-        outbound_adapter: PersistenceInterface = HostFactory.create(settings=None),
+        outbound_adapter: PersistenceInterface = ConnectionManager._create_adapter(settings=None),
         import_config: ImportConfig | None = None,
         cache: CacheContainer = CacheContainerFactory.new(),
     ):
@@ -38,9 +38,9 @@ class ContextService:
     def import_context(self, source: str) -> bool:
         connection_settings = None
         if self.import_config is not None:
-            connection_settings = self.import_config.get_connection(source)
+            connection_settings = self.import_config.get_settings(source)
         if connection_settings is not None:
-            adapter = HostFactory.create(connection_settings)  # issue is transform
+            adapter = ConnectionManager._create_adapter(settings=None)  # issue is transform
             _ = self._set_outbound_adapter(adapter)
 
         root_stream = self.outbound_adapter.load(source)

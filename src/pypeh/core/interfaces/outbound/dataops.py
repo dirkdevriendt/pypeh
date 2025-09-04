@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, TypeVar, Generic, cast, List
 
 from pypeh.core.models.settings import FileSystemSettings
 from pypeh.core.models.validation_dto import ValidationConfig
-from pypeh.adapters.outbound.persistence.hosts import HostFactory
+from pypeh.core.session.connections import ConnectionManager
 
 if TYPE_CHECKING:
     from typing import Sequence
@@ -84,7 +84,7 @@ class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
         config: FileSystemSettings,
         **kwargs,
     ) -> DataLayout | List[DataLayout]:
-        provider = HostFactory.create(config)
+        provider = ConnectionManager._create_adapter(config)
         layout = provider.load(source)
         if isinstance(layout, EntityList):
             layout = layout.layouts
