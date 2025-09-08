@@ -20,8 +20,9 @@ from pypeh.core.interfaces.outbound.dataops import (
 )
 from pypeh.core.models.validation_errors import ValidationErrorReport
 from pypeh.core.models.validation_dto import ValidationConfig
+from pypeh.core.session.connections import ConnectionManager
 from pypeh.adapters.outbound.validation.pandera_adapter.parsers import parse_config, parse_error_report
-from pypeh.adapters.outbound.persistence.hosts import HostFactory, FileIO
+from pypeh.adapters.outbound.persistence.hosts import FileIO
 
 if TYPE_CHECKING:
     from typing import Mapping
@@ -53,7 +54,7 @@ class DataFrameAdapter(ValidationInterface[DataFrame], DataImportInterface[DataF
         pass
 
     def import_data(self, source: str, config: FileSystemSettings, **kwargs) -> DataFrame | Dict[str, DataFrame]:
-        provider = HostFactory.create(config)
+        provider = ConnectionManager._create_adapter(config)
         # format  = # should either be .csv or .xls/.xlsx
         # or provide additional info in kwargs
         format = FileIO.get_format(source)

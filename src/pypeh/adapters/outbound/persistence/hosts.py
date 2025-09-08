@@ -35,13 +35,17 @@ if TYPE_CHECKING:
 
 
 class HostAdapter(PersistenceInterface):
-    pass
+    def connect(self):
+        raise NotImplementedError
+
+    def close(self):
+        raise NotImplementedError
 
 
 ## fsspec-based file interactions: local or cloud
 
 
-class FileIO(HostAdapter):
+class FileIO(PersistenceInterface):
     def __init__(self, file_system: fsspec.AbstractFileSystem | None = None):
         self.file_system = file_system
 
@@ -99,6 +103,7 @@ class DirectoryIO(HostAdapter):
         """
         full_source = self._resolve_path(source)
         file_io = FileIO(file_system=self.file_system)
+        assert self.file_system is not None
 
         for root, _, files in self.file_system.walk(full_source, maxdepth=maxdepth):
             for file in files:
@@ -119,6 +124,7 @@ class DirectoryIO(HostAdapter):
     def load(
         self, source: Union[str, pathlib.Path], format: Optional[str] = None, maxdepth: int = 1, **load_options
     ) -> Any:
+        assert self.file_system is not None
         full_source = self._resolve_path(source)
         if self.file_system.isfile(full_source):
             file_io = FileIO(file_system=self.file_system)
@@ -135,7 +141,15 @@ class DirectoryIO(HostAdapter):
 
 class LocalStorageProvider(DirectoryIO):
     def __init__(self, settings: LocalFileSettings, **storage_options):
+        self.settings = settings
+        self._storage_options = storage_options
         super().__init__(root=settings.root_folder, protocol="file", **storage_options)
+
+    def connect(self) -> "LocalStorageProvider":
+        return self
+
+    def close(self):
+        pass
 
 
 class S3StorageProvider(DirectoryIO):
@@ -143,6 +157,12 @@ class S3StorageProvider(DirectoryIO):
         session_kwargs = {**storage_options, **settings.to_s3fs()}
         self.bucket = settings.bucket_name
         super().__init__(root=settings.bucket_name, protocol="s3", **session_kwargs)
+
+    def connect(self) -> "S3StorageProvider":
+        return self
+
+    def close(self):
+        pass
 
     def _resolve_path(self, path: Union[str, pathlib.Path]) -> str:
         path_str = str(path)
@@ -414,24 +434,3 @@ class ResourceRegistry:
             "mapping": field_mapping or FieldMapping(),
             "id_field": id_field,
         }
-
-
-class HostFactory:
-    @classmethod
-    def default(cls, **kwargs):
-        return WebIO(**kwargs)
-
-    @classmethod
-    def create(cls, settings: BaseSettings | None, **kwargs) -> HostAdapter:
-        if settings is None:
-            return cls.default(**kwargs)
-
-        else:
-            if isinstance(settings, S3Settings):
-                return S3StorageProvider(settings, **kwargs)
-            elif isinstance(settings, LocalFileSettings):
-                return LocalStorageProvider(settings, **kwargs)
-            else:
-                me = f"No adapter registered for settings: {type(settings)}"
-                logger.warning(me)
-                return cls.default()

@@ -13,6 +13,7 @@ from pypeh.core.utils.namespaces import ImportMap
 logger = logging.getLogger(__name__)
 
 T_BaseSettings = TypeVar("T_BaseSettings", bound=BaseSettings)
+DEFAULT_CONNECTION_LABEL = "_default"
 
 
 class FileSystemSettings(BaseSettings):
@@ -51,7 +52,7 @@ class ConnectionConfig(BaseModel, Generic[T_BaseSettings]):
     the connection will be used for.
     """
 
-    label: str = "default"
+    label: str = DEFAULT_CONNECTION_LABEL
     namespaces: list | None = None
     env_prefix: str = "DEFAULT_"
     config_dict: Optional[dict[str, str]] = Field(default_factory=dict)
@@ -121,10 +122,10 @@ class S3Config(ConnectionConfig[S3Settings]):
 
 @dataclasses.dataclass
 class ValidatedImportConfig:
-    connection_map: dict[str, BaseSettings]
-    import_map: ImportMap | None
+    connection_map: dict[str, BaseSettings] = dataclasses.field(default_factory=dict)
+    import_map: ImportMap | None = None
 
-    def get_connection(self, namespace: str | None = None, connection_label: str | None = None) -> BaseSettings | None:
+    def get_settings(self, namespace: str | None = None, connection_label: str | None = None) -> BaseSettings | None:
         if not namespace and not connection_label:
             raise ValueError("Either 'namespace' or 'connection_label' must be provided.")
 
@@ -139,10 +140,19 @@ class ValidatedImportConfig:
                 return None
 
         # Retrieve connection from connection_map
-        connection = self.connection_map.get(connection_label)
-        if connection is None:
+        settings = self.connection_map.get(connection_label)
+        if settings is None:
             logger.debug(f"Connection ID '{connection_label}' not found in connection_map")
-        return connection
+        return settings
+
+    def register_connection_label(self, connection_label: str, settings: BaseSettings) -> bool:
+        if not isinstance(settings, BaseSettings):
+            raise ValueError(f"Provided settings with label {connection_label} are invalid")
+        ret = self.connection_map.get(connection_label, None)
+        if ret is not None:
+            raise ValueError(f"{connection_label} is already registered")
+        self.connection_map[connection_label] = settings
+        return True
 
 
 class ImportConfig(BaseModel):
@@ -156,17 +166,19 @@ class ImportConfig(BaseModel):
         return new_import_map
 
     @classmethod
-    def config_to_settings(cls, connection_map: dict[str, ConnectionConfig]) -> dict[str, BaseSettings]:
-        return {key: value.make_settings() for key, value in connection_map.items()}
+    def config_to_settings(
+        cls, connection_map: dict[str, ConnectionConfig], _env_file: str | None = None
+    ) -> dict[str, BaseSettings]:
+        return {key: value.make_settings(_env_file=_env_file) for key, value in connection_map.items()}
 
-    def to_validated_import_config(self) -> ValidatedImportConfig:
+    def to_validated_import_config(self, _env_file: str | None = None) -> ValidatedImportConfig:
         import_map = {}
         if self.connection_map is not None:
             for label, config in self.connection_map.items():
                 if config.namespaces is not None:
                     for namespace in config.namespaces:
                         import_map[namespace] = label
-        connection_map = self.config_to_settings(self.connection_map)
+        connection_map = self.config_to_settings(self.connection_map, _env_file=_env_file)
         import_trie = None
         if len(import_map) > 0:
             import_trie = self.dict_to_trie(import_map)

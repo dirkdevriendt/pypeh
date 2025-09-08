@@ -5,22 +5,22 @@ import importlib
 import logging
 import peh_model.peh as peh
 
-from typing import TYPE_CHECKING, TypeVar, Sequence, cast, Generic
+from typing import TYPE_CHECKING, TypeVar, Sequence, Generic
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from pypeh.core.models.proxy import TypedLazyProxy
 from pypeh.core.models.settings import (
     LocalFileConfig,
     ImportConfig,
-    LocalFileSettings,
     ConnectionConfig,
     ValidatedImportConfig,
+    DEFAULT_CONNECTION_LABEL,
 )
 from pypeh.core.models.typing import T_NamedThingLike
 from pypeh.core.models.validation_errors import ValidationError, ValidationErrorLevel, ValidationErrorReportCollection
 from pypeh.core.interfaces.outbound.dataops import ValidationInterface
-from pypeh.adapters.outbound.persistence.hosts import HostFactory, LocalStorageProvider
 from pypeh.core.cache.utils import load_entities_from_tree
+from pypeh.core.session.connections import ConnectionManager
 from pypeh.core.utils.resolve_identifiers import is_url
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,7 @@ class Session(Generic[T_AdapterType]):
         *,
         connection_config: ConnectionConfig | Sequence[ConnectionConfig] | None = None,
         default_persisted_cache: str | ConnectionConfig | None = None,
+        env_file: str | None = None,
     ):
         """
         Initializes a new pypeh Session.
@@ -57,11 +58,18 @@ class Session(Generic[T_AdapterType]):
         """
 
         connection_map, default_persisted_cache = self._normalize_configs(connection_config, default_persisted_cache)
-        self.import_config: ValidatedImportConfig | None = None
+        self.connection_manager: ConnectionManager = ConnectionManager(ValidatedImportConfig())
+        validated_default_persisted_cache: BaseSettings | None = self._init_default_persisted_cache(
+            default_persisted_cache, env_file
+        )
         if connection_map is not None:
-            self.import_config = ImportConfig(connection_map=connection_map).to_validated_import_config()
+            import_config = ImportConfig(connection_map=connection_map).to_validated_import_config(_env_file=env_file)
+            self.connection_manager = ConnectionManager(import_config)
 
-        self.default_persisted_cache: BaseSettings | None = self._init_default_persisted_cache(default_persisted_cache)
+        if validated_default_persisted_cache is not None:
+            self.connection_manager._register_connection_label(
+                DEFAULT_CONNECTION_LABEL, validated_default_persisted_cache
+            )
         self.cache: CacheContainer = CacheContainerFactory.new()
 
     def _normalize_configs(
@@ -103,10 +111,6 @@ class Session(Generic[T_AdapterType]):
                     " Use the connection_config to achieve this"
                 )
             validated_default_persisted_cache = default_persisted_cache
-            connection_map[validated_default_persisted_cache.label] = validated_default_persisted_cache
-
-        if len(connection_map) == 0:
-            assert validated_default_persisted_cache is None
 
         return connection_map, validated_default_persisted_cache
 
@@ -118,10 +122,11 @@ class Session(Generic[T_AdapterType]):
     def _init_default_persisted_cache(
         self,
         default_persisted_cache: ConnectionConfig | None,
+        env_file: str | None,
     ) -> BaseSettings | None:
         """Creates the BaseSettings instance for the default cache."""
         if isinstance(default_persisted_cache, ConnectionConfig):
-            return default_persisted_cache.make_settings()
+            return default_persisted_cache.make_settings(_env_file=env_file)
         return None
 
     def register_default_adapter(self, interface_functionality: str):
@@ -183,27 +188,17 @@ class Session(Generic[T_AdapterType]):
         connection into cache. The provided connection_label takes precedence over the default"""
         # get host/connection
         # TODO: fix host calls with unified ConnectionManager
-        if connection_label is not None:
-            if self.import_config is not None:
-                connection_settings = self.import_config.get_connection(connection_label=connection_label)
-                assert connection_settings is not None
-                host = HostFactory.create(connection_settings)
+        if connection_label is None:
+            logger.info("Using DEFAULT_CONNECTION_LABEL in absence of connection_label")
+            connection_label = DEFAULT_CONNECTION_LABEL
 
-        elif self.default_persisted_cache is not None:
-            host = HostFactory.create(self.default_persisted_cache)
-        else:
-            raise ValueError("No connection or default_persisted_cache was configured")
-
-        # do additional checks
-        if isinstance(host, LocalStorageProvider):
-            assert isinstance(self.default_persisted_cache, LocalFileSettings)
-            root_folder = self.default_persisted_cache.root_folder
-            assert root_folder is not None
-
-        # load in data with host/connection
         if source is None:
+            # TEMP FIX: will only work with filesystems
             source = ""
-        roots = host.load(source, format="yaml")
+
+        with self.connection_manager.get_connection(connection_label=connection_label) as connection:
+            roots = connection.load(source, format="yaml")
+
         ret = self._source_to_cache(roots)
         assert ret
 
@@ -223,23 +218,14 @@ class Session(Generic[T_AdapterType]):
         try:
             # TODO: fix host calls with unified ConnectionManager
             if is_url(source):
-                host = HostFactory.default()
-                return host.retrieve_data(source)
+                raise NotImplementedError
             elif connection_label is not None:
-                if self.import_config is not None:
-                    connection_settings = self.import_config.get_connection(connection_label=connection_label)
-                    assert connection_settings is not None
-                else:
-                    me = "connection_label can only be specified if the session was initiated with a connection_config"
-                    logger.error(me)
-                    raise ValueError(me)
-                host = HostFactory.create(connection_settings)
-                return host.load(source, validation_layout=validation_layout)
-            elif self.default_persisted_cache is not None:
-                host = HostFactory.create(self.default_persisted_cache)
-                return host.load(source, validation_layout=validation_layout)
+                pass
             else:
-                raise ValueError("Can't figure out how to load the data")
+                connection_label = DEFAULT_CONNECTION_LABEL
+
+            with self.connection_manager.get_connection(connection_label=connection_label) as connection:
+                return connection.load(source, validation_layout=validation_layout)
 
         except Exception as e:
             return ValidationError(
@@ -274,25 +260,18 @@ class Session(Generic[T_AdapterType]):
             return ret
 
         if connection_label is not None:
-            # TODO: replace with ConnectionManager call
-            if self.import_config is not None:
-                connection_settings = self.import_config.get_connection(connection_label=connection_label)
-                assert connection_settings is not None
-                host = HostFactory.create(connection_settings)
+            with self.connection_manager.get_connection(connection_label=connection_label) as connection:
                 # assuming connection points to a file-based system
                 # loading entire directory
                 logger.debug(f"Loading .yaml files recursively from {connection_label} root directory")
                 if resource_path is None:
                     resource_path = ""
-                    roots = host.load(resource_path, format="yaml")
+                    roots = connection.load(resource_path, format="yaml")
                 else:
-                    roots = host.load(resource_path)
+                    roots = connection.load(resource_path)
                 ret = self._source_to_cache(roots)
                 assert ret
-            else:
-                me = "connection_label can only be specified if the session was initiated with a connection_config"
-                logger.error(me)
-                raise ValueError(me)
+
             # resource should have been loaded into cache
             ret = self.get_resource(resource_identifier, resource_type)
             type_to_cast = getattr(peh, resource_type)
