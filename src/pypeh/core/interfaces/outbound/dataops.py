@@ -18,10 +18,11 @@ from typing import TYPE_CHECKING, TypeVar, Generic, cast, List
 from pypeh.core.models.settings import FileSystemSettings
 from pypeh.core.models.validation_dto import ValidationConfig
 from pypeh.core.session.connections import ConnectionManager
+from pypeh.core.models.validation_errors import ValidationErrorReportCollection
 
 if TYPE_CHECKING:
     from typing import Sequence
-    from pypeh.core.models.validation_errors import ValidationErrorReport, ValidationErrorReportCollection
+    from pypeh.core.models.validation_errors import ValidationErrorReport
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         observable_properties: List[ObservableProperty],
     ) -> ValidationErrorReportCollection:
         observable_property_dict = {op.id: op for op in observable_properties}
-        result_dict: ValidationErrorReportCollection = {}
+        result_dict = ValidationErrorReportCollection()
         for oep_set_name, validation_config in ValidationConfig.from_observation(
             observation,
             observable_property_dict,

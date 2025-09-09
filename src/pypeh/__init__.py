@@ -5,9 +5,12 @@ except ImportError:
     raise NotImplementedError
 
 from pypeh.core.session.session import Session
+from pypeh.core.models.settings import LocalFileConfig, S3Config
 
 __all__ = [
     "Session",
+    "LocalFileConfig",
+    "S3Config",
 ]
 
 try:

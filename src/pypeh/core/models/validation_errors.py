@@ -1,5 +1,7 @@
+import json
+
 from typing import Any, Dict, List, Literal, Optional, TypedDict
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
 from pypeh.core.models.constants import ValidationErrorLevel
 
@@ -34,6 +36,10 @@ class ValidationError(BaseModel):
     traceback: Optional[str] = None
     source: Optional[str] = None
 
+    @field_serializer("level")
+    def serialize_error_counts(self, level: ValidationErrorLevel):
+        return level.name
+
 
 class ValidationErrorGroup(BaseModel):
     """Group of related validation errors"""
@@ -54,7 +60,15 @@ class ValidationErrorReport(BaseModel):
     groups: List[ValidationErrorGroup] = Field(default_factory=list)
     unexpected_errors: List[ValidationError] = Field(default_factory=list)
 
+    @field_serializer("error_counts")
+    def serialize_error_counts(self, error_counts: Dict[ValidationErrorLevel, int]):
+        return {k.name: v for k, v in error_counts.items()}
 
-class ValidationErrorReportCollection(TypedDict, total=False):
-    observable_property_set: str
-    report: ValidationErrorReport
+
+class ValidationErrorReportCollection(dict[str, ValidationErrorReport]):
+    """Collection of validation reports mapped by observable property set"""
+
+    def model_dump_json(self, indent: int = 2) -> str:
+        json_dict = {property_set: report.model_dump() for property_set, report in self.items()}
+
+        return json.dumps(json_dict, indent=indent)
