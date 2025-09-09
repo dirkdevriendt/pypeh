@@ -7,7 +7,7 @@ from tests.test_utils.dirutils import get_absolute_path
 from typing import cast
 
 from pypeh import Session
-from pypeh.core.models.validation_errors import ValidationError, ValidationErrorReport, ValidationErrorReportCollection
+from pypeh.core.models.validation_errors import ValidationError, ValidationErrorReport
 
 logger = logging.getLogger(__name__)
 

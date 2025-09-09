@@ -5,7 +5,7 @@ import importlib
 import logging
 import peh_model.peh as peh
 
-from typing import TYPE_CHECKING, TypeVar, Sequence, Generic
+from typing import TYPE_CHECKING, TypeVar, Dict, Sequence, Generic
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from pypeh.core.models.proxy import TypedLazyProxy
@@ -16,7 +16,8 @@ from pypeh.core.models.settings import (
     ValidatedImportConfig,
     DEFAULT_CONNECTION_LABEL,
 )
-from pypeh.core.models.typing import T_NamedThingLike
+from pypeh.core.models.typing import T_NamedThingLike, T_DataType
+from pypeh.core.models.validation_dto import ValidationConfig
 from pypeh.core.models.validation_errors import ValidationError, ValidationErrorLevel, ValidationErrorReportCollection
 from pypeh.core.interfaces.outbound.dataops import ValidationInterface
 from pypeh.core.cache.utils import load_entities_from_tree
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
 T_AdapterType = TypeVar("T_AdapterType")
 
 
-class Session(Generic[T_AdapterType]):
+class Session(Generic[T_AdapterType, T_DataType]):
     _adapter_mapping: dict[str, T_AdapterType] = dict()
 
     def __init__(
@@ -291,10 +292,20 @@ class Session(Generic[T_AdapterType]):
     def dump_project(self, project_identifier: str, version: str | None) -> bool:
         return self.dump_resource(project_identifier, resource_type="Project", version=version)
 
+    def get_dataset_validations_dict(
+        self,
+        observation_list: Sequence[peh.Observation],
+        layout: peh.DataLayout,
+        set_mapping: Dict[str, Dict[str, str | int | Dict[str, Sequence[str]]]],
+        data_dict: Dict[str, Dict[str, Sequence] | T_DataType],
+    ) -> Dict[str, Sequence[peh.ValidationDesign]] | None:
+        return ValidationConfig.get_dataset_validations_dict(observation_list, layout, set_mapping, data_dict)
+
     def validate_tabular_data(
         self,
         data: dict[str, Sequence] | DataFrame,
         observation: peh.Observation,
+        dataset_validations: Sequence[peh.ValidationDesign] | None = None,
     ) -> ValidationErrorReportCollection:
         observable_property_ids = set()
         if observation.observation_design is None:
@@ -311,4 +322,4 @@ class Session(Generic[T_AdapterType]):
         assert len(observable_properties) > 0
 
         validation_adapter = self.get_adapter("validation")
-        return validation_adapter.validate(data, observation, observable_properties)
+        return validation_adapter.validate(data, observation, observable_properties, dataset_validations)
