@@ -383,8 +383,8 @@ wheels = [
 
 [[package]]
 name = "dataguard"
-version = "0.1.4"
-source = { git = "https://github.com/eu-parc/dataguard?tag=v0.1.4#b95309c3406fbf7d6bafe6c07ea7048d247e83dd" }
+version = "0.2.0"
+source = { git = "https://github.com/eu-parc/dataguard?tag=v0.2.0#113b2ba6f3ff6eec51e50d38ae420b73b63c2475" }
 dependencies = [
     { name = "pandera", extra = ["polars"] },
     { name = "polars" },
@@ -1507,7 +1507,7 @@ test-s3 = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dataguard", marker = "extra == 'dataframe-adapter'", git = "https://github.com/eu-parc/dataguard?tag=v0.1.4" },
+    { name = "dataguard", marker = "extra == 'dataframe-adapter'", git = "https://github.com/eu-parc/dataguard?tag=v0.2.0" },
     { name = "fastexcel", marker = "extra == 'dataframe-adapter'" },
     { name = "fastexcel", marker = "extra == 'polars-adapter'" },
     { name = "fsspec" },
@@ -1533,7 +1533,7 @@ dev = [
 ]
 test-core = [{ name = "pytest", specifier = ">=8.2.0,<9" }]
 test-dataframe = [
-    { name = "dataguard", git = "https://github.com/eu-parc/dataguard?tag=v0.1.4" },
+    { name = "dataguard", git = "https://github.com/eu-parc/dataguard?tag=v0.2.0" },
     { name = "fastexcel" },
     { name = "polars" },
     { name = "pyarrow" },

@@ -3,6 +3,7 @@ import abc
 
 from typing import Protocol, Any, Generic
 from peh_model.peh import DataLayout
+from pydantic import ValidationError as PydanticValidationError
 
 from pypeh.core.interfaces.outbound.dataops import T_DataType, ValidationInterface
 from pypeh.core.models.validation_errors import ValidationErrorReport
@@ -240,7 +241,7 @@ class TestValidation(abc.ABC):
                     columns=[
                         ColumnValidation(
                             unique_name="col1",
-                            data_type="varchar",
+                            data_type="string",
                             required=True,
                             nullable=False,
                             validations=[
@@ -287,7 +288,7 @@ class TestValidation(abc.ABC):
                     columns=[
                         ColumnValidation(
                             unique_name="col1",
-                            data_type="varchar",
+                            data_type="string",
                             required=True,
                             nullable=False,
                             validations=[],
@@ -427,6 +428,91 @@ class TestValidation(abc.ABC):
         assert result.groups[0].name == expected_output.get("name")
         assert result.total_errors == expected_output.get("total_errors")
         assert result.error_counts == expected_output.get("errors_counts")
+
+        adapter.cleanup()
+
+    @pytest.mark.parametrize(
+        "config, data, expected_output",
+        [
+            # data type error
+            (
+                ValidationConfig(
+                    name="data type error",
+                    columns=[
+                        ColumnValidation(
+                            unique_name="col1",
+                            data_type="not a type",
+                            required=True,
+                            nullable=False,
+                            validations=[],
+                        )
+                    ],
+                    identifying_column_names=["col1"],
+                    validations=[],
+                ),
+                {
+                    "col1": [3, 1],
+                    "col2": [1, 2],
+                },
+                {
+                    "len_unexpected": 2,
+                },
+            ),
+            # ValidationDesign Error
+            (
+                ValidationConfig(
+                    name="simple_validation_integer_df_level",
+                    columns=[
+                        ColumnValidation(
+                            unique_name="col1",
+                            data_type="integer",
+                            required=True,
+                            nullable=False,
+                            validations=[],
+                        )
+                    ],
+                    identifying_column_names=["col1"],
+                    validations=[
+                        ValidationDesign(
+                            name="conditional",
+                            error_level=ValidationErrorLevel.ERROR,
+                            expression=ValidationExpression(
+                                conditional_expression=ValidationExpression(
+                                    command="disjunction",
+                                    arg_expressions=[
+                                        ValidationExpression(
+                                            command="is_greater_than",
+                                            arg_columns=["col2"],
+                                        ),
+                                        ValidationExpression(
+                                            command="is_less_than",
+                                            subject=["col2"],
+                                            arg_values=[0],
+                                        ),
+                                    ],
+                                ),
+                                command="is_in",
+                                arg_values=["a", "b", "c"],
+                            ),
+                        )
+                    ],
+                ),
+                {
+                    "col1": [3, 1],
+                    "col2": [1, 2],
+                },
+                {
+                    "len_unexpected": 2,
+                },
+            ),
+        ],
+    )
+    def test_validate_unexpected_errors(self, config, data, expected_output):
+        adapter = self.get_adapter()
+        result = adapter._validate(data, config)
+
+        assert result is not None
+        assert len(result.unexpected_errors) == expected_output.get("len_unexpected")
 
         adapter.cleanup()
 
