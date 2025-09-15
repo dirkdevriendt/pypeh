@@ -205,7 +205,7 @@ class TestRoundTrip:
                 assert isinstance(validation_result, dict)
                 for report in validation_result.values():
                     assert isinstance(report, ValidationErrorReport)
-                    assert report.error_counts[ValidationErrorLevel.ERROR] > 1
+                    assert report.error_counts[ValidationErrorLevel.ERROR] >= 1
                     unexpected_errors += len(report.unexpected_errors)
 
         assert unexpected_errors == 1

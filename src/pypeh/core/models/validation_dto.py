@@ -45,20 +45,23 @@ def convert_peh_validation_error_level_to_validation_dto_error_level(peh_validat
 def convert_peh_value_type_to_validation_dto_datatype(peh_value_type: str):
     # TODO: fix for "categorical" ?
     # TODO: review & extend potential input values
-    # valid input values: "string", "boolean", "date", "datetime", "decimal", "integer"
-    # valid return values: 'date', 'datetime', 'boolean', 'decimal', 'integer', 'varchar' or 'categorical'
+    # valid input values: "string", "boolean", "date", "datetime", "decimal", "integer", "float"
+    # valid return values: 'date', 'datetime', 'boolean', 'decimal', 'integer', 'varchar', 'float', or 'categorical'
     if peh_value_type is None:
         return None
     else:
         match peh_value_type:
-            case "boolean" | "date" | "datetime" | "decimal" | "string" | "integer":
+            case "decimal":
+                logger.info("Casting decimal to float")
+                return "float"
+            case "boolean" | "date" | "datetime" | "float" | "string" | "integer":
                 return peh_value_type
             case _:
                 raise ValueError(f"Invalid data type encountered: {peh_value_type}")
 
 
 def cast_to_peh_value_type(value: Any, peh_value_type: str | None) -> Any:
-    # valid input values: "string", "boolean", "date", "datetime", "decimal"
+    # valid input values: "string", "boolean", "date", "datetime", "decimal", "float"
     if peh_value_type is None:
         return value
     else:
@@ -72,9 +75,8 @@ def cast_to_peh_value_type(value: Any, peh_value_type: str | None) -> Any:
             case "datetime":
                 return str(value)  # FIXME
             case "decimal":
-                if value.lower() in {"inf", "infinity"}:
-                    value = get_max_decimal_value()
-                return Decimal(value)
+                logger.info("Casting decimal as float")
+                return float(value)
             case "integer":
                 return int(value)
             case "float":
@@ -216,7 +218,7 @@ class ValidationDesign(BaseModel):
                 if metadatum.value is not None:
                     try:
                         # NOTE: type conversion here is useless unless using Baseclass.model_construct() to avoid validation
-                        arg_type = "decimal"
+                        arg_type = "float"
                         typed_metadata_value = cast_to_peh_value_type(metadatum.value, arg_type)
                     except Exception as e:
                         logger.error(
