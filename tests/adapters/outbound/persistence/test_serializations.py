@@ -122,3 +122,45 @@ class TestXlsIO:
             with pytest.raises(Exception) as excinfo:
                 _ = excel_io.load(f)  # type: ignore
         assert isinstance(excinfo.value, Exception)
+
+    def test_typed_sheet(self):
+        typed_dict = {
+            "id_sample": "string",
+            "samplingyear": "float",
+            "samplingmonth": "string",
+            "samplingday": "float",
+            "samplinghour": "float",
+            "samplingminutes": "float",
+        }
+        source = get_absolute_path("./input/validation_test_03_data.xlsx")
+        excel_io = ExcelIO()
+        with fsspec.open(source, "rb") as f:
+            result = excel_io.load_section(
+                f,  # type: ignore
+                section_name="SAMPLE",
+                data_schema=typed_dict,
+            )
+        import polars as pl
+
+        assert isinstance(result, pl.DataFrame)
+
+    def test_typed_excel(self):
+        typed_dict = {
+            "SAMPLE": {
+                "id_sample": "string",
+                "samplingyear": "float",
+                "samplingmonth": "string",
+                "samplingday": "float",
+                "samplinghour": "float",
+                "samplingminutes": "float",
+            },
+            "SAMPLETIMEPOINT_BSS": {"id_sample": "integer", "chol": "float", "chol_loq": "float", "chol_lod": "float"},
+        }
+        source = get_absolute_path("./input/validation_test_03_data.xlsx")
+        excel_io = ExcelIO()
+        with fsspec.open(source, "rb") as f:
+            result = excel_io.load(
+                f,  # type: ignore
+                data_schema=typed_dict,
+            )
+        assert isinstance(result, dict)

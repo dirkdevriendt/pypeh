@@ -181,7 +181,6 @@ class ValidationDesign(BaseModel):
         error_level = convert_peh_validation_error_level_to_validation_dto_error_level(error_level)
         expression = getattr(validation_design, "validation_expression", None)
         if expression is None:
-            print(validation_design)
             raise AttributeError
         expression = ValidationExpression.from_peh(
             expression, observable_property_varname_dict=observable_property_varname_dict

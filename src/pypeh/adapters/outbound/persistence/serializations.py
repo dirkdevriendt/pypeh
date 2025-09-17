@@ -333,6 +333,15 @@ class ExcelIO(IOAdapter):
     # source = StringIO(response.text)
     # df = pd.read_csv(source)
 
+    def load_section(self, source: Union[str, Path, IO[str], IO[bytes]], section_name: str, **kwargs) -> Any:
+        try:
+            from pypeh.adapters.outbound.persistence.dataframe import ExcelIOImpl
+        except ImportError:
+            message = "The ExcelIO class requires the 'dataframe_adapter' module. Please install it."
+            logging.error(message)
+            raise
+        return ExcelIOImpl().load_section(source, section_name=section_name, **kwargs)
+
     def load(
         self, source: Union[str, Path, IO[str], IO[bytes]], validation_layout: DataLayout | None = None, **kwargs
     ) -> dict:

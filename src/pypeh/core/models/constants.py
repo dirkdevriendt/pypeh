@@ -50,3 +50,18 @@ class ValidationErrorLevel(Enum):
     WARNING = auto()
     ERROR = auto()
     FATAL = auto()
+
+
+class ObservablePropertyValueType(str, Enum):
+    """
+    Enum representing the possible value types for observable properties.
+    """
+
+    STRING = "string"
+    INTEGER = "integer"
+    BOOLEAN = "boolean"
+    FLOAT = "float"
+    CATEGORICAL = "categorical"
+    DECIMAL = "decimal"
+    DATE = "date"
+    DATETIME = "datetime"
