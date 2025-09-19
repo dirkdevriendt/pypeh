@@ -6,8 +6,10 @@ import logging
 import peh_model.peh as peh
 
 from typing import TYPE_CHECKING, TypeVar, Sequence, Generic
+from collections import defaultdict
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
+from pypeh.core.models.constants import ObservablePropertyValueType
 from pypeh.core.models.proxy import TypedLazyProxy
 from pypeh.core.models.settings import (
     LocalFileConfig,
@@ -215,6 +217,11 @@ class Session(Generic[T_AdapterType]):
                 connection_config.
             validation_layout: (DataLayout | None)L Optional DataLayout object used for validation.
         """
+        data_schema = None
+        if validation_layout is not None:
+            data_schema = self.layout_section_elements_to_observable_property_value_types(
+                layout=validation_layout,
+            )
         try:
             # TODO: fix host calls with unified ConnectionManager
             if is_url(source):
@@ -225,7 +232,7 @@ class Session(Generic[T_AdapterType]):
                 connection_label = DEFAULT_CONNECTION_LABEL
 
             with self.connection_manager.get_connection(connection_label=connection_label) as connection:
-                return connection.load(source, validation_layout=validation_layout)
+                return connection.load(source, validation_layout=validation_layout, data_schema=data_schema)
 
         except Exception as e:
             return ValidationError(
@@ -312,3 +319,37 @@ class Session(Generic[T_AdapterType]):
 
         validation_adapter = self.get_adapter("validation")
         return validation_adapter.validate(data, observation, observable_properties)
+
+    def layout_section_elements_to_observable_property_value_types(
+        self, layout: peh.DataLayout, flatten=False
+    ) -> dict[str, ObservablePropertyValueType | dict[str, ObservablePropertyValueType]] | None:
+        ret = {}
+
+        sections = getattr(layout, "sections")
+        if sections is None:
+            raise ValueError("No sections found in DataLayout")
+        for section in sections:
+            label = getattr(section, "label")
+            elements = getattr(section, "elements")
+            if elements is None:
+                logger.info("DataLayout does not contain elements. Cannot determine observable_entity_value_types.")
+                return None
+            for element in elements:
+                element_label = getattr(element, "label")
+                observable_property_id = getattr(element, "observable_property")
+                observable_property = self.cache.get(observable_property_id, "ObservableProperty")
+                if observable_property is None:
+                    logger.info(
+                        f"Could not find {observable_property_id} in cache. Cannot determine observable_property_value_types. "
+                    )
+                    return None
+                assert isinstance(label, str)
+                value_type = getattr(observable_property, "value_type")
+                if flatten:
+                    ret[element_label] = ObservablePropertyValueType(value_type)
+                else:
+                    if label not in ret:
+                        ret[label] = {}
+                    ret[label][element_label] = ObservablePropertyValueType(value_type)
+
+        return ret

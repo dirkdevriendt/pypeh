@@ -69,6 +69,7 @@ class TestSessionValidation:
         observation = session.cache.get("peh:OBSERVATION_ADULTS_ANALYTICALINFO", "Observation")
         assert observation.id == "peh:OBSERVATION_ADULTS_ANALYTICALINFO"
         layout = session.cache.get("TEST_DATA_LAYOUT", "DataLayout")
+        assert isinstance(layout, DataLayout)
         data = session.load_tabular_data(
             source="multi_connection_valid_excel.xlsx",
             connection_label="local_file_validation_files",
@@ -76,3 +77,26 @@ class TestSessionValidation:
         )
         assert isinstance(data, dict)
         assert len(data) == 1
+
+
+class TestMapping:
+    def test_layout_map(self):
+        session = Session(
+            connection_config=[
+                LocalFileConfig(
+                    label="local_file_validation_config",
+                    config_dict={
+                        "root_folder": get_absolute_path("./input/layout_obsprop_map"),
+                    },
+                ),
+            ],
+            default_persisted_cache="local_file_validation_config",
+        )
+        session.load_persisted_cache()
+        data_layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        data_layout = session.cache.get(data_layout_id, "DataLayout")
+        assert isinstance(data_layout, DataLayout)
+        ret = session.layout_section_elements_to_observable_property_value_types(data_layout, flatten=True)
+        assert isinstance(ret, dict)
+        for value in ret.values():
+            assert value in set(["decimal", "string", "integer", "float", "boolean"])

@@ -2,6 +2,7 @@ import pytest
 import peh_model.peh as peh
 import logging
 
+from pypeh.adapters.outbound.persistence.dataframe import ExcelIOImpl
 from pypeh.core.models.constants import ValidationErrorLevel
 from tests.test_utils.dirutils import get_absolute_path
 from typing import cast
@@ -122,7 +123,7 @@ class TestRoundTrip:
             validation_layout=layout,
         )
         assert isinstance(ret, ValidationError)
-        assert "SAMPLETIMEPOINT_BSS" in ret.message
+        assert "SAMPLETIMEPOINT_BS" in ret.message
 
     @pytest.mark.parametrize(
         "test_label",
@@ -208,7 +209,7 @@ class TestRoundTrip:
                     assert report.error_counts[ValidationErrorLevel.ERROR] >= 1
                     unexpected_errors += len(report.unexpected_errors)
 
-        assert unexpected_errors == 1
+        assert unexpected_errors == 0
 
     @pytest.mark.parametrize(
         "test_label",
@@ -256,4 +257,4 @@ class TestRoundTrip:
                     assert report.error_counts[ValidationErrorLevel.ERROR] >= 1
                     unexpected_errors += len(report.unexpected_errors)
 
-        assert unexpected_errors == 4
+        assert unexpected_errors == 0
