@@ -136,4 +136,4 @@ data/
 _temp/
 
 # VScode stuff
-script_test_2.py
+.vscode
