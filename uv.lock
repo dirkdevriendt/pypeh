@@ -384,8 +384,8 @@ wheels = [
 
 [[package]]
 name = "dataguard"
-version = "0.2.0"
-source = { git = "https://github.com/eu-parc/dataguard?tag=v0.2.0#113b2ba6f3ff6eec51e50d38ae420b73b63c2475" }
+version = "0.4.0"
+source = { git = "https://github.com/eu-parc/dataguard.git?tag=v0.4.0#f63e98493b7e8e6a82dc04fb96ad5d90a40fb71b" }
 dependencies = [
     { name = "pandera", extra = ["polars"] },
     { name = "polars" },
@@ -1103,6 +1103,7 @@ dependencies = [
     { name = "linkml-runtime" },
     { name = "pydantic" },
 ]
+
 sdist = { url = "https://files.pythonhosted.org/packages/65/d2/98e8e8189ff1db4507ca598a89973d0c3f89168ec87b8b76af5ddd6ba0f7/peh_model-0.1.1.tar.gz", hash = "sha256:791d3cadff7a2eb587a2d3cfac13e6c23958b8c5ac844f4d3c4190bee524e421", size = 40284, upload-time = "2025-09-21T18:22:10.874Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f5/3d/51621b290a4127572b927da1f44573dab7f5af251557597aa4502e199c97/peh_model-0.1.1-py3-none-any.whl", hash = "sha256:c55b85138f09d3202119ab66a868642665f8279af754f6b34b52e6ee6254ed20", size = 40116, upload-time = "2025-09-21T18:22:09.377Z" },
@@ -1449,6 +1450,7 @@ name = "pypeh"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [
+    { name = "dataguard" },
     { name = "fsspec" },
     { name = "linkml" },
     { name = "peh-model" },
@@ -1508,7 +1510,8 @@ test-s3 = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dataguard", marker = "extra == 'dataframe-adapter'", git = "https://github.com/eu-parc/dataguard?tag=v0.2.0" },
+    { name = "dataguard", git = "https://github.com/eu-parc/dataguard.git?tag=v0.4.0" },
+    { name = "dataguard", marker = "extra == 'dataframe-adapter'", git = "https://github.com/eu-parc/dataguard.git?tag=v0.4.0" },
     { name = "fastexcel", marker = "extra == 'dataframe-adapter'" },
     { name = "fastexcel", marker = "extra == 'polars-adapter'" },
     { name = "fsspec" },
@@ -1535,7 +1538,7 @@ dev = [
 ]
 test-core = [{ name = "pytest", specifier = ">=8.2.0,<9" }]
 test-dataframe = [
-    { name = "dataguard", git = "https://github.com/eu-parc/dataguard?tag=v0.2.0" },
+    { name = "dataguard", git = "https://github.com/eu-parc/dataguard.git?tag=v0.4.0" },
     { name = "fastexcel" },
     { name = "polars" },
     { name = "pyarrow" },
