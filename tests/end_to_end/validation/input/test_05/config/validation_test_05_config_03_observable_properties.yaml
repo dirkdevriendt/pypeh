@@ -2681,3 +2681,16 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: zn_loq
+- id: lipidassessment
+  unique_name: lipidassessment
+  name: lipidassessment
+  description: lipidassessment
+  ui_label: lipidassessment
+  value_type: integer
+  categorical: false
+  multivalued: false
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:

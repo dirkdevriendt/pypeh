@@ -6,8 +6,6 @@ layouts:
   - id: peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS_SECTION_urine_lab
     ui_label: urine_lab
     section_type: data_table
-    observable_entity_types:
-    - sample
     elements:
     - varname: id_subject
       label: id_subject
@@ -30,8 +28,6 @@ layouts:
   - id: peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS_SECTION_analyticalinfo
     ui_label: analyticalinfo
     section_type: data_table
-    observable_entity_types:
-    - samplegroup
     elements:
     - varname: biomarkercode
       label: biomarkercode

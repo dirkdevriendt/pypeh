@@ -9,6 +9,7 @@ layouts:
   - id: peh:SAMPLE_METADATA_SECTION_SAMPLE
     ui_label: SAMPLE
     section_type: data_table
+    observation: peh:VALIDATION_TEST_SAMPLE_SAMPLE
     elements:
     - label: id_sample
       observable_property: id_sample
@@ -34,9 +35,12 @@ layouts:
       observable_property: analysismonth
     - label: analysisday
       observable_property: analysisday
+    - label: lipidassessment
+      observable_property: lipidassessment
   - id: peh:SAMPLE_METADATA_SECTION_SUBJECTUNIQUE
     ui_label: SUBJECTUNIQUE
     section_type: data_table
+    observation: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE
     elements:
     - label: id_subject
       observable_property: id_subject
@@ -55,6 +59,7 @@ layouts:
   - id: peh:SAMPLE_METADATA_SECTION_SUBJECTTIMEPOINT
     ui_label: SUBJECTTIMEPOINT
     section_type: data_table
+    observation: peh:VALIDATION_TEST_SAMPLE_SUBJECTTIMEPOINT
     elements:
     - label: id_subject
       observable_property: id_subject
@@ -111,6 +116,7 @@ layouts:
   - id: peh:SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BWB
     ui_label: SAMPLETIMEPOINT_BWB
     section_type: data_table
+    observation: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB
     elements:
     - label: id_sample
       observable_property: id_sample

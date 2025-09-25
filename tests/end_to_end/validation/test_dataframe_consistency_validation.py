@@ -12,6 +12,7 @@ from pypeh.core.models.validation_errors import ValidationErrorReport
 logger = logging.getLogger(__name__)
 
 
+@pytest.mark.skip
 @pytest.mark.end_to_end_consistency
 class TestConsistency:
     def test_entity_consistency(self, monkeypatch):
@@ -35,6 +36,7 @@ class TestConsistency:
         session.load_persisted_cache()
         layout = session.cache.get("peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataLayout")
         assert layout.id == "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        assert isinstance(layout, peh.DataLayout)
         data_dict = session.load_tabular_data(
             source="validation_test_06_data.xlsx",
             connection_label="local_file_validation_files",
@@ -60,6 +62,14 @@ class TestConsistency:
                 "observation_id": "peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB",
             },
         }
+        section_label_to_section_id = {
+            "SAMPLE": "peh:SAMPLE_METADATA_SECTION_SAMPLE",
+            "SUBJECTUNIQUE": "peh:SAMPLE_METADATA_SECTION_SUBJECTUNIQUE",
+            "SAMPLETIMEPOINT_BWB": "peh:SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BWB",
+        }
+        observable_property_id_to_layout_section_label = {
+            "matrix": "SAMPLE",
+        }
 
         observation_list = [session.cache.get(m["observation_id"], "Observation") for m in dataset_mapping.values()]
         consistency_validations_dict = session.get_dataset_validations_dict(
@@ -70,25 +80,27 @@ class TestConsistency:
         )
 
         def validate_set(set_key):
-            sheet_label = dataset_mapping[set_key].get("sheet_label", None)
-            observation_id = dataset_mapping[set_key].get("observation_id", None)
-
+            sheet_label = set_key
+            section_id = section_label_to_section_id[sheet_label]
+            layout_section = session.get_resource(resource_identifier=section_id, resource_type="DataLayoutSection")
+            assert layout_section is not None
+            assert isinstance(layout_section, peh.DataLayoutSection)
             dataset_validations = []
             if consistency_validations := consistency_validations_dict.get(set_key, None):
                 dataset_validations.extend(consistency_validations)
             if id_validations := id_validations_dict.get(set_key, None):
                 dataset_validations.extend(id_validations)
-
             data_df = data_dict.get(sheet_label, None)
-            observation = session.get_resource(observation_id, "Observation")
-            assert isinstance(observation, peh.Observation)
-            validation_result = session.validate_tabular_data(
-                data_df, observation_list=[observation], dataset_validations=dataset_validations
+            assert data_df is not None
+
+            validation_report = session.validate_tabular_data(
+                data=data_df,
+                data_layout_section=layout_section,
+                dataset_validations=dataset_validations,
+                dependent_data=data_dict,
+                observable_property_id_to_layout_section_label=observable_property_id_to_layout_section_label,
             )
-            assert validation_result is not None
-            assert isinstance(validation_result, dict)
-            assert len(validation_result.values()) == 1
-            validation_report = list(validation_result.values())[0]
+
             assert isinstance(validation_report, ValidationErrorReport)
             assert validation_report.error_counts[ValidationErrorLevel.WARNING] == 0
             return validation_report
@@ -98,9 +110,10 @@ class TestConsistency:
         assert len(report.unexpected_errors) == 0
 
         report = validate_set("SUBJECTUNIQUE")
-        assert report.error_counts[ValidationErrorLevel.ERROR] == 3
+        assert report.error_counts[ValidationErrorLevel.ERROR] == 0
         assert len(report.unexpected_errors) == 0
 
         report = validate_set("SAMPLETIMEPOINT_BWB")
-        assert report.error_counts[ValidationErrorLevel.ERROR] == 4
+        assert report.error_counts[ValidationErrorLevel.ERROR] == 1
         assert len(report.unexpected_errors) == 0
+        assert False

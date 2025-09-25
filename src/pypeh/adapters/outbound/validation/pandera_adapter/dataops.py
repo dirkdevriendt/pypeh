@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 
+from contextlib import contextmanager
 from dataguard import Validator, ErrorCollector
 from peh_model.peh import DataLayout
 from polars import DataFrame
@@ -37,18 +38,45 @@ class DataFrameAdapter(ValidationInterface[DataFrame], DataImportInterface[DataF
     def parse_configuration(self, config: ValidationConfig) -> Mapping:
         return parse_config(config)
 
+    @contextmanager
     def get_error_collector(self):
-        return ErrorCollector()
-
-    def cleanup(self):
-        self.get_error_collector().clear_errors()
+        collector = ErrorCollector()
+        try:
+            yield collector
+        finally:
+            collector.clear_errors()
 
     def _validate(self, data: dict[str, list] | DataFrame, config: ValidationConfig) -> ValidationErrorReport:
         config_map = self.parse_configuration(config)
         validator = Validator.config_from_mapping(config=config_map, logger=logger)
         _ = validator.validate(data)
 
-        return parse_error_report(self.get_error_collector().get_errors())
+        with self.get_error_collector() as error_collector:
+            parsed_errors = parse_error_report(error_collector.get_errors())
+
+        return parsed_errors
+
+    def _join_data(
+        self,
+        identifying_observable_property_ids: list[str],
+        data: dict[str, list] | DataFrame,
+        dependent_data: dict[str, dict[str, list]] | dict[str, DataFrame],
+        dependent_observable_properties: set[str],
+        observable_property_id_to_layout_section_label: dict[str, str],
+    ) -> DataFrame:
+        joined_data = data
+        assert isinstance(joined_data, DataFrame), "joined_data in `DataFrameAdapter._join_data` should be a DataFrame"
+        for dependent_obs_prop in dependent_observable_properties:
+            dependent_section = observable_property_id_to_layout_section_label.get(dependent_obs_prop, None)
+            if dependent_section is None:
+                raise ValueError(f"Could not find data layout section for observable property {dependent_obs_prop}")
+            other = dependent_data.get(dependent_section, None)
+            if other is not None:
+                assert isinstance(other, DataFrame), "other in `DataFrameAdapter._join_data` should be a DataFrame"
+                joined_data = joined_data.join(other, on=identifying_observable_property_ids, how="left")
+            else:
+                raise ValueError(f"Did not find data section with label {dependent_section}")
+        return joined_data
 
     def summarize(self, data: Mapping, config: Mapping):
         pass

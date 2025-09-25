@@ -24,6 +24,7 @@ observations:
     - analysisyear
     - analysismonth
     - analysisday
+    - lipidassessment
 - id: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE
   name: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE
   ui_label: SUBJECTUNIQUE
