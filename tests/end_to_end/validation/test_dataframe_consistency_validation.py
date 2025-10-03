@@ -12,7 +12,6 @@ from pypeh.core.models.validation_errors import ValidationErrorReport
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.skip
 @pytest.mark.end_to_end_consistency
 class TestConsistency:
     def test_entity_consistency(self, monkeypatch):
@@ -116,4 +115,3 @@ class TestConsistency:
         report = validate_set("SAMPLETIMEPOINT_BWB")
         assert report.error_counts[ValidationErrorLevel.ERROR] == 1
         assert len(report.unexpected_errors) == 0
-        assert False
