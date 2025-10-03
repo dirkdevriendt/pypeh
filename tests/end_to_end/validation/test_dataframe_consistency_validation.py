@@ -30,7 +30,7 @@ class TestConsistency:
                     },
                 ),
             ],
-            default_persisted_cache="local_file_validation_config",
+            default_connection="local_file_validation_config",
         )
         session.load_persisted_cache()
         layout = session.cache.get("peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataLayout")
@@ -39,7 +39,7 @@ class TestConsistency:
         data_dict = session.load_tabular_data(
             source="validation_test_06_data.xlsx",
             connection_label="local_file_validation_files",
-            validation_layout=layout,
+            data_layout=layout,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0

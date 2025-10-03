@@ -43,7 +43,7 @@ class TestSessionValidation:
         layout = session.cache.get("TEST_DATA_LAYOUT", "DataLayout")
         assert layout is not None
         assert isinstance(layout, DataLayout)
-        result = session.load_tabular_data(source=excel_path, validation_layout=layout)
+        result = session.load_tabular_data(source=excel_path, data_layout=layout)
         assert isinstance(result, ValidationError)
         assert result.type == "File Processing Error"
 
@@ -63,7 +63,7 @@ class TestSessionValidation:
                     },
                 ),
             ],
-            default_persisted_cache="local_file_validation_config",
+            default_connection="local_file_validation_config",
         )
         session.load_persisted_cache()
         observation = session.cache.get("peh:OBSERVATION_ADULTS_ANALYTICALINFO", "Observation")
@@ -73,7 +73,7 @@ class TestSessionValidation:
         data = session.load_tabular_data(
             source="multi_connection_valid_excel.xlsx",
             connection_label="local_file_validation_files",
-            validation_layout=layout,
+            data_layout=layout,
         )
         assert isinstance(data, dict)
         assert len(data) == 1
@@ -90,7 +90,7 @@ class TestMapping:
                     },
                 ),
             ],
-            default_persisted_cache="local_file_validation_config",
+            default_connection="local_file_validation_config",
         )
         session.load_persisted_cache()
         data_layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"

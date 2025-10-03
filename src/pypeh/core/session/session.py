@@ -47,8 +47,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
         self,
         *,
         connection_config: ConnectionConfig | Sequence[ConnectionConfig] | None = None,
-        default_persisted_cache: str | ConnectionConfig | None = None,
+        default_connection: str | ConnectionConfig | None = None,
         env_file: str | None = None,
+        load_from_default_connection: str | None = None,
     ):
         """
         Initializes a new pypeh Session.
@@ -57,42 +58,41 @@ class Session(Generic[T_AdapterType, T_DataType]):
             connection_config (ConnectionConfig | Sequence[ConnectionConfig] | None):
                 A (list of) ConnectionConfig instance(s). Allows you to setup connection to local
                 or remote repositories.
-                Required if a string-based default_persisted_cache is used.
-            default_persisted_cache (str | ConnectionConfig | None):
+                Required if a string-based default_connection is used.
+            default_connection (str | ConnectionConfig | None):
                 Specifies the default storage for the session. Can either be:
                     - A string key referring to a connection in connection_config,
                     - A ConnectionConfig instance to directly generate BaseSettings.
+            load_from_default_connection: (str | None = None):
+                Optional. Source to load from default connection on init.
         """
-
-        connection_map, default_persisted_cache = self._normalize_configs(connection_config, default_persisted_cache)
+        connection_map, default_connection = self._normalize_configs(connection_config, default_connection)
         self.connection_manager: ConnectionManager = ConnectionManager(ValidatedImportConfig())
-        validated_default_persisted_cache: BaseSettings | None = self._init_default_persisted_cache(
-            default_persisted_cache, env_file
-        )
+        validated_default_connection: BaseSettings | None = self._init_default_connection(default_connection, env_file)
         if connection_map is not None:
             import_config = ImportConfig(connection_map=connection_map).to_validated_import_config(_env_file=env_file)
             self.connection_manager = ConnectionManager(import_config)
 
-        if validated_default_persisted_cache is not None:
-            self.connection_manager._register_connection_label(
-                DEFAULT_CONNECTION_LABEL, validated_default_persisted_cache
-            )
+        if validated_default_connection is not None:
+            self.connection_manager._register_connection_label(DEFAULT_CONNECTION_LABEL, validated_default_connection)
         self.cache: CacheContainer = CacheContainerFactory.new()
+        if load_from_default_connection is not None:
+            _ = self.load_persisted_cache(source=load_from_default_connection)
 
     def _normalize_configs(
         self,
         connection_config,
-        default_persisted_cache,
+        default_connection,
     ) -> tuple[dict[str, ConnectionConfig], ConnectionConfig | None]:
         """Validates and normalizes configs before init proceeds."""
         connection_map = {}
         # Handle missing connection_config
         if connection_config is None:
-            if default_persisted_cache is None:
-                default_persisted_cache = self._env_default_persisted_cache()
-            elif isinstance(default_persisted_cache, str):
-                raise ValueError("String value for default_persisted_cache requires a connection_config")
-            elif not isinstance(default_persisted_cache, ConnectionConfig):
+            if default_connection is None:
+                default_connection = self._env_default_connection()
+            elif isinstance(default_connection, str):
+                raise ValueError("String value for default_connection requires a connection_config")
+            elif not isinstance(default_connection, ConnectionConfig):
                 logger.debug("All resources will be loaded as linked open data")
         else:
             if isinstance(connection_config, ConnectionConfig):
@@ -106,34 +106,34 @@ class Session(Generic[T_AdapterType, T_DataType]):
                 raise ValueError("connection_config argument is of wrong type")
 
         # Validate string cache references
-        validated_default_persisted_cache = None
-        if isinstance(default_persisted_cache, str):
-            if default_persisted_cache not in connection_map:
-                raise ValueError("Default cache string must refer to a key in connection_config")
-            validated_default_persisted_cache = connection_map[default_persisted_cache]
-        elif isinstance(default_persisted_cache, ConnectionConfig):
-            if default_persisted_cache.namespaces is not None:
+        validated_default_connection = None
+        if isinstance(default_connection, str):
+            if default_connection not in connection_map:
+                raise ValueError("Default connection string must refer to a key in connection_config")
+            validated_default_connection = connection_map[default_connection]
+        elif isinstance(default_connection, ConnectionConfig):
+            if default_connection.namespaces is not None:
                 logger.warning(
-                    "default_persisted_cache has namespaces associated to it. These are ignored."
+                    "default_connection has namespaces associated to it. These are ignored."
                     " Use the connection_config to achieve this"
                 )
-            validated_default_persisted_cache = default_persisted_cache
+            validated_default_connection = default_connection
 
-        return connection_map, validated_default_persisted_cache
+        return connection_map, validated_default_connection
 
-    def _env_default_persisted_cache(self) -> ConnectionConfig | None:
+    def _env_default_connection(self) -> ConnectionConfig | None:
         """Derives a default cache config from environment variables."""
         if os.environ.get("DEFAULT_PERSISTED_CACHE_TYPE", "").upper() == "LOCALFILE":
             return LocalFileConfig(env_prefix="DEFAULT_PERSISTED_CACHE_")
 
-    def _init_default_persisted_cache(
+    def _init_default_connection(
         self,
-        default_persisted_cache: ConnectionConfig | None,
+        default_connection: ConnectionConfig | None,
         env_file: str | None,
     ) -> BaseSettings | None:
         """Creates the BaseSettings instance for the default cache."""
-        if isinstance(default_persisted_cache, ConnectionConfig):
-            return default_persisted_cache.make_settings(_env_file=env_file)
+        if isinstance(default_connection, ConnectionConfig):
+            return default_connection.make_settings(_env_file=env_file)
         return None
 
     def register_default_adapter(self, interface_functionality: str):
@@ -192,7 +192,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
     def load_persisted_cache(self, source: str | None = None, connection_label: str | None = None):
         """Load all resources from either the default cache persistence location or from the provided
-        connection into cache. The provided connection_label takes precedence over the default"""
+        connection into cache. The provided connection_label takes precedence over the default.
+        Currently all resources should still be represented as yaml files.
+        """
         # get host/connection
         # TODO: fix host calls with unified ConnectionManager
         if connection_label is None:
@@ -210,7 +212,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         assert ret
 
     def load_tabular_data(
-        self, source: str, connection_label: str | None = None, validation_layout: peh.DataLayout | None = None
+        self, source: str, connection_label: str | None = None, data_layout: peh.DataLayout | None = None
     ) -> dict[str, DataFrame] | ValidationError:
         """
         Load a binary resource and return its content as tabular data in a dataframe
@@ -223,9 +225,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
             validation_layout: (DataLayout | None) Optional DataLayout object used for validation.
         """
         data_schema = None
-        if validation_layout is not None:
+        if data_layout is not None:
             data_schema = self.layout_section_elements_to_observable_property_value_types(
-                layout=validation_layout,
+                layout=data_layout,
             )
         try:
             # TODO: fix host calls with unified ConnectionManager
@@ -237,7 +239,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
                 connection_label = DEFAULT_CONNECTION_LABEL
 
             with self.connection_manager.get_connection(connection_label=connection_label) as connection:
-                return connection.load(source, validation_layout=validation_layout, data_schema=data_schema)
+                return connection.load(source, validation_layout=data_layout, data_schema=data_schema)
 
         except Exception as e:
             return ValidationError(
@@ -416,6 +418,38 @@ class Session(Generic[T_AdapterType, T_DataType]):
                 result_dict[observation_id] = ret
 
         return result_dict
+
+    def validate_tabular_data_collection_by_reference(
+        self,
+        data_collection_id: str,
+        data_layout_id: str,
+        data_collection_connection_label: str | None = None,
+        data_layout_path: str | None = None,
+        data_layout_connection_label: str | None = None,
+    ) -> ValidationErrorReportCollection:
+        # fetch data_layout
+        data_layout = self.load_resource(
+            resource_identifier=data_layout_id,
+            resource_type="DataLayout",
+            resource_path=data_layout_path,
+            connection_label=data_layout_connection_label,
+        )
+        assert isinstance(
+            data_layout, peh.DataLayout
+        ), "data_layout in `Session.validate_tabular_data_collection_by_reference` should be a `peh.DataLayout`"
+        # fetch data_collection
+        data_collection = self.load_tabular_data(
+            source=data_collection_id,
+            connection_label=data_collection_connection_label,
+            data_layout=data_layout,
+        )
+        assert isinstance(
+            data_collection, dict
+        ), "data_collection in `Session.validate_tabular_data_collection_by_reference` should be a dict"
+        return self.validate_tabular_data_collection(
+            data_collection=data_collection,
+            data_layout=data_layout,
+        )
 
     ### CREATE MAPPINGS BASED ON CACHE CONTENT ###
 
