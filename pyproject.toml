@@ -49,6 +49,7 @@ dev = [
     "black",
     "mypy",
     "isort",
+    "pytest-cov>=7.0.0",
 ]
 
 [tool.uv]
@@ -58,7 +59,7 @@ default-groups = [
 ]
 
 [tool.uv.sources]
-dataguard = { git = "https://github.com/eu-parc/dataguard.git", tag = "v0.4.0" }
+dataguard = { git = "https://github.com/eu-parc/dataguard", tag = "v0.4.1" }
 
 [tool.hatch.build.targets.sdist]
 include = [
