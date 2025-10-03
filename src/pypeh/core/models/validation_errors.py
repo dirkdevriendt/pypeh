@@ -1,5 +1,6 @@
 import json
 
+from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, field_serializer
 
@@ -19,6 +20,11 @@ class DataFrameLocation(ValidationErrorLocation):
     key_columns: List[str]  # List of column names that jointly identifies a dataframe entry.
     column_names: Optional[List[str]] = None
     row_ids: List[int] = []
+
+
+class RuntimeError(BaseModel):
+    message: str = Field(description="Human-readable error message")
+    type: str = Field(description="Machine-readable error code")
 
 
 class ValidationError(BaseModel):
@@ -58,17 +64,33 @@ class ValidationErrorReport(BaseModel):
     total_errors: int
     error_counts: Dict[ValidationErrorLevel, int] = Field(default_factory=dict)
     groups: List[ValidationErrorGroup] = Field(default_factory=list)
-    unexpected_errors: List[ValidationError] = Field(default_factory=list)
+    unexpected_errors: List[ValidationError | RuntimeError] = Field(default_factory=list)
 
     @field_serializer("error_counts")
     def serialize_error_counts(self, error_counts: Dict[ValidationErrorLevel, int]):
         return {k.name: v for k, v in error_counts.items()}
 
+    @classmethod
+    def from_runtime_error(cls, exception: Exception):
+        runtime_exception = RuntimeError(
+            type=type(exception).__name__,
+            message=str(exception),
+        )
+        counter = {level: 0 for level in ValidationErrorLevel}
+        counter[ValidationErrorLevel.FATAL] = 1
+        return cls(
+            timestamp=datetime.now().isoformat(),
+            total_errors=1,
+            error_counts=counter,
+            groups=[],
+            unexpected_errors=[runtime_exception],
+        )
+
 
 class ValidationErrorReportCollection(dict[str, ValidationErrorReport]):
-    """Collection of validation reports mapped by observable property set"""
+    """Collection of validation reports mapped by observation"""
 
     def model_dump_json(self, indent: int = 2) -> str:
-        json_dict = {property_set: report.model_dump() for property_set, report in self.items()}
+        json_dict = {observation_id: report.model_dump() for observation_id, report in self.items()}
 
         return json.dumps(json_dict, indent=indent)

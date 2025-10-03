@@ -292,8 +292,6 @@ class TestPydanticToDto:
         assert len(result.unexpected_errors) == 1
         assert result.unexpected_errors[0].type == "AttributeError"
 
-        adapter().cleanup()
-
 
 @pytest.mark.dataframe
 class TestPehToDto:

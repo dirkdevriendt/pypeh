@@ -1,8 +1,24 @@
 observations:
 - id: peh:VALIDATION_TEST_SAMPLE_METADATA
   name: VALIDATION_TEST_SAMPLE_METADATA
-  ui_label: SAMPLE_METADATA
+  ui_label: SAMPLE
   observation_type: metadata
+  observation_design:
+    observation_result_type: measurement
+    observable_entity_type: sample
+    identifying_observable_property_id_list:
+    - id_sample
+    optional_observable_property_id_list:
+    - samplingyear
+    - samplingmonth
+    - samplingday
+    - samplinghour
+    - samplingminutes
+    - matrix
+- id: peh:VALIDATION_TEST_SAMPLE_TIMEPOINT
+  name: VALIDATION_TEST_SAMPLE_TIMEPOINT
+  ui_label: SAMPLETIMEPOINT_BSS
+  observation_type: sampling
   observation_design:
     observation_result_type: measurement
     observable_entity_type: sample
@@ -20,6 +36,7 @@ layouts:
   - id: SAMPLE_METADATA_SECTION_SAMPLE
     ui_label: SAMPLE
     section_type: data_table
+    observation: peh:VALIDATION_TEST_SAMPLE_METADATA
     elements:
     - label: id_sample
       observable_property: id_sample
@@ -33,9 +50,12 @@ layouts:
       observable_property: samplinghour
     - label: samplingminutes
       observable_property: samplingminutes
+    - label: matrix
+      observable_property: matrix
   - id: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS
     ui_label: SAMPLETIMEPOINT_BSS
     section_type: data_table
+    observation: peh:VALIDATION_TEST_SAMPLE_TIMEPOINT
     elements:
     - label: id_sample
       observable_property: id_sample
@@ -272,3 +292,16 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: chol_loq
+- id: matrix
+  unique_name: matrix
+  name: matrix
+  ui_label: matrix
+  value_type: string
+  categorical: false
+  multivalued: false
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire

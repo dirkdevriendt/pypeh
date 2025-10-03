@@ -20,6 +20,8 @@ from tests.test_utils.dirutils import get_absolute_path
 class DataOpsProtocol(Protocol, Generic[T_DataType]):
     data_format: T_DataType
 
+    def _validate(self, data, config) -> ValidationErrorReport: ...
+
     def validate(self, data, config) -> ValidationErrorReport: ...
 
     def import_data(self, source, config) -> Any: ...
@@ -427,8 +429,6 @@ class TestValidation(abc.ABC):
         assert result.groups[0].name == expected_output.get("name")
         assert result.total_errors == expected_output.get("total_errors")
         assert result.error_counts == expected_output.get("errors_counts")
-
-        adapter.cleanup()
 
 
 class TestDataImport(abc.ABC):

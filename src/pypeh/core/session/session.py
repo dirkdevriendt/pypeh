@@ -19,7 +19,12 @@ from pypeh.core.models.settings import (
 )
 from pypeh.core.models.typing import T_NamedThingLike, T_DataType
 from pypeh.core.models.validation_dto import ValidationConfig
-from pypeh.core.models.validation_errors import ValidationError, ValidationErrorLevel, ValidationErrorReportCollection
+from pypeh.core.models.validation_errors import (
+    ValidationError,
+    ValidationErrorLevel,
+    ValidationErrorReport,
+    ValidationErrorReportCollection,
+)
 from pypeh.core.interfaces.outbound.dataops import ValidationInterface
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.session.connections import ConnectionManager
@@ -215,7 +220,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
                 Optional key pointing to the connection to be used to
                 load in the data source. The connection_label should be a key of the provided
                 connection_config.
-            validation_layout: (DataLayout | None)L Optional DataLayout object used for validation.
+            validation_layout: (DataLayout | None) Optional DataLayout object used for validation.
         """
         data_schema = None
         if validation_layout is not None:
@@ -321,25 +326,98 @@ class Session(Generic[T_AdapterType, T_DataType]):
     def validate_tabular_data(
         self,
         data: dict[str, Sequence] | DataFrame,
-        observation_list: Sequence[peh.Observation],
+        data_layout_section: peh.DataLayoutSection,
         dataset_validations: Sequence[peh.ValidationDesign] | None = None,
-    ) -> ValidationErrorReportCollection:
-        observable_property_ids = set()
-        for observation in observation_list:
+        dependent_data: dict[str, dict[str, Sequence]] | dict[str, DataFrame] | None = None,
+        observable_property_id_to_layout_section_label: dict[str, str] | None = None,
+    ) -> ValidationErrorReport:
+        try:
+            # Fetch and resolve Observation link from DataLayoutSection
+            observation_id = data_layout_section.observation
+            if observation_id is None:
+                raise ValueError("The DataLayoutSection does not contain a reference to an Observation")
+            assert isinstance(
+                observation_id, str
+            ), "observation_id in `Session.validate_tabular_data` should be a string"
+            observation = self.cache.get(observation_id, "Observation")
+            assert isinstance(
+                observation, peh.Observation
+            ), "observation in `Session.validate_tabular_data` should be an `Observation`"
+            observable_property_ids = set()
             if observation.observation_design is None:
                 raise ValueError(f"Specified observation {observation.id} has no ObservationDesign")
+            # Extract observable properties from Observation
+            # NOTE: these have to correspond to the observable properties in the DataLayoutSection elements
             observable_property_ids.update(
                 observation.observation_design.identifying_observable_property_id_list,
                 observation.observation_design.optional_observable_property_id_list,
                 observation.observation_design.required_observable_property_id_list,
             )
-        observable_properties = [
-            op for op in self.cache.get_all("ObservableProperty") if op.id in observable_property_ids
-        ]
-        assert len(observable_properties) > 0
+            observable_properties = [
+                op for op in self.cache.get_all("ObservableProperty") if op.id in observable_property_ids
+            ]
+            assert len(observable_properties) > 0
 
-        validation_adapter = self.get_adapter("validation")
-        return validation_adapter.validate(data, observation_list, observable_properties, dataset_validations)
+            validation_adapter = self.get_adapter("validation")
+            return validation_adapter.validate(
+                data=data,
+                observation=observation,
+                observable_properties=observable_properties,
+                dataset_validations=dataset_validations,
+                dependent_data=dependent_data,
+                observable_property_id_to_layout_section_label=observable_property_id_to_layout_section_label,
+            )
+
+        except Exception as e:
+            return ValidationErrorReport.from_runtime_error(e)
+
+    def validate_tabular_data_collection(
+        self,
+        data_collection: dict[str, dict[str, Sequence]] | dict[str, DataFrame],
+        data_layout: peh.DataLayout,
+    ) -> ValidationErrorReportCollection:
+        """
+        data_collection: keys are `DataLayoutSection` labels
+        """
+        observable_property_to_layout_section = self.observable_property_to_layout_section(data_layout)
+        result_dict = ValidationErrorReportCollection()
+        assert isinstance(
+            data_layout, peh.DataLayout
+        ), "data_layout in `Session.validate_tabular_data_collection` should be a `DataLayout`"
+        sections = data_layout.sections
+        assert sections is not None
+
+        for section in sections:
+            if section is not None:
+                assert isinstance(
+                    section, peh.DataLayoutSection
+                ), f"DataLayoutSection {section} wrong type. Should be a `DataLayoutSection`"
+                section_label = section.ui_label
+                observation_id = section.observation
+                if observation_id is None:
+                    continue
+                assert isinstance(
+                    observation_id, str
+                ), "observation_id in `Session.validate_tabular_data_collection` should not be a string"
+                assert isinstance(
+                    section_label, str
+                ), "section_label in `Session.validate_tabular_data_collection` should be a string"
+                data = data_collection.get(section_label, None)
+                assert data is not None, "data in `Session.validate_tabular_data_collection` should not be None"
+                ret = self.validate_tabular_data(
+                    data=data,
+                    data_layout_section=section,
+                    dependent_data=data_collection,
+                    observable_property_id_to_layout_section_label=observable_property_to_layout_section,
+                )
+                assert isinstance(
+                    ret, ValidationErrorReport
+                ), "ret in `Session.validate_tabular_data_collection` should not be a`ValidationErrorReport`"
+                result_dict[observation_id] = ret
+
+        return result_dict
+
+    ### CREATE MAPPINGS BASED ON CACHE CONTENT ###
 
     def layout_section_elements_to_observable_property_value_types(
         self, layout: peh.DataLayout, flatten=False
@@ -372,5 +450,23 @@ class Session(Generic[T_AdapterType, T_DataType]):
                     if label not in ret:
                         ret[label] = {}
                     ret[label][element_label] = ObservablePropertyValueType(value_type)
+
+        return ret
+
+    def observable_property_to_layout_section(self, layout: peh.DataLayout) -> dict[str, str]:
+        ret = {}
+        sections = layout.sections
+        assert sections is not None
+        for section in sections:
+            assert isinstance(section, peh.DataLayoutSection)
+            section_label = section.ui_label
+            elements = section.elements
+            assert elements is not None
+            for element in elements:
+                assert isinstance(element, peh.DataLayoutElement)
+                observable_property = element.observable_property
+                assert observable_property is not None
+                assert isinstance(observable_property, str)
+                ret[observable_property] = section_label
 
         return ret

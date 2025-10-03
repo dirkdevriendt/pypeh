@@ -30,11 +30,11 @@ class TestBasicValidationConfig:
 
         # code below is copied from validationservice: IMPROVE
         found = False
-        for oep_set_name, validation_config in ValidationConfig.from_observation_list(
-            observation_list,
-            observable_property_dict,
-        ):
-            assert isinstance(oep_set_name, str)
+        for observation in observation_list:
+            validation_config = ValidationConfig.from_observation(
+                observation,
+                observable_property_dict,
+            )
             for column_dict in validation_config.columns:
                 if column_dict.unique_name == "peh:adults_u_sg":
                     found = True

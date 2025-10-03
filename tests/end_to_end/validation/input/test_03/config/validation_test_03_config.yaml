@@ -35,6 +35,7 @@ layouts:
   - id: SAMPLE_METADATA_SECTION_SAMPLE
     ui_label: SAMPLE
     section_type: data_table
+    observation: peh:VALIDATION_TEST_SAMPLE_METADATA
     elements:
     - label: id_sample
       observable_property: id_sample
@@ -51,6 +52,7 @@ layouts:
   - id: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BS
     ui_label: SAMPLETIMEPOINT_BS
     section_type: data_table
+    observation: peh:VALIDATION_TEST_SAMPLE_TIMEPOINT
     elements:
     - label: id_sample
       observable_property: id_sample

@@ -12,7 +12,6 @@ from pypeh.core.models.validation_errors import ValidationError, ValidationError
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.skip(reason="Needs to be fixed - Error Collector is not cleared between runs")
 @pytest.mark.end_to_end
 class TestSessionDefaultLocalFile:
     def test_end_to_end_dataframe_validation(self, monkeypatch):
@@ -33,12 +32,10 @@ class TestSessionDefaultLocalFile:
         assert isinstance(data_dict, dict)
         data_df = data_dict["SAMPLE"]
         assert data_df is not None
-        observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
-        observation = session.get_resource(resource_identifier=observation_id, resource_type="Observation")
-        observation = cast(peh.Observation, observation)
-        validation_result = session.validate_tabular_data(data_df, [observation])
-
-        report_to_check = list(validation_result.values())[0]
+        layout_section_id = "SAMPLE_METADATA_SECTION_SAMPLE"
+        layout_section = session.get_resource(layout_section_id, "DataLayoutSection")
+        assert isinstance(layout_section, peh.DataLayoutSection)
+        report_to_check = session.validate_tabular_data(data_df, data_layout_section=layout_section)
 
         assert isinstance(report_to_check, ValidationErrorReport)
         assert report_to_check.total_errors == 1
@@ -89,18 +86,19 @@ class TestRoundTrip:
 
         data_df = data_dict["SAMPLE"]
         assert data_df is not None
-
-        observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
-        observation = session.get_resource(resource_identifier=observation_id, resource_type="Observation")
-        observation = cast(peh.Observation, observation)
-        validation_result = session.validate_tabular_data(data_df, observation_list=[observation])
-        assert validation_result is not None
-        assert isinstance(validation_result, dict)
-        for validation_report in validation_result.values():
-            assert isinstance(validation_report, ValidationErrorReport)
-            assert validation_report.total_errors >= 1
-            assert len(validation_report.unexpected_errors) == 0
-            assert sum(v for v in validation_report.error_counts.values()) == validation_report.total_errors
+        layout_section_id = "SAMPLE_METADATA_SECTION_SAMPLE"
+        layout_section = session.get_resource(layout_section_id, "DataLayoutSection")
+        assert isinstance(layout_section, peh.DataLayoutSection)
+        validation_report = session.validate_tabular_data(
+            data=data_df,
+            data_layout_section=layout_section,
+        )
+        assert validation_report is not None
+        assert isinstance(validation_report, ValidationErrorReport)
+        assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0
+        assert validation_report.total_errors >= 1
+        assert len(validation_report.unexpected_errors) == 0
+        assert sum(v for v in validation_report.error_counts.values()) == validation_report.total_errors
 
     @pytest.mark.parametrize(
         "test_label",
@@ -148,20 +146,24 @@ class TestRoundTrip:
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
 
-        sheet_label_to_observation_id = {
-            "SAMPLE": "peh:VALIDATION_TEST_SAMPLE_METADATA",
-            "SAMPLETIMEPOINT_BSS": "peh:VALIDATION_TEST_SAMPLE_METADATA",
+        section_label_to_section_id = {
+            "SAMPLE": "SAMPLE_METADATA_SECTION_SAMPLE",
+            "SAMPLETIMEPOINT_BSS": "SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS",
         }
-
+        observable_property_id_to_layout_section_label = {"matrix": "SAMPLE"}
         for sheet_label, data_df in data_dict.items():
-            observation_id = sheet_label_to_observation_id[sheet_label]
-            observation = session.get_resource(resource_identifier=observation_id, resource_type="Observation")
-            observation = cast(peh.Observation, observation)
-            validation_result = session.validate_tabular_data(data_df, observation_list=[observation])
-            assert isinstance(validation_result, dict)
-            for validation_report in validation_result.values():
-                assert isinstance(validation_report, ValidationErrorReport)
-                logger.info(f"Validation completed for {sheet_label}")
+            section_id = section_label_to_section_id[sheet_label]
+            layout_section = session.get_resource(resource_identifier=section_id, resource_type="DataLayoutSection")
+            layout_section = cast(peh.DataLayoutSection, layout_section)
+            validation_report = session.validate_tabular_data(
+                data=data_df,
+                data_layout_section=layout_section,
+                dependent_data=data_dict,
+                observable_property_id_to_layout_section_label=observable_property_id_to_layout_section_label,
+            )
+            assert isinstance(validation_report, ValidationErrorReport)
+            assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0
+            assert validation_report.total_errors == 0
 
     @pytest.mark.parametrize(
         "test_label",
@@ -186,28 +188,38 @@ class TestRoundTrip:
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
 
-        observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
-
-        sheet_label_to_observation_id = {
-            "SAMPLE": "peh:VALIDATION_TEST_SAMPLE_SAMPLE",
-            "SUBJECTUNIQUE": "peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE",
-            "SUBJECTTIMEPOINT": "peh:VALIDATION_TEST_SAMPLE_SUBJECTTIMEPOINT",
-            "SAMPLETIMEPOINT_BWB": "peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB",
+        section_label_to_section_id = {
+            "SAMPLE": "peh:SAMPLE_METADATA_SECTION_SAMPLE",
+            "SUBJECTUNIQUE": "peh:SAMPLE_METADATA_SECTION_SUBJECTUNIQUE",
+            "SUBJECTTIMEPOINT": "peh:SAMPLE_METADATA_SECTION_SUBJECTTIMEPOINT",
+            "SAMPLETIMEPOINT_BWB": "peh:SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BWB",
+        }
+        observable_property_id_to_layout_section_label = {
+            "matrix": "SAMPLE",
+            "lipidassessment": "SAMPLE",
         }
         unexpected_errors = 0
-        for sheet_label in sheet_label_to_observation_id.keys():
+        for sheet_label in section_label_to_section_id.keys():
             data_df = data_dict.get(sheet_label, None)
             if data_df is not None:
-                observation_id = sheet_label_to_observation_id[sheet_label]
-                observation = session.get_resource(observation_id, "Observation")
-                assert isinstance(observation, peh.Observation)
-                validation_result = session.validate_tabular_data(data_df, observation_list=[observation])
-                assert validation_result is not None
-                assert isinstance(validation_result, dict)
-                for report in validation_result.values():
-                    assert isinstance(report, ValidationErrorReport)
-                    assert report.error_counts[ValidationErrorLevel.ERROR] >= 1
-                    unexpected_errors += len(report.unexpected_errors)
+                section_id = section_label_to_section_id[sheet_label]
+                layout_section = session.get_resource(resource_identifier=section_id, resource_type="DataLayoutSection")
+                assert layout_section is not None
+                layout_section = cast(peh.DataLayoutSection, layout_section)
+                validation_report = session.validate_tabular_data(
+                    data=data_df,
+                    data_layout_section=layout_section,
+                    dependent_data=data_dict,
+                    observable_property_id_to_layout_section_label=observable_property_id_to_layout_section_label,
+                )
+                assert validation_report is not None
+                assert isinstance(validation_report, ValidationErrorReport)
+                if sheet_label == "SAMPLETIMEPOINT_BWB":
+                    assert validation_report.error_counts[ValidationErrorLevel.ERROR] == 0
+                else:
+                    assert validation_report.error_counts[ValidationErrorLevel.ERROR] >= 1
+                assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0
+                unexpected_errors += len(validation_report.unexpected_errors)
 
         assert unexpected_errors == 0
 
@@ -234,27 +246,75 @@ class TestRoundTrip:
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
 
-        observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
-
-        sheet_label_to_observation_id = {
-            "SAMPLE": "peh:VALIDATION_TEST_SAMPLE_SAMPLE",
-            "SUBJECTUNIQUE": "peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE",
-            "SUBJECTTIMEPOINT": "peh:VALIDATION_TEST_SAMPLE_SUBJECTTIMEPOINT",
-            "SAMPLETIMEPOINT_BWB": "peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB",
+        section_label_to_section_id = {
+            "SAMPLE": "peh:SAMPLE_METADATA_SECTION_SAMPLE",
+            "SUBJECTUNIQUE": "peh:SAMPLE_METADATA_SECTION_SUBJECTUNIQUE",
+            "SUBJECTTIMEPOINT": "peh:SAMPLE_METADATA_SECTION_SUBJECTTIMEPOINT",
+            "SAMPLETIMEPOINT_BWB": "peh:SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BWB",
+        }
+        observable_property_id_to_layout_section_label = {
+            "matrix": "SAMPLE",
+            "lipidassessment": "SAMPLE",
         }
         unexpected_errors = 0
-        for sheet_label in sheet_label_to_observation_id.keys():
+        for sheet_label in section_label_to_section_id.keys():
             data_df = data_dict.get(sheet_label, None)
             if data_df is not None:
-                observation_id = sheet_label_to_observation_id[sheet_label]
-                observation = session.get_resource(observation_id, "Observation")
-                assert isinstance(observation, peh.Observation)
-                validation_result = session.validate_tabular_data(data_df, observation_list=[observation])
-                assert validation_result is not None
-                assert isinstance(validation_result, dict)
-                for report in validation_result.values():
-                    assert isinstance(report, ValidationErrorReport)
-                    assert report.error_counts[ValidationErrorLevel.ERROR] >= 1
-                    unexpected_errors += len(report.unexpected_errors)
+                section_id = section_label_to_section_id[sheet_label]
+                layout_section = session.get_resource(resource_identifier=section_id, resource_type="DataLayoutSection")
+                assert layout_section is not None
+                layout_section = cast(peh.DataLayoutSection, layout_section)
+                validation_report = session.validate_tabular_data(
+                    data=data_df,
+                    data_layout_section=layout_section,
+                    dependent_data=data_dict,
+                    observable_property_id_to_layout_section_label=observable_property_id_to_layout_section_label,
+                )
+                assert validation_report is not None
+                assert isinstance(validation_report, ValidationErrorReport)
+                assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0
+                if sheet_label == "SUBJECTTIMEPOINT":
+                    assert validation_report.error_counts[ValidationErrorLevel.ERROR] == 1
+                else:
+                    assert validation_report.error_counts[ValidationErrorLevel.ERROR] == 0
+                unexpected_errors += len(validation_report.unexpected_errors)
 
         assert unexpected_errors == 0
+
+
+@pytest.mark.end_to_end
+class TestCollectionRoundTrip:
+    @pytest.fixture(scope="class")
+    def layout_label(self):
+        return "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+
+    @pytest.mark.parametrize(
+        "test_label",
+        [
+            "05",
+        ],
+    )
+    def test_fuzzy(self, monkeypatch, layout_label, test_label):
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
+        excel_path = f"validation_test_{test_label}_data.xlsx"
+
+        session = Session()
+        cache_path = "config"
+        session.load_persisted_cache(source=cache_path)
+        layout = session.cache.get(layout_label, "DataLayout")
+        assert isinstance(layout, peh.DataLayout)
+        data_dict = session.load_tabular_data(
+            source=excel_path,
+            validation_layout=layout,
+        )
+        assert isinstance(data_dict, dict)
+        assert len(data_dict) > 0
+
+        validation_report_collection = session.validate_tabular_data_collection(
+            data_collection=data_dict,
+            data_layout=layout,
+        )
+        for validation_report in validation_report_collection.values():
+            assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0
+            assert len(validation_report.unexpected_errors) == 0
