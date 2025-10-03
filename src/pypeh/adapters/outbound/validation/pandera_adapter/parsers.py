@@ -138,12 +138,10 @@ def map_error_level(level: ErrorLevel | str) -> ValidationErrorLevel:
 
 def parse_collected_exception(exception: ExceptionSchema) -> ValidationError:
     return ValidationError(
-        message=exception.error_message,
-        type=exception.error_type,
-        level=map_error_level(exception.error_level),
-        traceback=exception.error_traceback,
-        context=exception.error_context,
-        source=exception.error_source,
+        message=exception.message,
+        type=exception.type,
+        level=map_error_level(exception.level),
+        traceback=exception.traceback,
     )
 
 

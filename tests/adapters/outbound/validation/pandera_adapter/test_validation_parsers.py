@@ -9,12 +9,14 @@ from pypeh.adapters.outbound.validation.pandera_adapter.parsers import (
     parse_columns,
     parse_config,
 )
+
 from pypeh.core.models.validation_dto import (
     ValidationExpression,
     ValidationDesign,
     ColumnValidation,
     ValidationConfig,
 )
+from pypeh.core.interfaces.outbound.dataops import ValidationInterface
 from pypeh.core.models.constants import ValidationErrorLevel
 from tests.test_utils.dirutils import get_absolute_path
 
@@ -267,6 +269,30 @@ class TestPydanticToDto:
     def test_parse_config(self, config, expected_output):
         result = parse_config(config)
         assert result == expected_output
+
+    def test_exception_handling(self, monkeypatch):
+        # from pypeh.adapters.outbound.validation.pandera_adapter.dataops import DataFrameAdapter
+        adapter = ValidationInterface.get_default_adapter_class()
+        # Monkeypatch the cast method inside dataguard
+        # Testing `parse_collected_exception` function from dataguard adapter
+        monkeypatch.setattr("polars.DataFrame.cast", ArithmeticError)
+
+        config = ValidationConfig(
+            name="exception_handling_test",
+            columns=[],
+            identifying_column_names=[],
+            validations=[],
+        )
+        data = {"col1": [1, 2, 3], "col2": [2, 1, 4]}
+
+        result = adapter()._validate(data, config)
+        # breakpoint()
+        assert result is not None
+        assert result.total_errors == 0
+        assert len(result.unexpected_errors) == 1
+        assert result.unexpected_errors[0].type == "AttributeError"
+
+        adapter().cleanup()
 
 
 @pytest.mark.dataframe
