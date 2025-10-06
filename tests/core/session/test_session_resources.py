@@ -17,7 +17,7 @@ class TestSessionResource:
                     },
                 ),
             ],
-            default_persisted_cache=None,
+            default_connection=None,
         )
         resource_identifier = "peh:OBSERVATION_ADULTS_URINE_LAB"
         resource_type = "Observation"

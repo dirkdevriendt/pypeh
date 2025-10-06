@@ -8,6 +8,7 @@ from typing import cast
 
 from pypeh import Session
 from pypeh.core.models.validation_errors import ValidationError, ValidationErrorReport
+from pypeh.core.models.settings import LocalFileConfig
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ class TestSessionDefaultLocalFile:
         excel_path = get_absolute_path("./input/test_01/validation_test_01_data.xlsx")
         data_dict = session.load_tabular_data(
             source=excel_path,
-            validation_layout=layout,
+            data_layout=layout,
         )
         assert isinstance(data_dict, dict)
         data_df = data_dict["SAMPLE"]
@@ -61,7 +62,7 @@ class TestRoundTrip:
         assert isinstance(layout, peh.DataLayout)
         data_dict = session.load_tabular_data(
             source=excel_path,
-            validation_layout=layout,
+            data_layout=layout,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
@@ -79,7 +80,7 @@ class TestRoundTrip:
         assert isinstance(layout, peh.DataLayout)
         data_dict = session.load_tabular_data(
             source=excel_path,
-            validation_layout=layout,
+            data_layout=layout,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
@@ -118,7 +119,7 @@ class TestRoundTrip:
         assert isinstance(layout, peh.DataLayout)
         ret = session.load_tabular_data(
             source=excel_path,
-            validation_layout=layout,
+            data_layout=layout,
         )
         assert isinstance(ret, ValidationError)
         assert "SAMPLETIMEPOINT_BS" in ret.message
@@ -141,7 +142,7 @@ class TestRoundTrip:
         assert isinstance(layout, peh.DataLayout)
         data_dict = session.load_tabular_data(
             source=excel_path,
-            validation_layout=layout,
+            data_layout=layout,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
@@ -183,7 +184,7 @@ class TestRoundTrip:
         assert isinstance(layout, peh.DataLayout)
         data_dict = session.load_tabular_data(
             source=excel_path,
-            validation_layout=layout,
+            data_layout=layout,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
@@ -241,7 +242,7 @@ class TestRoundTrip:
         assert isinstance(layout, peh.DataLayout)
         data_dict = session.load_tabular_data(
             source=excel_path,
-            validation_layout=layout,
+            data_layout=layout,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
@@ -306,7 +307,7 @@ class TestCollectionRoundTrip:
         assert isinstance(layout, peh.DataLayout)
         data_dict = session.load_tabular_data(
             source=excel_path,
-            validation_layout=layout,
+            data_layout=layout,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
@@ -314,6 +315,62 @@ class TestCollectionRoundTrip:
         validation_report_collection = session.validate_tabular_data_collection(
             data_collection=data_dict,
             data_layout=layout,
+        )
+        for validation_report in validation_report_collection.values():
+            assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0
+            assert len(validation_report.unexpected_errors) == 0
+
+
+@pytest.mark.end_to_end
+class TestCollectionRoundTripReference:
+    @pytest.fixture(scope="class")
+    def layout_label(self):
+        return "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+
+    def test_load_at_init(self, layout_label):
+        test_label = "05"
+        session = Session(
+            connection_config=[
+                LocalFileConfig(
+                    label="local_file",
+                    config_dict={
+                        "root_folder": get_absolute_path(f"./input/test_{test_label}"),
+                    },
+                ),
+            ],
+            default_connection="local_file",
+            load_from_default_connection="config",
+        )
+
+        excel_path = f"validation_test_{test_label}_data.xlsx"
+        validation_report_collection = session.validate_tabular_data_collection_by_reference(
+            data_collection_id=excel_path,
+            data_layout_id=layout_label,
+        )
+        for validation_report in validation_report_collection.values():
+            assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0
+            assert len(validation_report.unexpected_errors) == 0
+
+    def test_load_by_reference(self, layout_label):
+        test_label = "05"
+        session = Session(
+            connection_config=[
+                LocalFileConfig(
+                    label="local_file",
+                    config_dict={
+                        "root_folder": get_absolute_path(f"./input/test_{test_label}"),
+                    },
+                ),
+            ],
+        )
+
+        excel_path = f"validation_test_{test_label}_data.xlsx"
+        validation_report_collection = session.validate_tabular_data_collection_by_reference(
+            data_collection_id=excel_path,
+            data_collection_connection_label="local_file",
+            data_layout_id=layout_label,
+            data_layout_connection_label="local_file",
+            data_layout_path="config",
         )
         for validation_report in validation_report_collection.values():
             assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0
