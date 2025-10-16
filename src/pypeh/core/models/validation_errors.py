@@ -1,8 +1,9 @@
 import json
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 from pydantic import BaseModel, Field, field_serializer
+from typing_extensions import Annotated
 
 from pypeh.core.models.constants import ValidationErrorLevel
 
@@ -22,6 +23,19 @@ class DataFrameLocation(ValidationErrorLocation):
     row_ids: List[int] = []
 
 
+# Example of another ValidationErrorLocation subclass
+class FileLocation(ValidationErrorLocation):
+    location_type: Literal["file"] = "file"
+    filepath: str
+
+
+# The discriminated union definition
+LocationUnion = Annotated[
+    Union[DataFrameLocation, FileLocation],
+    Field(discriminator="location_type"),
+]
+
+
 class RuntimeError(BaseModel):
     message: str = Field(description="Human-readable error message")
     type: str = Field(description="Machine-readable error code")
@@ -34,9 +48,7 @@ class ValidationError(BaseModel):
     type: str = Field(description="Machine-readable error code")
     level: ValidationErrorLevel
 
-    locations: Optional[List[ValidationErrorLocation]] = Field(
-        default_factory=list, description="Where the error occurred"
-    )
+    locations: Optional[List[LocationUnion]] = Field(default_factory=list, description="Where the error occurred")
     context: Optional[list[str]] = None
     check_name: Optional[str] = None
     traceback: Optional[str] = None
