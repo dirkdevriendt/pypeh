@@ -4,6 +4,7 @@ import pathlib
 from peh_model.peh import DataLayout
 
 from pypeh import Session
+from pypeh.core.models.internal_data_layout import DataImportConfig, ObservationResultProxy, SectionImportConfig
 from pypeh.core.models.validation_errors import ValidationError
 from pypeh.core.models.settings import LocalFileConfig
 
@@ -32,6 +33,49 @@ class TestSessionValidation:
         result = session.load_tabular_data(source=excel_path)
         assert isinstance(result, dict)
         assert len(result) == 1
+
+    def test_load_data_collection_basic(self):
+        session = Session(
+            connection_config=[
+                LocalFileConfig(
+                    label="local_file",
+                    config_dict={
+                        "root_folder": get_absolute_path("./input/load_data_collection_basic"),
+                    },
+                ),
+            ],
+            default_connection="local_file",
+            load_from_default_connection="",
+        )
+        import_config = DataImportConfig(
+            data_layout_id="peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA",
+            section_map=[
+                SectionImportConfig(
+                    data_layout_section_id="SAMPLE_METADATA_SECTION_SAMPLE",
+                    observation_ids=[
+                        "peh:VALIDATION_TEST_SAMPLE_METADATA",
+                    ],
+                ),
+                SectionImportConfig(
+                    data_layout_section_id="SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS",
+                    observation_ids=[
+                        "peh:VALIDATION_TEST_SAMPLE_TIMEPOINT",
+                    ],
+                ),
+            ],
+        )
+        result = session.load_tabular_data_collection(
+            source="validation_test_03_data.xlsx", import_config=import_config, connection_label="local_file"
+        )
+        assert isinstance(result, dict)
+        assert "peh:VALIDATION_TEST_SAMPLE_METADATA" in result
+        observation_result = result["peh:VALIDATION_TEST_SAMPLE_METADATA"]
+        assert isinstance(observation_result, ObservationResultProxy)
+        assert observation_result.observed_values.shape == (1, 7)
+        assert "peh:VALIDATION_TEST_SAMPLE_TIMEPOINT" in result
+        observation_result = result["peh:VALIDATION_TEST_SAMPLE_TIMEPOINT"]
+        assert isinstance(observation_result, ObservationResultProxy)
+        assert observation_result.observed_values.shape == (1, 4)
 
     def test_invalid_sheets(self, monkeypatch):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")

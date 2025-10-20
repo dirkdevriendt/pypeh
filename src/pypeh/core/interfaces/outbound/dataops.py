@@ -9,15 +9,19 @@ Usage: TODO: add usage info
 from __future__ import annotations
 import importlib
 
+import itertools
 import logging
 
 from abc import abstractmethod
-from peh_model.peh import DataLayout, ValidationDesign, EntityList, Observation, ObservableProperty
+from peh_model.peh import DataLayout, ValidationDesign, EntityList, Observation, ObservableProperty, ObservationDesign
 from typing import TYPE_CHECKING, Generic, cast, List
 
+from pypeh.core.cache.containers import CacheContainerView
+from pypeh.core.models.internal_data_layout import DataImportConfig, InternalDataLayout, ObservationResultProxy
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.settings import FileSystemSettings
 from pypeh.core.models.validation_dto import ValidationConfig
+from pypeh.core.models.proxy import TypedLazyProxy
 from pypeh.core.session.connections import ConnectionManager
 
 if TYPE_CHECKING:
@@ -127,6 +131,16 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
 
 
 class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
+    @classmethod
+    def get_default_adapter_class(cls):
+        try:
+            adapter_module = importlib.import_module("pypeh.adapters.outbound.validation.pandera_adapter.dataops")
+            adapter_class = getattr(adapter_module, "DataFrameAdapter")
+        except Exception as e:
+            logger.error("Exception encountered while attempting to import a Pandera-based DataFrameAdapter")
+            raise e
+        return adapter_class
+
     @abstractmethod
     def import_data(self, source: str, config: FileSystemSettings) -> T_DataType | List[T_DataType]:
         raise NotImplementedError
@@ -155,3 +169,88 @@ class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
             me = f"Imported layout should be a DataLayout instance not {type(layout)}"
             logger.error(me)
             raise TypeError(me)
+
+    def _extract_observed_value_provenance(self) -> bool:
+        return True
+
+    def _normalize_observable_properties(self) -> bool:
+        raise NotImplementedError
+
+    def _raw_data_to_observation_results(
+        self,
+        raw_data: T_DataType,
+        data_layout_element_labels: list[str],
+        identifying_layout_element_label: str,
+        entity_id_list: list[str] | None = None,
+    ) -> ObservationResultProxy[T_DataType]:
+        raise NotImplementedError
+
+    def _data_layout_to_observation_results(
+        self,
+        raw_data: dict[str, T_DataType],
+        data_import_config: DataImportConfig,
+        cache_view: CacheContainerView,
+        internal_data_layout: InternalDataLayout,
+        entity_type: str | None = None,
+    ) -> dict[str, ObservationResultProxy[T_DataType]]:
+        if entity_type is not None:
+            raise NotImplementedError
+        transformed_data = {}
+        layout_section_map = data_import_config.section_map
+
+        for section_config in layout_section_map:
+            section_id = section_config.data_layout_section_id
+            section = cache_view.get(section_id, "DataLayoutSection")
+            section_label = getattr(section, "ui_label", None)
+            assert section_label is not None, f"section_label for {section_id} is None"
+            assert section_label in raw_data, f"section_label {section_label} not found"
+            bimap = internal_data_layout.get(section_label, None)
+            assert bimap is not None
+            for observation_id in section_config.observation_ids:
+                observation = cache_view.get(observation_id, "Observation")
+                assert observation is not None, f"observation with id {observation_id} is None"
+                observation_design = observation.observation_design
+                if isinstance(observation_design, str):
+                    raise NotImplementedError  # TODO: get from cache
+                elif isinstance(observation_design, TypedLazyProxy):
+                    raise NotImplementedError
+                else:
+                    assert isinstance(
+                        observation_design, ObservationDesign
+                    ), "observation_design for observation {observation.id} has wrong type"
+
+                # create filter based on ObservableProperties per Observation
+                assert isinstance(observation_design.identifying_observable_property_id_list, list)
+                assert isinstance(observation_design.required_observable_property_id_list, list)
+                assert isinstance(observation_design.optional_observable_property_id_list, list)
+                observable_property_ids = list(
+                    itertools.chain(
+                        observation_design.identifying_observable_property_id_list,
+                        observation_design.required_observable_property_id_list,
+                        observation_design.optional_observable_property_id_list,
+                    )
+                )
+                if len(observation_design.identifying_observable_property_id_list) > 1:
+                    raise NotImplementedError
+                identifying_observable_property = observation_design.identifying_observable_property_id_list[0]
+                identifying_layout_element_label = bimap.get_by_value(identifying_observable_property)
+                mapped_observable_property_ids = []
+                for observable_property_id in observable_property_ids:
+                    column_name = bimap.get_by_value(observable_property_id)
+                    assert column_name is not None
+                    mapped_observable_property_ids.append(column_name)
+
+                # create filter based on entity_id_list
+                entity_id_list = observation_design.observable_entity_id_list
+                assert isinstance(entity_id_list, list)
+
+                # apply filter to raw_data
+                transformed_data[observation_id] = self._raw_data_to_observation_results(
+                    raw_data[section_label],
+                    data_layout_element_labels=mapped_observable_property_ids,
+                    identifying_layout_element_label=identifying_layout_element_label,
+                    entity_id_list=entity_id_list,
+                )
+            del raw_data[section_label]
+
+        return transformed_data

@@ -1,0 +1,21 @@
+layouts:
+- id: peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA
+  name: CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA
+  ui_label: SAMPLE_METADATA
+  sections:
+  - id: SAMPLE_METADATA_SECTION_SAMPLE
+    ui_label: SAMPLE
+    section_type: data_table
+    elements:
+    - label: id_sample
+      observable_property: peh:adults_id_subject
+    - label: matrix
+      observable_property: peh:adults_u_matrix
+  - id: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BS
+    ui_label: SAMPLETIMEPOINT_BS
+    section_type: data_table
+    elements:
+    - label: id_sample
+      observable_property:  peh:adults_id_subject
+    - label: adults_u_crt
+      observable_property: peh:adults_u_crt
