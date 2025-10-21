@@ -18,7 +18,7 @@ from pypeh.core.models.settings import (
     DEFAULT_CONNECTION_LABEL,
 )
 from pypeh.core.models.typing import T_NamedThingLike, T_DataType
-from pypeh.core.models.validation_dto import ValidationConfig
+from pypeh.core.models.validation_dto import ValidationConfig, ValidationDesign
 from pypeh.core.models.validation_errors import (
     ValidationError,
     ValidationErrorLevel,
@@ -153,8 +153,8 @@ class Session(Generic[T_AdapterType, T_DataType]):
     def register_adapter_by_name(
         self,
         interface_functionality: str,
-        adapter_module_name: str | None = None,
-        adapter_class_name: str | None = None,
+        adapter_module_name: str,
+        adapter_class_name: str,
     ):
         try:
             adapter_module = importlib.import_module(adapter_module_name)
@@ -172,7 +172,10 @@ class Session(Generic[T_AdapterType, T_DataType]):
             adapter = self.register_default_adapter(interface_functionality)
         assert adapter is not None
 
-        return adapter()
+        if isinstance(adapter, type):
+            return adapter()
+        else:
+            return adapter
 
     def _root_to_cache(self, root: peh.EntityList) -> bool:
         for entity in load_entities_from_tree(root):
@@ -311,7 +314,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         layout: peh.DataLayout,
         dataset_mapping: Dict[str, Dict[str, str | int | Dict[str, Sequence[str]]]],
         data_dict: Dict[str, Dict[str, Sequence] | T_DataType],
-    ) -> Dict[str, Sequence[peh.ValidationDesign]] | None:
+    ) -> Dict[str, Sequence[ValidationDesign]] | None:
         return ValidationConfig.get_dataset_validations_dict(observation_list, layout, dataset_mapping, data_dict)
 
     def get_dataset_identifier_consistency_validations_dict(
@@ -320,7 +323,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         layout: peh.DataLayout,
         dataset_mapping: Dict[str, Dict[str, str | int | Dict[str, Sequence[str]]]],
         data_dict: Dict[str, Dict[str, Sequence] | T_DataType],
-    ) -> Dict[str, Sequence[peh.ValidationDesign]] | None:
+    ) -> Dict[str, Sequence[ValidationDesign]] | None:
         return ValidationConfig.get_dataset_identifier_consistency_validations_dict(
             observation_list, layout, dataset_mapping, data_dict
         )
@@ -347,9 +350,23 @@ class Session(Generic[T_AdapterType, T_DataType]):
             ), "observation in `Session.validate_tabular_data` should be an `Observation`"
             observable_property_ids = set()
             if observation.observation_design is None:
-                raise ValueError(f"Specified observation {observation.id} has no ObservationDesign")
+                raise ValueError(
+                    f"Specified observation {observation.id} has no ObservationDesign in`Session.validate_tabular_data`"
+                )
+            assert isinstance(
+                observation.observation_design, peh.ObservationDesign
+            ), "observation design linked to {observation.id} should be an ObservationDesign object"
             # Extract observable properties from Observation
             # NOTE: these have to correspond to the observable properties in the DataLayoutSection elements
+            assert isinstance(
+                observation.observation_design.identifying_observable_property_id_list, list
+            ), "identitying_observable_property_id_list in `Session.validate_tabular_data` is not a list"
+            assert isinstance(
+                observation.observation_design.required_observable_property_id_list, list
+            ), "required_observable_property_id_list in `Session.validate_tabular_data` is not a list"
+            assert isinstance(
+                observation.observation_design.optional_observable_property_id_list, list
+            ), "optional_observable_property_id_list in `Session.validate_tabular_data` is not a list"
             observable_property_ids.update(
                 observation.observation_design.identifying_observable_property_id_list,
                 observation.observation_design.optional_observable_property_id_list,
@@ -361,6 +378,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
             assert len(observable_properties) > 0
 
             validation_adapter = self.get_adapter("validation")
+            assert isinstance(validation_adapter, ValidationInterface)
             return validation_adapter.validate(
                 data=data,
                 observation=observation,
