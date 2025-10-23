@@ -4,7 +4,15 @@ import abc
 from typing import Protocol, Any, Generic
 from peh_model.peh import DataLayout
 
+from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.interfaces.outbound.dataops import T_DataType, ValidationInterface
+from pypeh.core.models.internal_data_layout import (
+    DataImportConfig,
+    InternalDataLayout,
+    ObservationResultProxy,
+    SectionImportConfig,
+)
 from pypeh.core.models.validation_errors import ValidationErrorReport
 from pypeh.core.models.constants import ValidationErrorLevel
 from pypeh.core.models.validation_dto import (
@@ -14,6 +22,7 @@ from pypeh.core.models.validation_dto import (
     ValidationConfig,
 )
 from pypeh.core.models.settings import LocalFileSettings
+from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
 from tests.test_utils.dirutils import get_absolute_path
 
 
@@ -27,6 +36,10 @@ class DataOpsProtocol(Protocol, Generic[T_DataType]):
     def import_data(self, source, config) -> Any: ...
 
     def import_data_layout(self, source, config) -> Any: ...
+
+    def _data_layout_to_observation_results(
+        self, raw_data, data_import_config, cache_view, internal_data_layout
+    ) -> dict[str, ObservationResultProxy]: ...
 
 
 class TestValidation(abc.ABC):
@@ -466,6 +479,53 @@ class TestDataImport(abc.ABC):
         data = adapter.import_data(path, config)
         assert all(isinstance(d, adapter.data_format) for d in data.values())
 
+    @pytest.fixture(scope="function")
+    def data_layout_container(self):
+        source = get_absolute_path("./input")
+        container = CacheContainerFactory.new()
+        host = DirectoryIO()
+        roots = host.load(source, format="yaml")
+        for root in roots:
+            for entity in load_entities_from_tree(root):
+                container.add(entity)
+        return container
+
+    def test_data_layout_to_observation_results(self, data_layout_container, raw_data):
+        data_import_config = DataImportConfig(
+            data_layout_id="peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS",
+            section_map=[
+                SectionImportConfig(
+                    data_layout_section_id="peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS_SECTION_urine_lab",
+                    observation_ids=["peh:SAMPLE_DATA"],
+                ),
+                SectionImportConfig(
+                    data_layout_section_id="peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS_SECTION_analyticalinfo",
+                    observation_ids=["peh:SAMPLE_METADATA"],
+                ),
+            ],
+        )
+        cache_view = CacheContainerView(container=data_layout_container)
+        data_layout = cache_view.get("peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS", "DataLayout")
+        assert isinstance(data_layout, DataLayout)
+        internal_data_layout = InternalDataLayout.from_peh(data_layout=data_layout)
+        adapter = self.get_adapter()
+        ret = adapter._data_layout_to_observation_results(
+            raw_data=raw_data,
+            data_import_config=data_import_config,
+            cache_view=cache_view,
+            internal_data_layout=internal_data_layout,
+        )
+
+        assert isinstance(ret, dict)
+        assert len(ret) == 2
+        observation_result = ret["peh:SAMPLE_DATA"]
+        assert isinstance(observation_result, ObservationResultProxy)
+        assert observation_result.observed_values.shape == (2, 3)
+
+        observation_result = ret["peh:SAMPLE_METADATA"]
+        assert isinstance(observation_result, ObservationResultProxy)
+        assert observation_result.observed_values.shape == (2, 4)
+
 
 @pytest.mark.dataframe
 class TestDataFrameDataOps(TestValidation, TestDataImport):
@@ -473,9 +533,55 @@ class TestDataFrameDataOps(TestValidation, TestDataImport):
         try:
             from pypeh.adapters.outbound.validation.pandera_adapter import dataops as dfops
 
-            return dfops.DataFrameAdapter()
+            return dfops.DataFrameAdapter()  # type: ignore
         except ImportError:
             pytest.skip("Necessary modules not installed")
+
+    @pytest.fixture(scope="function")
+    def raw_data(self):
+        import polars as pl
+
+        layout = {
+            "urine_lab": pl.DataFrame(
+                schema={
+                    "id_subject": pl.String,
+                    "matrix": pl.String,
+                    "crt": pl.Float64,
+                    "crt_lod": pl.Float64,
+                    "crt_loq": pl.Float64,
+                    "sg": pl.Float64,
+                }
+            ),
+            "analyticalinfo": pl.DataFrame(
+                schema={
+                    "id_subject": pl.String,
+                    "biomarkercode": pl.String,
+                    "matrix": pl.String,
+                    "labinstitution": pl.String,
+                }
+            ),
+        }
+
+        layout["urine_lab"] = pl.DataFrame(
+            [
+                {"id_subject": "001", "matrix": "urine", "crt": 1.2, "crt_lod": 0.1, "crt_loq": 0.2, "sg": 1.015},
+                {"id_subject": "002", "matrix": "urine", "crt": 1.5, "crt_lod": 0.1, "crt_loq": 0.2, "sg": 1.020},
+            ]
+        )
+
+        layout["analyticalinfo"] = pl.DataFrame(
+            [
+                {"id_subject": "001", "biomarkercode": "B001", "matrix": "urine", "labinstitution": "LabCorp"},
+                {
+                    "id_subject": "002",
+                    "biomarkercode": "B002",
+                    "matrix": "urine",
+                    "labinstitution": "Quest Diagnostics",
+                },
+            ]
+        )
+
+        return layout
 
 
 @pytest.mark.other

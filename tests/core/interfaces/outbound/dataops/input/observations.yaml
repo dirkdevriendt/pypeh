@@ -1,0 +1,26 @@
+observations:
+- id: peh:SAMPLE_DATA
+  name: VALIDATION_TEST_SAMPLE_METADATA
+  ui_label: SAMPLE
+  observation_type: metadata
+  observation_design:
+    observation_result_type: measurement
+    observable_entity_type: sample
+    identifying_observable_property_id_list:
+    - adults_id_subject
+    optional_observable_property_id_list:
+    - adults_u_matrix
+    - adults_u_crt
+- id: peh:SAMPLE_METADATA
+  name: SAMPLE_METADATA
+  ui_label: SAMPLE_METADATA
+  observation_type: sampling
+  observation_design:
+    observation_result_type: measurement
+    observable_entity_type: sample
+    identifying_observable_property_id_list:
+    - adults_id_subject
+    optional_observable_property_id_list:
+    - adults_anl_biomarkercode
+    - adults_anl_matrix
+    - adults_anl_labinstitution

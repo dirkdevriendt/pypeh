@@ -7,7 +7,7 @@ import peh_model.peh as peh
 
 from typing import TYPE_CHECKING, TypeVar, Sequence, Dict, Generic
 
-from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
+from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory, CacheContainerView
 from pypeh.core.models.constants import ObservablePropertyValueType
 from pypeh.core.models.proxy import TypedLazyProxy
 from pypeh.core.models.settings import (
@@ -25,7 +25,8 @@ from pypeh.core.models.validation_errors import (
     ValidationErrorReport,
     ValidationErrorReportCollection,
 )
-from pypeh.core.interfaces.outbound.dataops import ValidationInterface
+from pypeh.core.models.internal_data_layout import DataImportConfig, InternalDataLayout, ObservationResultProxy
+from pypeh.core.interfaces.outbound.dataops import ValidationInterface, DataImportInterface
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.session.connections import ConnectionManager
 from pypeh.core.utils.resolve_identifiers import is_url
@@ -142,6 +143,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
             case "validation":
                 adapter = ValidationInterface.get_default_adapter_class()
                 self._adapter_mapping[interface_functionality] = adapter
+            case "data_import":
+                adapter = ValidationInterface.get_default_adapter_class()
+                self._adapter_mapping[interface_functionality] = adapter
             case _:
                 raise NotImplementedError()
 
@@ -215,7 +219,10 @@ class Session(Generic[T_AdapterType, T_DataType]):
         assert ret
 
     def load_tabular_data(
-        self, source: str, connection_label: str | None = None, data_layout: peh.DataLayout | None = None
+        self,
+        source: str,
+        connection_label: str | None = None,
+        data_layout: peh.DataLayout | None = None,
     ) -> dict[str, DataFrame] | ValidationError:
         """
         Load a binary resource and return its content as tabular data in a dataframe
@@ -228,10 +235,10 @@ class Session(Generic[T_AdapterType, T_DataType]):
             validation_layout: (DataLayout | None) Optional DataLayout object used for validation.
         """
         data_schema = None
+        cache_view = CacheContainerView(container=self.cache)
         if data_layout is not None:
-            data_schema = self.layout_section_elements_to_observable_property_value_types(
-                layout=data_layout,
-            )
+            internal_data_representation = InternalDataLayout.from_peh(data_layout)
+            data_schema = internal_data_representation.collect_schema(cache_view=cache_view)
         try:
             # TODO: fix host calls with unified ConnectionManager
             if is_url(source):
@@ -246,6 +253,56 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
         except Exception as e:
             return ValidationError(
+                message=f"File could not be read or validated: {e}",
+                type="File Processing Error",
+                level=ValidationErrorLevel.FATAL,
+            )
+
+    def load_tabular_data_collection(
+        self,
+        source: str,
+        import_config: DataImportConfig,
+        connection_label: str | None = None,
+    ) -> dict[str, ObservationResultProxy[DataFrame]] | ValidationError:
+        """ """
+        # TODO: add docstring
+        # TODO: replace ValidationError: not every import leads to validation
+        try:
+            data_layout = self.get_resource(import_config.data_layout_id, "DataLayout")
+            assert isinstance(data_layout, peh.DataLayout)
+            cache_view = CacheContainerView(self.cache)
+            internal_data_representation = InternalDataLayout.from_peh(data_layout)
+            data_schema = internal_data_representation.collect_schema(cache_view=cache_view)
+
+            if is_url(source):
+                raise NotImplementedError
+            elif connection_label is not None:
+                pass
+            else:
+                connection_label = DEFAULT_CONNECTION_LABEL
+
+            with self.connection_manager.get_connection(connection_label=connection_label) as connection:
+                data_dict = connection.load(source, validation_layout=data_layout, data_schema=data_schema)
+            assert isinstance(data_dict, dict)
+
+            import_adapter = self.get_adapter("data_import")
+            assert isinstance(import_adapter, DataImportInterface)
+            ret = import_adapter._extract_observed_value_provenance()  # TODO: extract ObservedValue provenance metadata
+            ret = (
+                import_adapter._normalize_observable_properties()
+            )  # TODO: normalize based on ObservableProperty metadata
+
+            ret = import_adapter._data_layout_to_observation_results(
+                raw_data=data_dict,
+                data_import_config=import_config,
+                cache_view=cache_view,
+                internal_data_layout=internal_data_representation,
+            )
+
+            return ret
+
+        except Exception as e:
+            return ValidationError(  # TODO: this should not be a ValidationError
                 message=f"File could not be read or validated: {e}",
                 type="File Processing Error",
                 level=ValidationErrorLevel.FATAL,
@@ -471,6 +528,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
     ### CREATE MAPPINGS BASED ON CACHE CONTENT ###
 
+    # TODO: ready for removal
     def layout_section_elements_to_observable_property_value_types(
         self, layout: peh.DataLayout, flatten=False
     ) -> dict[str, ObservablePropertyValueType | dict[str, ObservablePropertyValueType]] | None:

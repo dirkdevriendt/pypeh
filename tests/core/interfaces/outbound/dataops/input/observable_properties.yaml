@@ -1,0 +1,16 @@
+observable_properties:
+- id: adults_id_subject
+  name: adults_id_subject
+  ui_label: id_subject
+- id: adults_u_matrix
+  name: adults_u_matrix
+  ui_label: matrix
+- id: adults_u_crt
+  name: adults_u_crt
+  ui_label: crt
+- id: adults_anl_biomarkercode
+  name: adults_anl_biomarkercode
+  ui_label: biomarkercode
+- id: adults_anl_labinstitution
+  name: adults_anl_labinstitution
+  ui_label: labinstitution

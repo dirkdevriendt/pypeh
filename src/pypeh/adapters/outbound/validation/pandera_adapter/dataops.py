@@ -8,6 +8,7 @@ specification on what the custom part should look like.
 from __future__ import annotations
 
 import logging
+import polars as pl
 
 from contextlib import contextmanager
 from dataguard import Validator, ErrorCollector
@@ -19,6 +20,7 @@ from pypeh.core.interfaces.outbound.dataops import (
     ValidationInterface,
     DataImportInterface,
 )
+from pypeh.core.models.internal_data_layout import ObservationResultProxy
 from pypeh.core.models.validation_errors import ValidationErrorReport, EntityLocation
 from pypeh.core.models.validation_dto import ValidationConfig
 from pypeh.core.session.connections import ConnectionManager
@@ -49,7 +51,6 @@ class DataFrameAdapter(ValidationInterface[DataFrame], DataImportInterface[DataF
     def _validate(self, data: dict[str, list] | DataFrame, config: ValidationConfig) -> ValidationErrorReport:
         config_map = self.parse_configuration(config)
         validator = Validator.config_from_mapping(config=config_map, logger=logger)
-
         _ = validator.validate(data)
 
         with self.get_error_collector() as error_collector:
@@ -65,12 +66,13 @@ class DataFrameAdapter(ValidationInterface[DataFrame], DataImportInterface[DataF
         for group in report.groups:
             for error in group.errors:
                 new_location_list = []
+                assert error.locations is not None
                 for location in error.locations:
                     row_ids = getattr(location, "row_ids", None)
                     key_columns = getattr(location, "key_columns", None)
                     if row_ids and key_columns:
                         entity_ids = [
-                            (get_data_item(data, row_id, id_obs_prop) for id_obs_prop in key_columns)
+                            tuple(get_data_item(data, row_id, id_obs_prop) for id_obs_prop in key_columns)
                             for row_id in row_ids
                         ]
                         new_location_list.append(
@@ -139,3 +141,23 @@ class DataFrameAdapter(ValidationInterface[DataFrame], DataImportInterface[DataF
         **kwargs,
     ) -> DataLayout | List[DataLayout]:
         return super().import_data_layout(source, config, **kwargs)
+
+    def _normalize_observable_properties(self) -> bool:
+        return True
+
+    def _raw_data_to_observation_results(
+        self,
+        raw_data: DataFrame,
+        data_layout_element_labels: list[str],
+        identifying_layout_element_label: str,
+        entity_id_list: list[str] | None = None,
+    ) -> ObservationResultProxy[DataFrame]:
+        columns_to_select = [col for col in data_layout_element_labels if col in raw_data.columns]
+        if not entity_id_list:
+            ret = raw_data.select(columns_to_select)
+        else:
+            ret = raw_data.filter(pl.col(identifying_layout_element_label).is_in(entity_id_list)).select(
+                columns_to_select
+            )
+
+        return ObservationResultProxy(observed_values=ret)
