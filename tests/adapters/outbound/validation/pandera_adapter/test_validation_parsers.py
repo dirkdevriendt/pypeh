@@ -271,10 +271,7 @@ class TestPydanticToDto:
         assert result == expected_output
 
     def test_exception_handling(self, monkeypatch):
-        # from pypeh.adapters.outbound.validation.pandera_adapter.dataops import DataFrameAdapter
         adapter = ValidationInterface.get_default_adapter_class()
-        # Monkeypatch the cast method inside dataguard
-        # Testing `parse_collected_exception` function from dataguard adapter
         monkeypatch.setattr("polars.DataFrame.cast", ArithmeticError)
 
         config = ValidationConfig(
@@ -286,7 +283,6 @@ class TestPydanticToDto:
         data = {"col1": [1, 2, 3], "col2": [2, 1, 4]}
 
         result = adapter()._validate(data, config)
-        # breakpoint()
         assert result is not None
         assert result.total_errors == 0
         assert len(result.unexpected_errors) == 1

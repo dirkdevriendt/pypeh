@@ -21,16 +21,18 @@ from peh_model.peh import (
     Observation,
     ObservableProperty,
     ObservationDesign,
+    CalculationDesign,
 )
 from typing import TYPE_CHECKING, Generic, cast, List
 
-from pypeh.core.cache.containers import CacheContainerView
+from pypeh.core.cache.containers import CacheContainerView, CacheContainer
 from pypeh.core.models.internal_data_layout import InternalDataLayout, ObservationResultProxy
 from pypeh.core.models.internal_data_layout import get_observable_property_id_to_dataset_label_dict
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.settings import FileSystemSettings
 from pypeh.core.models.validation_dto import ValidationConfig
 from pypeh.core.models.proxy import TypedLazyProxy
+from pypeh.core.models.graph import Graph
 from pypeh.core.session.connections import ConnectionManager
 
 if TYPE_CHECKING:
@@ -50,14 +52,6 @@ class OutDataOpsInterface:
         pass
     """
 
-    pass
-
-
-class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
-    @abstractmethod
-    def _validate(self, data: dict[str, Sequence] | T_DataType, config: ValidationConfig) -> ValidationErrorReport:
-        raise NotImplementedError
-
     @abstractmethod
     def _join_data(
         self,
@@ -67,6 +61,12 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         dependent_observable_property_ids: set[str],
         observable_property_id_to_dataset_label_dict: dict[str, str],
     ) -> T_DataType:
+        raise NotImplementedError
+
+
+class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
+    @abstractmethod
+    def _validate(self, data: dict[str, Sequence] | T_DataType, config: ValidationConfig) -> ValidationErrorReport:
         raise NotImplementedError
 
     @classmethod
@@ -149,6 +149,72 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         ret = self._validate(to_validate, validation_config)
 
         return ret
+
+
+class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
+    @abstractmethod
+    def _enrich_data(self, data: dict[str, Sequence] | T_DataType, config: dict) -> T_DataType:
+        raise NotImplementedError
+
+    @classmethod
+    def get_default_adapter_class(cls):
+        try:
+            adapter_module = importlib.import_module("pypeh.adapters.outbound.enrichment.dataops")
+            adapter_class = getattr(adapter_module, "DataFrameAdapter")
+        except Exception as e:
+            logger.error("Exception encountered while attempting to import enrichment DataFrameAdapter")
+            raise e
+        return adapter_class
+
+    @staticmethod
+    def _normalize_source_path(observation_id: str, source_path: str) -> str:
+        if "\\" in source_path:
+            return source_path
+        else:
+            return f"{observation_id}\\{source_path}"
+
+    @staticmethod
+    def _extract_calculation_kwargs(calculation_designs: list[CalculationDesign | None]) -> list[str]:
+        try:
+            (calculation_design,) = calculation_designs
+            return [kwargs.source_path for kwargs in calculation_design.calculation_implementation.function_kwargs]
+
+        except ValueError:
+            raise NotImplementedError("Multiple calculation designs not supported yet")
+
+    def build_dependency_graph(self, observations: list[Observation], cache: CacheContainer) -> Graph:
+        g = Graph()
+
+        nested_entity_paths = [
+            ["observation_design", "identifying_observable_property_id_list"],
+            ["observation_design", "required_observable_property_id_list"],
+            ["observation_design", "optional_observable_property_id_list"],
+        ]
+
+        for observation in observations:
+            observation_id = observation.id
+            for path in nested_entity_paths:
+                for observable_property in cache.walk_entity(
+                    entity_id=observation_id, nested_entity_path=path, entity_type="Observation"
+                ):
+                    assert isinstance(observable_property, ObservableProperty)
+                    calculation_designs = observable_property.calculation_designs
+                    if calculation_designs:
+                        assert isinstance(calculation_designs, list)
+                        assert all(
+                            isinstance(calculation_design, CalculationDesign)
+                            for calculation_design in calculation_designs
+                        )
+                        child = f"{observation_id}\\{observable_property.id}"
+
+                        parents = [
+                            self._normalize_source_path(observation_id, dep)
+                            for dep in self._extract_calculation_kwargs(calculation_designs)
+                        ]
+
+                        for parent in parents:
+                            g.add_edge(parent, child)
+        return g
 
 
 class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):

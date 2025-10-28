@@ -1,0 +1,53 @@
+import_configs:
+- id: peh:ENRICHMENT_TEST_IMPORT_CONFIG
+  layout: peh:ENRICHMENT_TEST_DATA_LAYOUT
+  section_mapping:
+    section_mapping_links:
+    - section: peh:ENRICHMENT_TEST_SUBJECTUNIQUE
+      observation_id_list:
+      - peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
+layouts:
+- id: peh:ENRICHMENT_TEST_DATA_LAYOUT
+  name: ENRICHMENT_TEST_DATA_LAYOUT
+  sections:
+  - id: peh:ENRICHMENT_TEST_SUBJECTUNIQUE
+    ui_label: SUBJECTUNIQUE
+    observable_entity_type: person
+    section_type: data_table
+    elements:
+    - label: id_subject
+      observable_property: peh:id_subject
+      is_observable_entity_key: true
+    - label: Todaysdate
+      observable_property: peh:Todaysdate
+    - label: N1Birthdate
+      observable_property: peh:N1Birthdate
+    - label: N2Birthweight
+      observable_property: peh:N2Birthweight
+observations:
+- id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
+  name: ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
+  observation_design:
+    observation_result_type: measurement
+    observable_entity_type: person
+    identifying_observable_property_id_list:
+    - peh:id_subject
+    optional_observable_property_id_list:
+    - peh:Todaysdate
+    - peh:N1Birthdate
+    - peh:N2Birthweight
+  observation_result_id_list:
+  - peh:INGESTION_RESULT_20251001_01
+- id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED
+  name: ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED
+  observation_design:
+    observation_result_type: calculation
+    observable_entity_type: person
+    identifying_observable_property_id_list:
+    - peh:id_subject
+    optional_observable_property_id_list:
+    - peh:Todaysdate
+    - peh:agemonths
+    - peh:N2Birthweight
+  observation_result_id_list:
+  - peh:ENRICHMENT_RESULT_20251001_01

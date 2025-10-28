@@ -1618,7 +1618,7 @@ requires-dist = [
     { name = "fastexcel", marker = "extra == 'polars-adapter'" },
     { name = "fsspec" },
     { name = "linkml", specifier = ">=1.9.1" },
-    { name = "peh-model", specifier = "==0.3.0" },
+    { name = "peh-model", specifier = "==0.3" },
     { name = "polars", marker = "extra == 'dataframe-adapter'" },
     { name = "polars", marker = "extra == 'polars-adapter'" },
     { name = "pyarrow", marker = "extra == 'dataframe-adapter'" },
