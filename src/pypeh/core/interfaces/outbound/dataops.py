@@ -13,11 +13,20 @@ import itertools
 import logging
 
 from abc import abstractmethod
-from peh_model.peh import DataLayout, ValidationDesign, EntityList, Observation, ObservableProperty, ObservationDesign
+from peh_model.peh import (
+    DataImportConfig,
+    DataLayout,
+    ValidationDesign,
+    EntityList,
+    Observation,
+    ObservableProperty,
+    ObservationDesign,
+)
 from typing import TYPE_CHECKING, Generic, cast, List
 
 from pypeh.core.cache.containers import CacheContainerView
-from pypeh.core.models.internal_data_layout import DataImportConfig, InternalDataLayout, ObservationResultProxy
+from pypeh.core.models.internal_data_layout import InternalDataLayout, ObservationResultProxy
+from pypeh.core.models.internal_data_layout import get_observable_property_id_to_dataset_label_dict
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.settings import FileSystemSettings
 from pypeh.core.models.validation_dto import ValidationConfig
@@ -55,8 +64,8 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         identifying_observable_property_ids: list[str],
         data: dict[str, Sequence] | T_DataType,
         dependent_data: dict[str, dict[str, Sequence]] | dict[str, T_DataType],
-        dependent_observable_properties: set[str],
-        observable_property_id_to_layout_section_label: dict[str, str],
+        dependent_observable_property_ids: set[str],
+        observable_property_id_to_dataset_label_dict: dict[str, str],
     ) -> T_DataType:
         raise NotImplementedError
 
@@ -77,13 +86,22 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         observable_properties: List[ObservableProperty],
         dataset_validations: Sequence[ValidationDesign] | None = None,
         dependent_data: dict[str, dict[str, Sequence]] | dict[str, T_DataType] | None = None,
-        observable_property_id_to_layout_section_label: dict[str, str]
-        | None = None,  # TODO: this is a temporary quick fix
     ) -> ValidationErrorReport:
         observable_property_dict = {op.id: op for op in observable_properties}
 
+        # TODO: Temporary column label read from dataset; to be replaced with smarter object
+        if isinstance(data, dict):
+            observable_property_id_selection = data.keys()
+        elif hasattr(data, "columns"):
+            observable_property_id_selection = [str(c) for c in data.columns]
+        else:
+            raise NotImplementedError(
+                f"Unsupported data argument encountered while validating observation {observation.id}"
+            )
+
         validation_config = ValidationConfig.from_observation(
             observation,
+            observable_property_id_selection,
             observable_property_dict,
             dataset_validations,
         )
@@ -95,7 +113,7 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
             # This test is obsolete, and should have been tested already when
             # constructing the list of dependent_observable_property_ids
             for obs_prop in dependent_observable_property_ids:
-                if obs_prop not in observable_property_dict:
+                if obs_prop not in observable_property_id_selection:
                     join_required = True
                     break
 
@@ -105,6 +123,9 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
                 logger.error(me)
                 raise ValueError(me)
             else:
+                observable_property_id_to_dataset_label_dict = get_observable_property_id_to_dataset_label_dict(
+                    dependent_observable_property_ids, dependent_data
+                )
                 identifying_obs_prop_id_list = getattr(
                     observation.observation_design, "identifying_observable_property_id_list", None
                 )
@@ -112,8 +133,8 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
                     identifying_obs_prop_id_list is not None
                 ), "identitfying_obs_prop_id_list in `ValidationInterface.validate` should not be None"
                 assert (
-                    observable_property_id_to_layout_section_label is not None
-                ), "observable_property_to_layout_section in `ValidationInterface.validate` should not be None"
+                    observable_property_id_to_dataset_label_dict is not None
+                ), "label_dict in `ValidationInterface.validate` should not be None"
                 assert (
                     dependent_observable_property_ids is not None
                 ), "dependent_observable_property_ids in `ValidationInterface.validate` should not be None"
@@ -121,8 +142,8 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
                     identifying_observable_property_ids=identifying_obs_prop_id_list,
                     data=data,
                     dependent_data=dependent_data,
-                    dependent_observable_properties=dependent_observable_property_ids,
-                    observable_property_id_to_layout_section_label=observable_property_id_to_layout_section_label,
+                    dependent_observable_property_ids=dependent_observable_property_ids,
+                    observable_property_id_to_dataset_label_dict=observable_property_id_to_dataset_label_dict,
                 )
 
         ret = self._validate(to_validate, validation_config)
@@ -176,37 +197,37 @@ class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
     def _normalize_observable_properties(self) -> bool:
         raise NotImplementedError
 
-    def _raw_data_to_observation_results(
+    def _raw_data_to_observation_data(
         self,
         raw_data: T_DataType,
         data_layout_element_labels: list[str],
         identifying_layout_element_label: str,
         entity_id_list: list[str] | None = None,
-    ) -> ObservationResultProxy[T_DataType]:
+    ) -> T_DataType:
         raise NotImplementedError
 
+    # TODO: Refactoring: to be replaced with InternalDataLayout based implementation
     def _data_layout_to_observation_results(
         self,
         raw_data: dict[str, T_DataType],
         data_import_config: DataImportConfig,
         cache_view: CacheContainerView,
         internal_data_layout: InternalDataLayout,
-        entity_type: str | None = None,
     ) -> dict[str, ObservationResultProxy[T_DataType]]:
-        if entity_type is not None:
-            raise NotImplementedError
-        transformed_data = {}
-        layout_section_map = data_import_config.section_map
-
-        for section_config in layout_section_map:
-            section_id = section_config.data_layout_section_id
-            section = cache_view.get(section_id, "DataLayoutSection")
+        observed_data_dict = {}
+        layout_section_mapping = data_import_config.section_mapping
+        for section_mapping_link in layout_section_mapping.section_mapping_links:
+            section = cache_view.get(section_mapping_link.section, "DataLayoutSection")
             section_label = getattr(section, "ui_label", None)
-            assert section_label is not None, f"section_label for {section_id} is None"
+            assert section_label is not None, f"section_label for {section_mapping_link.section} is None"
             assert section_label in raw_data, f"section_label {section_label} not found"
+            assert hasattr(
+                raw_data[section_label], "columns"
+            ), f"Unsupported data type for section_label {section_label}"
             bimap = internal_data_layout.get(section_label, None)
             assert bimap is not None
-            for observation_id in section_config.observation_ids:
+
+            for observation_id in section_mapping_link.observation_id_list:
                 observation = cache_view.get(observation_id, "Observation")
                 assert observation is not None, f"observation with id {observation_id} is None"
                 observation_design = observation.observation_design
@@ -244,13 +265,26 @@ class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
                 entity_id_list = observation_design.observable_entity_id_list
                 assert isinstance(entity_id_list, list)
 
-                # apply filter to raw_data
-                transformed_data[observation_id] = self._raw_data_to_observation_results(
+                # Apply filter to raw_data
+                filtered_df = self._raw_data_to_observation_data(
                     raw_data[section_label],
                     data_layout_element_labels=mapped_observable_property_ids,
                     identifying_layout_element_label=identifying_layout_element_label,
                     entity_id_list=entity_id_list,
                 )
+
+                # Rename column names
+                new_column_names = [bimap.get_by_key(label) for label in filtered_df.columns]
+                filtered_df.columns = new_column_names
+                observed_data_dict[observation_id] = filtered_df
+
             del raw_data[section_label]
 
-        return transformed_data
+        transformed_results = {
+            observation_id: ObservationResultProxy(
+                observed_data=observed_data_dict[observation_id],
+            )
+            for observation_id in observed_data_dict.keys()
+        }
+
+        return transformed_results

@@ -33,7 +33,7 @@ DATATYPE_TRANSLATION_DICT = {
 }
 
 
-def get_observable_property_property(varname, observable_property, codebook_property_name):
+def get_observable_property_property(label, observable_property, codebook_property_name):
     match str(codebook_property_name):
         case "DataRequestCategory":
             return (
@@ -42,7 +42,9 @@ def get_observable_property_property(varname, observable_property, codebook_prop
                 else None
             )
         case "Varname":
-            return varname
+            return label
+        case "Label":
+            return label
         case "Description":
             return observable_property.description if observable_property.description else observable_property.ui_label
         case "Type":
@@ -106,7 +108,7 @@ def fill_excel_worksheet_from_section(
                         # default value: worksheet.write(row, 1, observable_property.default_value)
                 row += 1
         case "data_table":
-            column_ids = [element.varname for element in section.elements]
+            column_ids = [element.label for element in section.elements]
             for c_nr, c_name in enumerate(column_ids):
                 worksheet.write(0, c_nr, c_name, style_dict["header"])
             if data_list is not None and isinstance(data_list, list):
@@ -158,7 +160,7 @@ def fill_excel_worksheet_from_section(
                 op = observable_property_dict[index_name]
 
                 for c_nr, c_name in enumerate(columns):
-                    worksheet.write(row, c_nr, get_observable_property_property(element.varname, op, c_name))
+                    worksheet.write(row, c_nr, get_observable_property_property(element.label, op, c_name))
                 row += 1
     if autofit:
         worksheet.autofit()
@@ -180,10 +182,10 @@ def write_excel_datatemplate(
             if matrix:
                 dataset.extend(
                     [
-                        (element.varname, matrix)
+                        (element.label, matrix)
                         for element in section.elements
                         if not (
-                            element.varname in ANALYTICALINFO_EXCLUSION_LIST or element.varname[-4:] in ["_lod", "_loq"]
+                            element.label in ANALYTICALINFO_EXCLUSION_LIST or element.label[-4:] in ["_lod", "_loq"]
                         )
                     ]
                 )

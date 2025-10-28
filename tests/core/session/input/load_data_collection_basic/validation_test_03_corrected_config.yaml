@@ -1,3 +1,14 @@
+import_configs:
+- id: peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA
+  layout: peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA
+  section_mapping:
+    section_mapping_links:
+    - section: SAMPLE_METADATA_SECTION_SAMPLE
+      observation_id_list:
+      - peh:VALIDATION_TEST_SAMPLE_METADATA
+    - section: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS
+      observation_id_list:
+      - peh:VALIDATION_TEST_SAMPLE_TIMEPOINT
 observations:
 - id: peh:VALIDATION_TEST_SAMPLE_METADATA
   name: VALIDATION_TEST_SAMPLE_METADATA
@@ -36,9 +47,14 @@ layouts:
   - id: SAMPLE_METADATA_SECTION_SAMPLE
     ui_label: SAMPLE
     section_type: data_table
+    observable_entity_type: sample
     elements:
     - label: id_sample
       observable_property: id_sample
+      is_observable_entity_key: true
+      foreign_key_link:
+        section: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS
+        label: id_sample
     - label: samplingyear
       observable_property: samplingyear
     - label: samplingmonth
@@ -54,9 +70,14 @@ layouts:
   - id: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS
     ui_label: SAMPLETIMEPOINT_BSS
     section_type: data_table
+    observable_entity_type: sample
     elements:
     - label: id_sample
       observable_property: id_sample
+      is_observable_entity_key: true
+      foreign_key_link:
+        section: SAMPLE_METADATA_SECTION_SAMPLE
+        label: id_sample
     - label: chol
       observable_property: chol
     - label: chol_lod

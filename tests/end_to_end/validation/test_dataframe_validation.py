@@ -7,7 +7,8 @@ from tests.test_utils.dirutils import get_absolute_path
 from typing import cast
 
 from pypeh import Session
-from pypeh.core.models.validation_errors import ValidationError, ValidationErrorReport, EntityLocation
+from pypeh.core.models.validation_errors import ValidationErrorReport, EntityLocation
+from pypeh.core.models.internal_data_layout import get_observations_from_data_import_config
 from pypeh.core.models.settings import LocalFileConfig
 
 logger = logging.getLogger(__name__)
@@ -22,21 +23,24 @@ class TestSessionDefaultLocalFile:
         session = Session()
         session.load_persisted_cache()
 
-        layout = session.cache.get("peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataLayout")
-        assert isinstance(layout, peh.DataLayout)
+        observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
+        observation = session.get_resource(observation_id, "Observation")
+        assert isinstance(observation, peh.Observation)
+
+        data_import_config = session.cache.get(
+            "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataImportConfig"
+        )
+        assert isinstance(data_import_config, peh.DataImportConfig)
 
         excel_path = get_absolute_path("./input/test_01/validation_test_01_data.xlsx")
-        data_dict = session.load_tabular_data(
+        data_dict = session.load_tabular_data_collection(
             source=excel_path,
-            data_layout=layout,
+            data_import_config=data_import_config,
         )
         assert isinstance(data_dict, dict)
-        data_df = data_dict["SAMPLE"]
+        data_df = data_dict[observation_id].observed_data
         assert data_df is not None
-        layout_section_id = "SAMPLE_METADATA_SECTION_SAMPLE"
-        layout_section = session.get_resource(layout_section_id, "DataLayoutSection")
-        assert isinstance(layout_section, peh.DataLayoutSection)
-        report_to_check = session.validate_tabular_data(data_df, data_layout_section=layout_section)
+        report_to_check = session.validate_tabular_data(data_df, observation=observation)
 
         assert isinstance(report_to_check, ValidationErrorReport)
         assert report_to_check.total_errors == 1
@@ -53,11 +57,11 @@ class TestSessionDefaultLocalFile:
 @pytest.mark.end_to_end
 class TestRoundTrip:
     @pytest.fixture(scope="class")
-    def layout_label(self):
-        return "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+    def import_config_label(self):
+        return "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
 
     @pytest.mark.parametrize("test_label", ["01", "02", "04", "05", "06"])
-    def test_load_data(self, monkeypatch, layout_label, test_label):
+    def test_load_data(self, monkeypatch, import_config_label, test_label):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
         excel_path = f"validation_test_{test_label}_data.xlsx"
@@ -65,17 +69,17 @@ class TestRoundTrip:
         session = Session()
         cache_path = "config"
         session.load_persisted_cache(source=cache_path)
-        layout = session.cache.get(layout_label, "DataLayout")
-        assert isinstance(layout, peh.DataLayout)
-        data_dict = session.load_tabular_data(
+        data_import_config = session.cache.get(import_config_label, "DataImportConfig")
+        assert isinstance(data_import_config, peh.DataImportConfig)
+        data_dict = session.load_tabular_data_collection(
             source=excel_path,
-            data_layout=layout,
+            data_import_config=data_import_config,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
 
     @pytest.mark.parametrize("test_label", ["01", "02"])
-    def test_basic_roundtrip(self, monkeypatch, layout_label, test_label):
+    def test_basic_roundtrip(self, monkeypatch, import_config_label, test_label):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
         excel_path = f"validation_test_{test_label}_data.xlsx"
@@ -83,23 +87,25 @@ class TestRoundTrip:
         session = Session()
         cache_path = "config"
         session.load_persisted_cache(source=cache_path)
-        layout = session.cache.get(layout_label, "DataLayout")
-        assert isinstance(layout, peh.DataLayout)
-        data_dict = session.load_tabular_data(
+
+        observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
+        observation = session.get_resource(observation_id, "Observation")
+        assert isinstance(observation, peh.Observation)
+
+        data_import_config = session.cache.get(import_config_label, "DataImportConfig")
+        assert isinstance(data_import_config, peh.DataImportConfig)
+        data_dict = session.load_tabular_data_collection(
             source=excel_path,
-            data_layout=layout,
+            data_import_config=data_import_config,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
 
-        data_df = data_dict["SAMPLE"]
+        data_df = data_dict[observation_id].observed_data
         assert data_df is not None
-        layout_section_id = "SAMPLE_METADATA_SECTION_SAMPLE"
-        layout_section = session.get_resource(layout_section_id, "DataLayoutSection")
-        assert isinstance(layout_section, peh.DataLayoutSection)
         validation_report = session.validate_tabular_data(
             data=data_df,
-            data_layout_section=layout_section,
+            observation=observation,
         )
         assert validation_report is not None
         assert isinstance(validation_report, ValidationErrorReport)
@@ -114,7 +120,7 @@ class TestRoundTrip:
             "03",
         ],
     )
-    def test_sheet_name_round_trip(self, monkeypatch, layout_label, test_label):
+    def test_sheet_name_round_trip(self, monkeypatch, import_config_label, test_label):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
         excel_path = f"validation_test_{test_label}_data.xlsx"
@@ -122,14 +128,10 @@ class TestRoundTrip:
         session = Session()
         cache_path = "config"
         session.load_persisted_cache(source=cache_path)
-        layout = session.cache.get(layout_label, "DataLayout")
-        assert isinstance(layout, peh.DataLayout)
-        ret = session.load_tabular_data(
-            source=excel_path,
-            data_layout=layout,
-        )
-        assert isinstance(ret, ValidationError)
-        assert "SAMPLETIMEPOINT_BS" in ret.message
+        data_import_config = session.cache.get(import_config_label, "DataImportConfig")
+        assert isinstance(data_import_config, peh.DataImportConfig)
+        with pytest.raises(ValueError, match="no matching sheet found.*"):
+            session.load_tabular_data_collection(source=excel_path, data_import_config=data_import_config)
 
     @pytest.mark.parametrize(
         "test_label",
@@ -137,7 +139,7 @@ class TestRoundTrip:
             "03",
         ],
     )
-    def test_sheet_name_round_trip_continued(self, monkeypatch, layout_label, test_label):
+    def test_sheet_name_round_trip_continued(self, monkeypatch, import_config_label, test_label):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
         excel_path = f"validation_test_{test_label}_data.xlsx"
@@ -145,29 +147,24 @@ class TestRoundTrip:
         session = Session()
         cache_path = "config_corrected"
         session.load_persisted_cache(source=cache_path)
-        layout = session.cache.get(layout_label, "DataLayout")
-        assert isinstance(layout, peh.DataLayout)
-        data_dict = session.load_tabular_data(
+        data_import_config = session.cache.get(import_config_label, "DataImportConfig")
+
+        assert isinstance(data_import_config, peh.DataImportConfig)
+        data_dict = session.load_tabular_data_collection(
             source=excel_path,
-            data_layout=layout,
+            data_import_config=data_import_config,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
 
-        section_label_to_section_id = {
-            "SAMPLE": "SAMPLE_METADATA_SECTION_SAMPLE",
-            "SAMPLETIMEPOINT_BSS": "SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS",
-        }
-        observable_property_id_to_layout_section_label = {"matrix": "SAMPLE"}
-        for sheet_label, data_df in data_dict.items():
-            section_id = section_label_to_section_id[sheet_label]
-            layout_section = session.get_resource(resource_identifier=section_id, resource_type="DataLayoutSection")
-            layout_section = cast(peh.DataLayoutSection, layout_section)
+        for observation_id, data_result in data_dict.items():
+            observation = session.get_resource(resource_identifier=observation_id, resource_type="Observation")
+            observation = cast(peh.Observation, observation)
+            assert isinstance(observation, peh.Observation)
             validation_report = session.validate_tabular_data(
-                data=data_df,
-                data_layout_section=layout_section,
+                data=data_result.observed_data,
+                observation=observation,
                 dependent_data=data_dict,
-                observable_property_id_to_layout_section_label=observable_property_id_to_layout_section_label,
             )
             assert isinstance(validation_report, ValidationErrorReport)
             assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0
@@ -179,7 +176,7 @@ class TestRoundTrip:
             "04",
         ],
     )
-    def test_full(self, monkeypatch, layout_label, test_label):
+    def test_full(self, monkeypatch, import_config_label, test_label):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
         excel_path = f"validation_test_{test_label}_data.xlsx"
@@ -187,42 +184,29 @@ class TestRoundTrip:
         session = Session()
         cache_path = "config"
         session.load_persisted_cache(source=cache_path)
-        layout = session.cache.get(layout_label, "DataLayout")
-        assert isinstance(layout, peh.DataLayout)
-        data_dict = session.load_tabular_data(
+        data_import_config = session.cache.get(import_config_label, "DataImportConfig")
+        assert isinstance(data_import_config, peh.DataImportConfig)
+        data_dict = session.load_tabular_data_collection(
             source=excel_path,
-            data_layout=layout,
+            data_import_config=data_import_config,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
-
-        section_label_to_section_id = {
-            "SAMPLE": "peh:SAMPLE_METADATA_SECTION_SAMPLE",
-            "SUBJECTUNIQUE": "peh:SAMPLE_METADATA_SECTION_SUBJECTUNIQUE",
-            "SUBJECTTIMEPOINT": "peh:SAMPLE_METADATA_SECTION_SUBJECTTIMEPOINT",
-            "SAMPLETIMEPOINT_BWB": "peh:SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BWB",
-        }
-        observable_property_id_to_layout_section_label = {
-            "matrix": "SAMPLE",
-            "lipidassessment": "SAMPLE",
-        }
         unexpected_errors = 0
-        for sheet_label in section_label_to_section_id.keys():
-            data_df = data_dict.get(sheet_label, None)
+        for observation_id, data_result in data_dict.items():
+            data_df = data_result.observed_data
             if data_df is not None:
-                section_id = section_label_to_section_id[sheet_label]
-                layout_section = session.get_resource(resource_identifier=section_id, resource_type="DataLayoutSection")
-                assert layout_section is not None
-                layout_section = cast(peh.DataLayoutSection, layout_section)
+                observation = session.get_resource(resource_identifier=observation_id, resource_type="Observation")
+                assert observation is not None
+                observation = cast(peh.Observation, observation)
                 validation_report = session.validate_tabular_data(
                     data=data_df,
-                    data_layout_section=layout_section,
+                    observation=observation,
                     dependent_data=data_dict,
-                    observable_property_id_to_layout_section_label=observable_property_id_to_layout_section_label,
                 )
                 assert validation_report is not None
                 assert isinstance(validation_report, ValidationErrorReport)
-                if sheet_label == "SAMPLETIMEPOINT_BWB":
+                if observation_id == "peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB":
                     assert validation_report.error_counts[ValidationErrorLevel.ERROR] == 0
                 else:
                     assert validation_report.error_counts[ValidationErrorLevel.ERROR] >= 1
@@ -237,7 +221,7 @@ class TestRoundTrip:
             "05",
         ],
     )
-    def test_fuzzy(self, monkeypatch, layout_label, test_label):
+    def test_fuzzy(self, monkeypatch, import_config_label, test_label):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
         excel_path = f"validation_test_{test_label}_data.xlsx"
@@ -245,47 +229,35 @@ class TestRoundTrip:
         session = Session()
         cache_path = "config"
         session.load_persisted_cache(source=cache_path)
-        layout = session.cache.get(layout_label, "DataLayout")
-        assert isinstance(layout, peh.DataLayout)
-        data_dict = session.load_tabular_data(
+        data_import_config = session.cache.get(import_config_label, "DataImportConfig")
+        assert isinstance(data_import_config, peh.DataImportConfig)
+        data_dict = session.load_tabular_data_collection(
             source=excel_path,
-            data_layout=layout,
+            data_import_config=data_import_config,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
 
-        section_label_to_section_id = {
-            "SAMPLE": "peh:SAMPLE_METADATA_SECTION_SAMPLE",
-            "SUBJECTUNIQUE": "peh:SAMPLE_METADATA_SECTION_SUBJECTUNIQUE",
-            "SUBJECTTIMEPOINT": "peh:SAMPLE_METADATA_SECTION_SUBJECTTIMEPOINT",
-            "SAMPLETIMEPOINT_BWB": "peh:SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BWB",
-        }
-        observable_property_id_to_layout_section_label = {
-            "matrix": "SAMPLE",
-            "lipidassessment": "SAMPLE",
-        }
         unexpected_errors = 0
-        for sheet_label in section_label_to_section_id.keys():
-            data_df = data_dict.get(sheet_label, None)
-            if data_df is not None:
-                section_id = section_label_to_section_id[sheet_label]
-                layout_section = session.get_resource(resource_identifier=section_id, resource_type="DataLayoutSection")
-                assert layout_section is not None
-                layout_section = cast(peh.DataLayoutSection, layout_section)
-                validation_report = session.validate_tabular_data(
-                    data=data_df,
-                    data_layout_section=layout_section,
-                    dependent_data=data_dict,
-                    observable_property_id_to_layout_section_label=observable_property_id_to_layout_section_label,
-                )
-                assert validation_report is not None
-                assert isinstance(validation_report, ValidationErrorReport)
-                assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0
-                if sheet_label == "SUBJECTTIMEPOINT":
-                    assert validation_report.error_counts[ValidationErrorLevel.ERROR] == 1
-                else:
-                    assert validation_report.error_counts[ValidationErrorLevel.ERROR] == 0
-                unexpected_errors += len(validation_report.unexpected_errors)
+        for observation_id, data_result in data_dict.items():
+            data_df = data_result.observed_data
+            assert data_df is not None
+            observation = session.get_resource(resource_identifier=observation_id, resource_type="Observation")
+            assert observation is not None
+            observation = cast(peh.Observation, observation)
+            validation_report = session.validate_tabular_data(
+                data=data_df,
+                observation=observation,
+                dependent_data=data_dict,
+            )
+            assert validation_report is not None
+            assert isinstance(validation_report, ValidationErrorReport)
+            assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0
+            if observation_id == "peh:VALIDATION_TEST_SAMPLE_SUBJECTTIMEPOINT":
+                assert validation_report.error_counts[ValidationErrorLevel.ERROR] == 1
+            else:
+                assert validation_report.error_counts[ValidationErrorLevel.ERROR] == 0
+            unexpected_errors += len(validation_report.unexpected_errors)
 
         assert unexpected_errors == 0
 
@@ -293,8 +265,8 @@ class TestRoundTrip:
 @pytest.mark.end_to_end
 class TestCollectionRoundTrip:
     @pytest.fixture(scope="class")
-    def layout_label(self):
-        return "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+    def import_config_label(self):
+        return "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
 
     @pytest.mark.parametrize(
         "test_label",
@@ -302,7 +274,7 @@ class TestCollectionRoundTrip:
             "05",
         ],
     )
-    def test_fuzzy(self, monkeypatch, layout_label, test_label):
+    def test_fuzzy(self, monkeypatch, import_config_label, test_label):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
         excel_path = f"validation_test_{test_label}_data.xlsx"
@@ -310,18 +282,19 @@ class TestCollectionRoundTrip:
         session = Session()
         cache_path = "config"
         session.load_persisted_cache(source=cache_path)
-        layout = session.cache.get(layout_label, "DataLayout")
-        assert isinstance(layout, peh.DataLayout)
-        data_dict = session.load_tabular_data(
+        data_import_config = session.cache.get(import_config_label, "DataImportConfig")
+        assert isinstance(data_import_config, peh.DataImportConfig)
+        data_dict = session.load_tabular_data_collection(
             source=excel_path,
-            data_layout=layout,
+            data_import_config=data_import_config,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
 
+        observations = get_observations_from_data_import_config(data_import_config, session.cache)
         validation_report_collection = session.validate_tabular_data_collection(
             data_collection=data_dict,
-            data_layout=layout,
+            observations=observations,
         )
         for validation_report in validation_report_collection.values():
             assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0
@@ -331,10 +304,10 @@ class TestCollectionRoundTrip:
 @pytest.mark.end_to_end
 class TestCollectionRoundTripReference:
     @pytest.fixture(scope="class")
-    def layout_label(self):
-        return "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+    def import_config_label(self):
+        return "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
 
-    def test_load_at_init(self, layout_label):
+    def test_load_at_init(self, import_config_label):
         test_label = "05"
         session = Session(
             connection_config=[
@@ -352,13 +325,13 @@ class TestCollectionRoundTripReference:
         excel_path = f"validation_test_{test_label}_data.xlsx"
         validation_report_collection = session.validate_tabular_data_collection_by_reference(
             data_collection_id=excel_path,
-            data_layout_id=layout_label,
+            data_import_config_id=import_config_label,
         )
         for validation_report in validation_report_collection.values():
             assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0
             assert len(validation_report.unexpected_errors) == 0
 
-    def test_load_by_reference(self, layout_label):
+    def test_load_by_reference(self, import_config_label):
         test_label = "05"
         session = Session(
             connection_config=[
@@ -375,9 +348,9 @@ class TestCollectionRoundTripReference:
         validation_report_collection = session.validate_tabular_data_collection_by_reference(
             data_collection_id=excel_path,
             data_collection_connection_label="local_file",
-            data_layout_id=layout_label,
-            data_layout_connection_label="local_file",
-            data_layout_path="config",
+            data_import_config_id=import_config_label,
+            data_import_config_connection_label="local_file",
+            data_import_config_path="config",
         )
         for validation_report in validation_report_collection.values():
             assert validation_report.error_counts[ValidationErrorLevel.FATAL] == 0

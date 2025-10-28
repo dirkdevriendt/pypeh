@@ -5,7 +5,7 @@ import uuid
 
 from dataclasses import dataclass
 from peh_model import peh
-from typing import TYPE_CHECKING, Generic
+from typing import TYPE_CHECKING, Generic, Sequence
 
 from pypeh.core.cache.containers import CacheContainerView
 from pypeh.core.models.typing import T_DataType
@@ -18,23 +18,38 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# TEMP: to be replaced by peh.DataImportConfig
-@dataclass
-class SectionImportConfig:
-    data_layout_section_id: str
-    observation_ids: list[str]
+# TODO: Refactoring: relocate or add as a method on an appropriate class
+def get_observations_from_data_import_config(data_import_config: peh.DataImportConfig, cache: CacheContainerView):
+    observations = []
+    for link in data_import_config.section_mapping.section_mapping_links:
+        observations.extend([cache.get(observation_id, "Observation") for observation_id in link.observation_id_list])
+    return observations
 
 
-# TEMP: to be replaced by peh.DataImportConfig
-@dataclass
-class DataImportConfig:
-    data_layout_id: str
-    section_map: list[SectionImportConfig]
+# TODO: Refactoring: relocate or add as a method on an appropriate class
+# TODO: Refactoring: to be replaced with InternalDataLayout based implementation
+# TODO: To be fixed: Does not account for observable_property_id reuse across datasets
+def get_observable_property_id_to_dataset_label_dict(
+    observable_property_id_list: Sequence[str], dependent_data: dict[str, dict[str, Sequence]] | dict[str, T_DataType]
+):
+    ret = {}
+    for observable_property_id in observable_property_id_list:
+        for k, v in dependent_data.items():
+            if isinstance(v.observed_data, dict):
+                dependent_property_id_list = v.observed_data.keys()
+            elif hasattr(v.observed_data, "columns"):
+                dependent_property_id_list = [str(c) for c in v.observed_data.columns]
+            else:
+                raise NotImplementedError(f"Unsupported observed_data type encountered while processing dataset {k}")
+
+            if observable_property_id in dependent_property_id_list:
+                ret[observable_property_id] = k
+    return ret
 
 
 @dataclass
 class ObservationResultProxy(Generic[T_DataType]):
-    observed_values: T_DataType
+    observed_data: T_DataType
     observation_result_type: str = "measurement"
     id: uuid.UUID = uuid.uuid4()
 

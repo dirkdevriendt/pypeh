@@ -20,7 +20,6 @@ from pypeh.core.interfaces.outbound.dataops import (
     ValidationInterface,
     DataImportInterface,
 )
-from pypeh.core.models.internal_data_layout import ObservationResultProxy
 from pypeh.core.models.validation_errors import ValidationErrorReport, EntityLocation
 from pypeh.core.models.validation_dto import ValidationConfig
 from pypeh.core.session.connections import ConnectionManager
@@ -93,17 +92,18 @@ class DataFrameAdapter(ValidationInterface[DataFrame], DataImportInterface[DataF
         identifying_observable_property_ids: list[str],
         data: dict[str, list] | DataFrame,
         dependent_data: dict[str, dict[str, list]] | dict[str, DataFrame],
-        dependent_observable_properties: set[str],
-        observable_property_id_to_layout_section_label: dict[str, str],
+        dependent_observable_property_ids: set[str],
+        observable_property_id_to_dataset_label_dict: dict[str, str],
     ) -> DataFrame:
         joined_data = data
         assert isinstance(joined_data, DataFrame), "joined_data in `DataFrameAdapter._join_data` should be a DataFrame"
-        for dependent_obs_prop in dependent_observable_properties:
-            dependent_section = observable_property_id_to_layout_section_label.get(dependent_obs_prop, None)
+        for dependent_obs_prop in dependent_observable_property_ids:
+            dependent_section = observable_property_id_to_dataset_label_dict.get(dependent_obs_prop, None)
             if dependent_section is None:
                 raise ValueError(f"Could not find data layout section for observable property {dependent_obs_prop}")
-            other = dependent_data.get(dependent_section, None)
-            if other is not None:
+            other_result_proxy = dependent_data.get(dependent_section, None)
+            if other_result_proxy is not None:
+                other = other_result_proxy.observed_data
                 assert isinstance(other, DataFrame), "other in `DataFrameAdapter._join_data` should be a DataFrame"
                 joined_data = joined_data.join(other, on=identifying_observable_property_ids, how="left")
             else:
@@ -145,13 +145,13 @@ class DataFrameAdapter(ValidationInterface[DataFrame], DataImportInterface[DataF
     def _normalize_observable_properties(self) -> bool:
         return True
 
-    def _raw_data_to_observation_results(
+    def _raw_data_to_observation_data(
         self,
         raw_data: DataFrame,
         data_layout_element_labels: list[str],
         identifying_layout_element_label: str,
         entity_id_list: list[str] | None = None,
-    ) -> ObservationResultProxy[DataFrame]:
+    ) -> DataFrame:
         columns_to_select = [col for col in data_layout_element_labels if col in raw_data.columns]
         if not entity_id_list:
             ret = raw_data.select(columns_to_select)
@@ -160,4 +160,4 @@ class DataFrameAdapter(ValidationInterface[DataFrame], DataImportInterface[DataF
                 columns_to_select
             )
 
-        return ObservationResultProxy(observed_values=ret)
+        return ret

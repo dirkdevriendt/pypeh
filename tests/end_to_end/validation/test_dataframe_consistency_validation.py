@@ -1,13 +1,15 @@
 import pytest
 import peh_model.peh as peh
 import logging
+from collections import defaultdict
 
-from pypeh.core.models.constants import ValidationErrorLevel
 from tests.test_utils.dirutils import get_absolute_path
 
 from pypeh import Session
 from pypeh.core.models.settings import LocalFileConfig
-from pypeh.core.models.validation_errors import ValidationErrorReport
+from pypeh.core.models.internal_data_layout import get_observations_from_data_import_config
+from pypeh.core.models.validation_dto import ValidationConfig
+from pypeh.core.models.validation_errors import ValidationErrorReport, ValidationErrorLevel
 
 logger = logging.getLogger(__name__)
 
@@ -33,85 +35,67 @@ class TestConsistency:
             default_connection="local_file_validation_config",
         )
         session.load_persisted_cache()
-        layout = session.cache.get("peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataLayout")
-        assert layout.id == "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
-        assert isinstance(layout, peh.DataLayout)
-        data_dict = session.load_tabular_data(
+        data_import_config = session.cache.get(
+            "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataImportConfig"
+        )
+        assert data_import_config.id == "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        assert isinstance(data_import_config, peh.DataImportConfig)
+        data_dict = session.load_tabular_data_collection(
             source="validation_test_06_data.xlsx",
             connection_label="local_file_validation_files",
-            data_layout=layout,
+            data_import_config=data_import_config,
         )
         assert isinstance(data_dict, dict)
         assert len(data_dict) > 0
 
-        # Configure the combination of data content and layout, specific to the observation dataset
-        dataset_mapping = {
-            "SAMPLE": {
-                "layout_section_id": "peh:SAMPLE_METADATA_SECTION_SAMPLE",
-                "observation_id": "peh:VALIDATION_TEST_SAMPLE_SAMPLE",
-                "foreign_keys": {"id_subject": ["peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE", "id_subject"]},
-            },
-            "SUBJECTUNIQUE": {
-                "layout_section_id": "peh:SAMPLE_METADATA_SECTION_SUBJECTUNIQUE",
-                "observation_id": "peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE",
-                "foreign_keys": {"id_participant": ["peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE", "id_subject"]},
-            },
-            "SAMPLETIMEPOINT_BWB": {
-                "layout_section_id": "peh:SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BWB",
-                "observation_id": "peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB",
-            },
-        }
-        section_label_to_section_id = {
-            "SAMPLE": "peh:SAMPLE_METADATA_SECTION_SAMPLE",
-            "SUBJECTUNIQUE": "peh:SAMPLE_METADATA_SECTION_SUBJECTUNIQUE",
-            "SAMPLETIMEPOINT_BWB": "peh:SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BWB",
-        }
-        observable_property_id_to_layout_section_label = {
-            "matrix": "SAMPLE",
-        }
+        observations = [
+            observation
+            for observation in get_observations_from_data_import_config(data_import_config, session.cache)
+            if observation.id in data_dict.keys()
+        ]
 
-        observation_list = [session.cache.get(m["observation_id"], "Observation") for m in dataset_mapping.values()]
-        consistency_validations_dict = session.get_dataset_validations_dict(
-            observation_list=observation_list, layout=layout, dataset_mapping=dataset_mapping, data_dict=data_dict
+        id_validations_dict = ValidationConfig.get_dataset_identifier_consistency_validations_dict(
+            observation_list=observations,
+            data_import_config=data_import_config,
+            data_dict=data_dict,
+            cache_view=session.cache,
         )
-        id_validations_dict = session.get_dataset_identifier_consistency_validations_dict(
-            observation_list=observation_list, layout=layout, dataset_mapping=dataset_mapping, data_dict=data_dict
+        matrix_validations_dict = ValidationConfig.get_sample_matrix_validations_dict_from_section_labels(
+            observation_list=observations,
+            data_import_config=data_import_config,
+            data_dict=data_dict,
+            cache_view=session.cache,
         )
 
-        def validate_set(set_key):
-            sheet_label = set_key
-            section_id = section_label_to_section_id[sheet_label]
-            layout_section = session.get_resource(resource_identifier=section_id, resource_type="DataLayoutSection")
-            assert layout_section is not None
-            assert isinstance(layout_section, peh.DataLayoutSection)
-            dataset_validations = []
-            if consistency_validations := consistency_validations_dict.get(set_key, None):
-                dataset_validations.extend(consistency_validations)
-            if id_validations := id_validations_dict.get(set_key, None):
-                dataset_validations.extend(id_validations)
-            data_df = data_dict.get(sheet_label, None)
-            assert data_df is not None
+        data_collection_validations = defaultdict(list)
+        for k, v in id_validations_dict.items():
+            data_collection_validations[k].extend(v)
+        for k, v in matrix_validations_dict.items():
+            data_collection_validations[k].extend(v)
 
-            validation_report = session.validate_tabular_data(
-                data=data_df,
-                data_layout_section=layout_section,
-                dataset_validations=dataset_validations,
-                dependent_data=data_dict,
-                observable_property_id_to_layout_section_label=observable_property_id_to_layout_section_label,
-            )
+        validation_report_collection = session.validate_tabular_data_collection(
+            data_collection=data_dict,
+            observations=observations,
+            data_collection_validations=data_collection_validations,
+        )
+        assert isinstance(validation_report_collection, dict)
+        assert len(validation_report_collection) == 3
+        assert isinstance(validation_report_collection["peh:VALIDATION_TEST_SAMPLE_SAMPLE"], ValidationErrorReport)
 
-            assert isinstance(validation_report, ValidationErrorReport)
-            assert validation_report.error_counts[ValidationErrorLevel.WARNING] == 0
-            return validation_report
+        sample_errors = validation_report_collection["peh:VALIDATION_TEST_SAMPLE_SAMPLE"]
+        assert sample_errors.total_errors == 3
+        assert sample_errors.error_counts[ValidationErrorLevel.WARNING] == 0
+        assert sample_errors.error_counts[ValidationErrorLevel.ERROR] == 3
+        assert len(sample_errors.unexpected_errors) == 0
 
-        report = validate_set("SAMPLE")
-        assert report.error_counts[ValidationErrorLevel.ERROR] == 3
-        assert len(report.unexpected_errors) == 0
+        subject_errors = validation_report_collection["peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE"]
+        assert subject_errors.total_errors == 0
+        assert subject_errors.error_counts[ValidationErrorLevel.WARNING] == 0
+        assert subject_errors.error_counts[ValidationErrorLevel.ERROR] == 0
+        assert len(subject_errors.unexpected_errors) == 0
 
-        report = validate_set("SUBJECTUNIQUE")
-        assert report.error_counts[ValidationErrorLevel.ERROR] == 0
-        assert len(report.unexpected_errors) == 0
-
-        report = validate_set("SAMPLETIMEPOINT_BWB")
-        assert report.error_counts[ValidationErrorLevel.ERROR] == 1
-        assert len(report.unexpected_errors) == 0
+        labresult_errors = validation_report_collection["peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB"]
+        assert labresult_errors.total_errors == 1
+        assert labresult_errors.error_counts[ValidationErrorLevel.WARNING] == 0
+        assert labresult_errors.error_counts[ValidationErrorLevel.ERROR] == 1
+        assert len(labresult_errors.unexpected_errors) == 0

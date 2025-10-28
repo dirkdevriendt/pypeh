@@ -23,6 +23,7 @@ class TestBasicValidationConfig:
             for observable_property in obs_prop_data["observable_properties"]
         ]
 
+        observable_property_id_selection = [op.id for op in observable_properties]
         observable_property_dict = {op["id"]: op for op in observable_properties}
         observation_design_list = [getattr(observation, "observation_design", None) for observation in observation_list]
         if len([od for od in observation_design_list if od is not None]) == 0:
@@ -33,6 +34,7 @@ class TestBasicValidationConfig:
         for observation in observation_list:
             validation_config = ValidationConfig.from_observation(
                 observation,
+                observable_property_id_selection,
                 observable_property_dict,
             )
             for column_dict in validation_config.columns:

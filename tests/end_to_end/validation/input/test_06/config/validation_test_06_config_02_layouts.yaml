@@ -5,52 +5,67 @@ layouts:
   sections:
   - id: peh:SAMPLE_METADATA_SECTION_SAMPLE
     ui_label: SAMPLE
+    observable_entity_type: sample
     section_type: data_table
-    observation: peh:VALIDATION_TEST_SAMPLE_SAMPLE
     elements:
     - label: id_sample
-      observable_property: id_sample
+      observable_property: peh:OBSPROP_ID_id_sample
+      is_observable_entity_key: true
+      foreign_key_link:
+        section: peh:SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BWB
+        label: id_sample
     - label: id_subject
-      observable_property: id_subject
+      observable_property: peh:OBSPROP_ID_id_subject
+      foreign_key_link:
+        section: peh:SAMPLE_METADATA_SECTION_SUBJECTUNIQUE
+        label: id_subject
     - label: matrix
-      observable_property: matrix
+      observable_property: peh:OBSPROP_ID_matrix
     - label: samplingyear
-      observable_property: samplingyear
+      observable_property: peh:OBSPROP_ID_samplingyear
     - label: samplingmonth
-      observable_property: samplingmonth
+      observable_property: peh:OBSPROP_ID_samplingmonth
     - label: samplingday
-      observable_property: samplingday
+      observable_property: peh:OBSPROP_ID_samplingday
     - label: samplinghour
-      observable_property: samplinghour
+      observable_property: peh:OBSPROP_ID_samplinghour
     - label: samplingminutes
-      observable_property: samplingminutes
+      observable_property: peh:OBSPROP_ID_samplingminutes
   - id: peh:SAMPLE_METADATA_SECTION_SUBJECTUNIQUE
     ui_label: SUBJECTUNIQUE
+    observable_entity_type: person
     section_type: data_table
-    observation: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE
     elements:
     - label: id_subject
-      observable_property: id_subject
+      observable_property: peh:OBSPROP_ID_id_subject
+      is_observable_entity_key: true
     - label: id_participant
-      observable_property: id_participant
+      observable_property: peh:OBSPROP_ID_id_participant
+      foreign_key_link:
+        section: peh:SAMPLE_METADATA_SECTION_SUBJECTUNIQUE
+        label: id_subject
     - label: relation
-      observable_property: relation
+      observable_property: peh:OBSPROP_ID_relation
     - label: sex
-      observable_property: sex
+      observable_property: peh:OBSPROP_ID_sex
     - label: age_birth_m
-      observable_property: age_birth_m
+      observable_property: peh:OBSPROP_ID_age_birth_m
     - label: smoking_m
-      observable_property: smoking_m
+      observable_property: peh:OBSPROP_ID_smoking_m
   - id: peh:SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BWB
     ui_label: SAMPLETIMEPOINT_BWB
+    observable_entity_type: sample
     section_type: data_table
-    observation: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB
     elements:
     - label: id_sample
-      observable_property: id_sample
+      observable_property: peh:OBSPROP_ID_id_sample
+      is_observable_entity_key: true
+      foreign_key_link:
+        section: peh:SAMPLE_METADATA_SECTION_SAMPLE
+        label: id_sample
     - label: chol
-      observable_property: chol
+      observable_property: peh:OBSPROP_ID_chol
     - label: chol_lod
-      observable_property: chol_lod
+      observable_property: peh:OBSPROP_ID_chol_lod
     - label: chol_loq
-      observable_property: chol_loq
+      observable_property: peh:OBSPROP_ID_chol_loq

@@ -1201,15 +1201,15 @@ wheels = [
 
 [[package]]
 name = "peh-model"
-version = "0.2.0"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "linkml-runtime" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8b/7d/b4869dd57f7ca4dc647248dfb6b0a48de0b17a24d19e91173c4a3e3d59f2/peh_model-0.2.0.tar.gz", hash = "sha256:9a28aeedd9d694faceff47e968ab1e3163d00a3df55f109b2fcbc997fa236649", size = 40214, upload-time = "2025-09-30T10:06:00.652Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f2/00/e464c199af1b480a9d9d056497311b920d5be2961a3f9adb69dae0334873/peh_model-0.3.0.tar.gz", hash = "sha256:eee43b06ec11adfcb717068131e98b1fe41fb08a02f30d8367ac6204830b857b", size = 41220, upload-time = "2025-10-22T19:52:26.501Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d3/cb/d8dbf8cbee19d4b2c97281d58417f705a564b9b3134857f573dd87a6edea/peh_model-0.2.0-py3-none-any.whl", hash = "sha256:c157687dd3898fec53c11a97261f70492625b2891715ca7092668a3597de9fb3", size = 40075, upload-time = "2025-09-30T10:05:59.637Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/1d/7eb3ea9524d99168b08a36806fa6aa7471605a93068bbf7213e52efa8bf7/peh_model-0.3.0-py3-none-any.whl", hash = "sha256:c25131a6678b55fa032c56da4b22c90b21ab5faef6cf988f10c34aaa143748fa", size = 41148, upload-time = "2025-10-22T19:52:25.201Z" },
 ]
 
 [[package]]
@@ -1618,7 +1618,7 @@ requires-dist = [
     { name = "fastexcel", marker = "extra == 'polars-adapter'" },
     { name = "fsspec" },
     { name = "linkml", specifier = ">=1.9.1" },
-    { name = "peh-model", specifier = "==0.2.0" },
+    { name = "peh-model", specifier = "==0.3.0" },
     { name = "polars", marker = "extra == 'dataframe-adapter'" },
     { name = "polars", marker = "extra == 'polars-adapter'" },
     { name = "pyarrow", marker = "extra == 'dataframe-adapter'" },

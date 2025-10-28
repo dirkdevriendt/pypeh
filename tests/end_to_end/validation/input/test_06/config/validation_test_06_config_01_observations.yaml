@@ -7,15 +7,15 @@ observations:
     observation_result_type: measurement
     observable_entity_type: sample
     identifying_observable_property_id_list:
-    - id_sample
+    - peh:OBSPROP_ID_id_sample
     optional_observable_property_id_list:
-    - id_subject
-    - matrix
-    - samplingyear
-    - samplingmonth
-    - samplingday
-    - samplinghour
-    - samplingminutes
+    - peh:OBSPROP_ID_id_subject
+    - peh:OBSPROP_ID_matrix
+    - peh:OBSPROP_ID_samplingyear
+    - peh:OBSPROP_ID_samplingmonth
+    - peh:OBSPROP_ID_samplingday
+    - peh:OBSPROP_ID_samplinghour
+    - peh:OBSPROP_ID_samplingminutes
 - id: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE
   name: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE
   ui_label: SUBJECTUNIQUE
@@ -24,13 +24,13 @@ observations:
     observation_result_type: measurement
     observable_entity_type: person
     identifying_observable_property_id_list:
-    - id_subject
+    - peh:OBSPROP_ID_id_subject
     optional_observable_property_id_list:
-    - id_participant
-    - relation
-    - sex
-    - age_birth_m
-    - smoking_m
+    - peh:OBSPROP_ID_id_participant
+    - peh:OBSPROP_ID_relation
+    - peh:OBSPROP_ID_sex
+    - peh:OBSPROP_ID_age_birth_m
+    - peh:OBSPROP_ID_smoking_m
 - id: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB
   name: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB
   ui_label: SAMPLETIMEPOINT_BWB
@@ -39,8 +39,8 @@ observations:
     observation_result_type: measurement
     observable_entity_type: sample
     identifying_observable_property_id_list:
-    - id_sample
+    - peh:OBSPROP_ID_id_sample
     optional_observable_property_id_list:
-    - chol
-    - chol_lod
-    - chol_loq
+    - peh:OBSPROP_ID_chol
+    - peh:OBSPROP_ID_chol_lod
+    - peh:OBSPROP_ID_chol_loq
