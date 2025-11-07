@@ -45,3 +45,15 @@ class TestCache:
         }
         cache_view = CacheContainerView(container, container_subset)
         assert len(list(cache_view.get_all())) == 3
+
+    def test_cache_nested(self, container):
+        ret = container.walk_entity(
+            entity_id="OBSERVATION_ADULTS_BLOODSERUM_LAB",
+            nested_entity_path=["observation_design", "required_observable_property_id_list"],
+            entity_type="Observation",
+        )
+        count = 0
+        for item in ret:
+            assert isinstance(item, ObservableProperty)
+            count += 1
+        assert count == 7

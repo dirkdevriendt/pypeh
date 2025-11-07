@@ -15,7 +15,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from peh_model.peh import NamedThing
-from typing import Dict, Type, TYPE_CHECKING, Set, TypeVar, Generic
+from typing import Dict, Type, TYPE_CHECKING, Set, TypeVar, Generic, Sequence
 
 from pypeh.core.cache.utils import get_entity_type
 from pypeh.core.models.proxy import TypedLazyProxy
@@ -68,6 +68,30 @@ class CacheContainer(ABC, Generic[T_Container]):
     @abstractmethod
     def __len__(self) -> int:
         pass
+
+    def walk_entity(
+        self,
+        entity_id: str,
+        nested_entity_path: list[str],
+        entity_type: str | None = None,
+    ) -> Generator[T_NamedThingLike, None, None]:
+        # naive implementation
+        # the container could be improved to include the links
+        # lets figure out if we need this feature
+        entity = self.get(entity_id=entity_id, entity_type=entity_type)
+        if entity is not None:
+            for field_name in nested_entity_path:
+                new_entity = getattr(entity, field_name)
+                entity = new_entity
+            if isinstance(entity, Sequence):
+                for _id in entity:
+                    yield self.get(entity_id=_id)
+            elif isinstance(entity, str):
+                yield self.get(entity_id=entity)
+            else:
+                raise ValueError
+        else:
+            return
 
 
 class CacheContainerView(Generic[T_Container]):
