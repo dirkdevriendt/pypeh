@@ -4,7 +4,7 @@ import pathlib
 from peh_model.peh import DataImportConfig, DataImportSectionMapping, DataImportSectionMappingLink, DataLayout
 
 from pypeh import Session
-from pypeh.core.models.internal_data_layout import ObservationResultProxy
+from pypeh.core.models.internal_data_layout import Dataset, DatasetSeries, ObservationResultProxy
 from pypeh.core.models.settings import LocalFileConfig
 
 from tests.test_utils.dirutils import get_absolute_path
@@ -36,6 +36,64 @@ class TestSessionValidation:
         assert isinstance(data_import_config, DataImportConfig)
         with pytest.raises(Exception, match=r"Sheet name\(s\) Template do not correspond with provided data layout"):
             session.load_tabular_data_collection(source=excel_path, data_import_config=data_import_config)
+
+    def test_load_data_collection_from_layout(self):
+        from polars import DataFrame
+
+        session = Session(
+            connection_config=[
+                LocalFileConfig(
+                    label="local_file",
+                    config_dict={
+                        "root_folder": get_absolute_path("./input/load_data_collection_basic"),
+                    },
+                ),
+            ],
+            default_connection="local_file",
+            load_from_default_connection="",
+        )
+        data_import_config = DataImportConfig(
+            id="peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA",
+            layout="peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA",
+            section_mapping=DataImportSectionMapping(
+                section_mapping_links=[
+                    DataImportSectionMappingLink(
+                        section="SAMPLE_METADATA_SECTION_SAMPLE",
+                        observation_id_list=["peh:VALIDATION_TEST_SAMPLE_METADATA"],
+                    ),
+                    DataImportSectionMappingLink(
+                        section="SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS",
+                        observation_id_list=["peh:VALIDATION_TEST_SAMPLE_TIMEPOINT"],
+                    ),
+                ]
+            ),
+        )
+        result = session._load_tabular_data_collection(
+            source="validation_test_03_data.xlsx", data_import_config=data_import_config, connection_label="local_file"
+        )
+
+        assert isinstance(result, DatasetSeries)
+        assert result.described_by == data_import_config.layout
+
+        section_id = "SAMPLE_METADATA_SECTION_SAMPLE"
+        section = session.cache.get(section_id, "DataLayoutSection")
+        section_label = section.ui_label
+        assert section_label in result.parts
+        dataset = result.parts[section_label]
+        assert isinstance(dataset, Dataset)
+        assert dataset.described_by == section_id
+        assert isinstance(dataset.data, DataFrame)
+        assert dataset.data.shape == (1, 7)
+
+        section_id = "SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS"
+        section = session.cache.get(section_id, "DataLayoutSection")
+        section_label = section.ui_label
+        assert section_label in result.parts
+        dataset = result.parts[section_label]
+        assert isinstance(dataset, Dataset)
+        assert dataset.described_by == section_id
+        assert isinstance(dataset.data, DataFrame)
+        assert dataset.data.shape == (1, 4)
 
     def test_load_data_collection_basic(self):
         session = Session(

@@ -22,7 +22,7 @@ from pypeh.core.models.validation_errors import (
     ValidationErrorReport,
     ValidationErrorReportCollection,
 )
-from pypeh.core.models.internal_data_layout import InternalDataLayout, ObservationResultProxy
+from pypeh.core.models.internal_data_layout import DatasetSeries, InternalDataLayout, ObservationResultProxy
 from pypeh.core.models.internal_data_layout import get_observations_from_data_import_config
 from pypeh.core.interfaces.outbound.dataops import ValidationInterface, DataImportInterface
 from pypeh.core.cache.utils import load_entities_from_tree
@@ -215,6 +215,39 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
         ret = self._source_to_cache(roots)
         assert ret
+
+    # TEMP: this will replace load_tabular_data_collection
+    def _load_tabular_data_collection(
+        self,
+        source: str,
+        data_import_config: peh.DataImportConfig,
+        connection_label: str | None = None,
+    ) -> DatasetSeries[DataFrame]:
+        cache_view = CacheContainerView(self.cache)
+        assert isinstance(data_import_config, peh.DataImportConfig)
+        data_layout_id = data_import_config.layout
+        assert data_layout_id is not None
+        data_layout = self.get_resource(data_layout_id, "DataLayout")
+        assert isinstance(data_layout, peh.DataLayout)
+        dataset_series = DatasetSeries.from_peh_datalayout(data_layout, cache_view=cache_view)
+        dataset_series.add_metadata("data_import_config_id", data_import_config.id)
+        data_schema = dataset_series.get_type_annotations()
+
+        # TODO: fix host calls with unified ConnectionManager
+        if is_url(source):
+            raise NotImplementedError
+        elif connection_label is not None:
+            pass
+        else:
+            connection_label = DEFAULT_CONNECTION_LABEL
+
+        with self.connection_manager.get_connection(connection_label=connection_label) as connection:
+            data_dict = connection.load(source, validation_layout=data_layout, data_schema=data_schema)
+        assert isinstance(data_dict, dict)
+        for raw_dataset_label, raw_dataset in data_dict.items():
+            _ = dataset_series.add_data(dataset_label=raw_dataset_label, data=raw_dataset)
+
+        return dataset_series
 
     def load_tabular_data_collection(
         self,
