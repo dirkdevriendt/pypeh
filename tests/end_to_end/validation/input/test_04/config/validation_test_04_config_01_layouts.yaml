@@ -6,10 +6,11 @@ layouts:
   - id: peh:SAMPLE_METADATA_SECTION_STUDYINFO
     ui_label: STUDYINFO
     section_type: data_form
+    observable_entity_type: study
   - id: peh:SAMPLE_METADATA_SECTION_SAMPLE
     ui_label: SAMPLE
     section_type: data_table
-    observation: peh:VALIDATION_TEST_SAMPLE_SAMPLE
+    observable_entity_type: sample
     elements:
     - label: id_sample
       observable_property: id_sample
@@ -40,7 +41,7 @@ layouts:
   - id: peh:SAMPLE_METADATA_SECTION_SUBJECTUNIQUE
     ui_label: SUBJECTUNIQUE
     section_type: data_table
-    observation: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE
+    observable_entity_type: person
     elements:
     - label: id_subject
       observable_property: id_subject
@@ -59,7 +60,7 @@ layouts:
   - id: peh:SAMPLE_METADATA_SECTION_SUBJECTTIMEPOINT
     ui_label: SUBJECTTIMEPOINT
     section_type: data_table
-    observation: peh:VALIDATION_TEST_SAMPLE_SUBJECTTIMEPOINT
+    observable_entity_type: person
     elements:
     - label: id_subject
       observable_property: id_subject
@@ -116,7 +117,7 @@ layouts:
   - id: peh:SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BWB
     ui_label: SAMPLETIMEPOINT_BWB
     section_type: data_table
-    observation: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB
+    observable_entity_type: sample
     elements:
     - label: id_sample
       observable_property: id_sample

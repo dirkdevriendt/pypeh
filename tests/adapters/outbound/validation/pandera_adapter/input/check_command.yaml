@@ -7,8 +7,63 @@ observations:
     observation_result_type: measurement
     observable_entity_type: sample
     optional_observable_property_id_list:
+    - matrix
     - chol
 observable_properties:
+- id: matrix
+  unique_name: matrix
+  name: matrix
+  description: matrix abbreviation
+  ui_label: matrix abbreviation
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: BWB
+    value: Blood-whole blood
+  - key: BP
+    value: Blood -plasma
+  - key: BS
+    value: Blood -serum
+  - key: CBWB
+    value: Cord blood-whole blood
+  - key: CBP
+    value: Cord blood-plasma
+  - key: CBS
+    value: Cord blood-serum
+  - key: US
+    value: Urine- random spot
+  - key: UD
+    value: Urine-24h
+  - key: UM
+    value: Urine-first morning urine
+  - key: SA
+    value: Saliva/sputum
+  - key: SEM
+    value: Semen
+  - key: EBC
+    value: exhaled breath condensate
+  - key: RBC
+    value: red blood cells
+  - key: BM
+    value: Breast milk
+  - key: ADI
+    value: Adipose Tissue/Fat
+  - key: H
+    value: Hair
+  - key: DW
+    value: dermal wipes
+  - key: AF
+    value: Amniotic Fluid
+  - key: PLT
+    value: placenta tissue
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  short_name: matrix
 - id: chol
   unique_name: chol
   name: chol

@@ -2742,3 +2742,5 @@ observable_properties:
   default_zeroallowed: true
   default_observation_result_type: measurement
   relevant_observation_types:
+  - questionnaire
+  short_name: lipidassessment

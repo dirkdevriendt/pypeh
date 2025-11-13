@@ -1,5 +1,5 @@
 observable_properties:
-- id: id_sample
+- id: peh:OBSPROP_ID_id_sample
   unique_name: id_sample
   name: id_sample
   ui_label: id_sample
@@ -13,7 +13,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: id_sample
-- id: id_subject
+- id: peh:OBSPROP_ID_id_subject
   unique_name: id_subject
   name: id_subject
   description: UID of the subject
@@ -35,7 +35,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: id_subject
-- id: matrix
+- id: peh:OBSPROP_ID_matrix
   unique_name: matrix
   name: matrix
   description: matrix abbreviation
@@ -92,7 +92,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: matrix
-- id: samplingyear
+- id: peh:OBSPROP_ID_samplingyear
   unique_name: samplingyear
   name: samplingyear
   description: year of sample collection
@@ -116,7 +116,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: samplingyear
-- id: samplingmonth
+- id: peh:OBSPROP_ID_samplingmonth
   unique_name: samplingmonth
   name: samplingmonth
   description: month of sample collection (1 is the first month of the year)
@@ -161,7 +161,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: samplingmonth
-- id: samplingday
+- id: peh:OBSPROP_ID_samplingday
   unique_name: samplingday
   name: samplingday
   description: day of sample collection (1 is the first day of the month)
@@ -188,7 +188,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: samplingday
-- id: samplinghour
+- id: peh:OBSPROP_ID_samplinghour
   unique_name: samplinghour
   name: samplinghour
   description: Hour of sampling
@@ -210,7 +210,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: samplinghour
-- id: samplingminutes
+- id: peh:OBSPROP_ID_samplingminutes
   unique_name: samplingminutes
   name: samplingminutes
   description: Minutes of sampling
@@ -232,13 +232,13 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: samplingminutes
-- id: id_participant
+- id: peh:OBSPROP_ID_id_participant
   unique_name: id_participant
   name: id_participant
   description: id_subject of participant (main study subject) to which this subject
     is linked
   ui_label: id_participant
-  value_type: decimal
+  value_type: string
   categorical: false
   multivalued: false
   default_unit: UNITLESS
@@ -248,7 +248,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: id_participant
-- id: relation
+- id: peh:OBSPROP_ID_relation
   unique_name: relation
   name: relation
   description: relation id_subject vs id_participant (main subject of the study)
@@ -272,7 +272,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: relation
-- id: sex
+- id: peh:OBSPROP_ID_sex
   unique_name: sex
   name: sex
   description: sex of the subject
@@ -297,7 +297,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: sex
-- id: age_birth_m
+- id: peh:OBSPROP_ID_age_birth_m
   unique_name: age_birth_m
   name: age_birth_m
   description: age of mother at birth of subject
@@ -330,7 +330,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: age_birth_m
-- id: smoking_m
+- id: peh:OBSPROP_ID_smoking_m
   unique_name: smoking_m
   name: smoking_m
   description: Smoking status of the mother of the subject during pregnancy
@@ -355,7 +355,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: smoking_m
-- id: chol
+- id: peh:OBSPROP_ID_chol
   unique_name: chol
   name: chol
   description: Cholesterol in sample
@@ -382,7 +382,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: chol
-- id: chol_lod
+- id: peh:OBSPROP_ID_chol_lod
   unique_name: chol_lod
   name: chol_lod
   description: lod associated with the cholesterol measurement of the sample
@@ -404,7 +404,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: chol_lod
-- id: chol_loq
+- id: peh:OBSPROP_ID_chol_loq
   unique_name: chol_loq
   name: chol_loq
   description: loq associated with the cholesterol measurement of the sample

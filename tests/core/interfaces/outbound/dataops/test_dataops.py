@@ -2,16 +2,14 @@ import pytest
 import abc
 
 from typing import Protocol, Any, Generic
-from peh_model.peh import DataLayout
+from peh_model.peh import DataImportConfig, DataImportSectionMapping, DataImportSectionMappingLink, DataLayout
 
 from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.interfaces.outbound.dataops import T_DataType, ValidationInterface
 from pypeh.core.models.internal_data_layout import (
-    DataImportConfig,
     InternalDataLayout,
     ObservationResultProxy,
-    SectionImportConfig,
 )
 from pypeh.core.models.validation_errors import ValidationErrorReport
 from pypeh.core.models.constants import ValidationErrorLevel
@@ -492,17 +490,20 @@ class TestDataImport(abc.ABC):
 
     def test_data_layout_to_observation_results(self, data_layout_container, raw_data):
         data_import_config = DataImportConfig(
-            data_layout_id="peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS",
-            section_map=[
-                SectionImportConfig(
-                    data_layout_section_id="peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS_SECTION_urine_lab",
-                    observation_ids=["peh:SAMPLE_DATA"],
-                ),
-                SectionImportConfig(
-                    data_layout_section_id="peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS_SECTION_analyticalinfo",
-                    observation_ids=["peh:SAMPLE_METADATA"],
-                ),
-            ],
+            id="peh:IMPORT_CONFIG_PARC_ALIGNED_STUDIES_LAYOUT_ADULTS",
+            layout="peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS",
+            section_mapping=DataImportSectionMapping(
+                section_mapping_links=[
+                    DataImportSectionMappingLink(
+                        section="peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS_SECTION_urine_lab",
+                        observation_id_list=["peh:SAMPLE_DATA"],
+                    ),
+                    DataImportSectionMappingLink(
+                        section="peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS_SECTION_analyticalinfo",
+                        observation_id_list=["peh:SAMPLE_METADATA"],
+                    ),
+                ],
+            ),
         )
         cache_view = CacheContainerView(container=data_layout_container)
         data_layout = cache_view.get("peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS", "DataLayout")
@@ -520,11 +521,11 @@ class TestDataImport(abc.ABC):
         assert len(ret) == 2
         observation_result = ret["peh:SAMPLE_DATA"]
         assert isinstance(observation_result, ObservationResultProxy)
-        assert observation_result.observed_values.shape == (2, 3)
+        assert observation_result.observed_data.shape == (2, 3)
 
         observation_result = ret["peh:SAMPLE_METADATA"]
         assert isinstance(observation_result, ObservationResultProxy)
-        assert observation_result.observed_values.shape == (2, 4)
+        assert observation_result.observed_data.shape == (2, 4)
 
 
 @pytest.mark.dataframe

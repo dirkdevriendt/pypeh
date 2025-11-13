@@ -5,7 +5,7 @@ observations:
   observation_type: metadata
   observation_design:
     observation_result_type: measurement
-    observable_entity_type: sample
+    observable_entity_type: person
     identifying_observable_property_id_list:
     - adults_id_subject
     optional_observable_property_id_list:
@@ -17,7 +17,7 @@ observations:
   observation_type: sampling
   observation_design:
     observation_result_type: measurement
-    observable_entity_type: sample
+    observable_entity_type: lab_analysis_process
     identifying_observable_property_id_list:
     - adults_id_subject
     optional_observable_property_id_list:

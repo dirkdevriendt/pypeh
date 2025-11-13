@@ -6,6 +6,7 @@ layouts:
   - id: SAMPLE_METADATA_SECTION_SAMPLE
     ui_label: SAMPLE
     section_type: data_table
+    observable_entity_type: sample
     elements:
     - label: id_sample
       observable_property: peh:adults_id_subject
@@ -14,6 +15,7 @@ layouts:
   - id: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BS
     ui_label: SAMPLETIMEPOINT_BS
     section_type: data_table
+    observable_entity_type: sample
     elements:
     - label: id_sample
       observable_property:  peh:adults_id_subject

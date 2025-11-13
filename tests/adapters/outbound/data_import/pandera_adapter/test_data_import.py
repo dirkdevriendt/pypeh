@@ -2,7 +2,6 @@ import pytest
 import random
 
 from pypeh.core.interfaces.outbound.dataops import DataImportInterface
-from pypeh.core.models.internal_data_layout import ObservationResultProxy
 
 
 @pytest.mark.dataframe
@@ -25,14 +24,12 @@ class TestDataImport:
         identifying_layout_element_label = "id_sample"
         entity_id_list = [1, 4, 5]
         adapter = DataImportInterface.get_default_adapter_class()
-        result = adapter()._raw_data_to_observation_results(
+        observed_data = adapter()._raw_data_to_observation_data(
             raw_data=df,
             data_layout_element_labels=data_layout_element_labels,
             identifying_layout_element_label=identifying_layout_element_label,
             entity_id_list=entity_id_list,
         )
-        assert isinstance(result, ObservationResultProxy)
-        observed_df = result.observed_values
-        assert observed_df.shape == (len(entity_id_list), len(data_layout_element_labels))
-        assert observed_df.columns == data_layout_element_labels
-        assert set(observed_df["id_sample"].to_list()) == set(entity_id_list)
+        assert observed_data.shape == (len(entity_id_list), len(data_layout_element_labels))
+        assert observed_data.columns == data_layout_element_labels
+        assert set(observed_data["id_sample"].to_list()) == set(entity_id_list)

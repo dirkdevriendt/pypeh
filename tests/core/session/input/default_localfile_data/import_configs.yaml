@@ -1,0 +1,8 @@
+import_configs:
+- id: peh:IMPORT_CONFIG_TEST_DATA_LAYOUT
+  layout: TEST_DATA_LAYOUT
+  section_mapping:
+    section_mapping_links:
+    - section: TEST_DATA_LAYOUT_SECTION_SAMPLETIMEPOINT_UM
+      observation_id_list:
+      - peh:OBSERVATION_ADULTS_URINE_LAB
