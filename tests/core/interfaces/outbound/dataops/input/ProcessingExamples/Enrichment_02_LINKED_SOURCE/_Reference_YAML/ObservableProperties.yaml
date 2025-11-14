@@ -1,0 +1,104 @@
+observable_properties:
+- id: peh:id_subject
+  unique_name: id_subject
+  name: id_subject
+  short_name: id_subject
+  description: Subject Identifier
+  value_type: string
+  categorical: false
+  multivalued: false
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: false
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+- id: peh:id_household
+  unique_name: id_household
+  name: id_household
+  short_name: id_household
+  description: Household Identifier
+  value_type: string
+  categorical: false
+  multivalued: false
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: false
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+- id: peh:Todaysdate
+  unique_name: Todaysdate
+  name: Todaysdate
+  short_name: Todaysdate
+  description: Today's date (as filled by participant on questionnaire)
+  value_type: datetime
+  categorical: false
+  multivalued: false
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+- id: peh:N1Birthdate
+  unique_name: N1Birthdate
+  name: N1Birthdate
+  short_name: N1Birthdate
+  description: 1. Birthdate
+  value_type: datetime
+  categorical: false
+  multivalued: false
+  default_unit: UNITLESS
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+- id: peh:N2Birthweight
+  unique_name: N2Birthweight
+  name: N2Birthweight
+  short_name: N2Birthweight
+  description: 2. Birthweight (in gram)
+  value_type: integer
+  categorical: false
+  multivalued: false
+  default_unit: GM
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+- id: peh:agemonths
+  unique_name: agemonths
+  name: agemonths
+  short_name: agemonths
+  description: Age in months of the child (calculated based on N1Birthdate and Todaysdate)
+  categorical: false
+  multivalued: false
+  value_type: integer
+  default_unit: MO
+  default_required: false
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  value_metadata:
+  - field: max
+    value: '239.0'
+  calculation_designs:
+  - calculation_name: age_in_months_from_birth_and_interview_dates
+    calculation_implementation:
+      function_name: age_in_months_from_birth_and_interview_dates
+      function_kwargs:
+      - mapping_name: birth_date
+        source_path: N1Birthdate
+        process_state: clean
+        unit: UNITLESS
+      - mapping_name: interview_date
+        source_path: peh:ENRICHMENT_TEST_OBSERVATION_HOUSEHOLD_INGESTED\Todaysdate
+        process_state: clean
+        unit: UNITLESS
+      function_results:
+      - value_type: integer
+        unit: MO
