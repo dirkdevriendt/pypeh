@@ -2,6 +2,8 @@ import pytest
 import peh_model.peh as peh
 import logging
 
+from pypeh.core.cache.containers import CacheContainerView
+from pypeh.core.interfaces.outbound.dataops import DataImportInterface
 from pypeh.core.models.constants import ValidationErrorLevel
 from tests.test_utils.dirutils import get_absolute_path
 from typing import cast
@@ -596,3 +598,50 @@ class TestRoundTripDataset:
             unexpected_errors += len(validation_report.unexpected_errors)
 
         assert unexpected_errors == 0
+
+
+@pytest.mark.end_to_end
+class TestDatasetSeriesCasting:
+    @pytest.fixture(scope="class")
+    def import_config_label(self):
+        return "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+
+    @pytest.mark.parametrize(
+        "test_label",
+        [
+            "04",
+        ],
+    )
+    def test_cast(self, monkeypatch, import_config_label, test_label):
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path(f"./input/test_{test_label}"))
+        excel_path = f"validation_test_{test_label}_data.xlsx"
+
+        session = Session()
+        cache_view = CacheContainerView(session.cache)
+        cache_path = "config"
+        session.load_persisted_cache(source=cache_path)
+        data_import_config = session.cache.get(import_config_label, "DataImportConfig")
+        assert isinstance(data_import_config, peh.DataImportConfig)
+        dataset_series = session._load_tabular_dataset_series(
+            source=excel_path,
+            data_import_config=data_import_config,
+        )
+        assert isinstance(dataset_series, DatasetSeries)
+        assert len(dataset_series) > 0
+        data_ops_adapter = DataImportInterface.get_default_adapter_class()
+
+        # Observation based view
+        dataset_series._cast_from_data_import_config(
+            data_import_config=data_import_config,
+            dataops_adapter=data_ops_adapter(),
+            cache_view=cache_view,
+        )
+        assert len(dataset_series) == 4
+        for dataset_label in dataset_series.parts:
+            dataset = dataset_series.get(dataset_label)
+            assert dataset is not None
+            observation_id = dataset.metadata.get("described_by")
+            assert observation_id is not None
+            observation = cache_view.get(observation_id, "Observation")
+            assert isinstance(observation, peh.Observation)
