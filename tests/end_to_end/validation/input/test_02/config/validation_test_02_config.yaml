@@ -34,6 +34,7 @@ layouts:
     elements:
     - label: id_sample
       observable_property: id_sample
+      is_observable_entity_key: true
     - label: samplingyear
       observable_property: samplingyear
     - label: samplingmonth

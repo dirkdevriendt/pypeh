@@ -20,6 +20,7 @@ from pypeh.core.interfaces.outbound.dataops import (
     ValidationInterface,
     DataImportInterface,
 )
+from pypeh.core.models.internal_data_layout import Dataset
 from pypeh.core.models.validation_errors import ValidationErrorReport, EntityLocation
 from pypeh.core.models.validation_dto import ValidationConfig
 from pypeh.core.session.connections import ConnectionManager
@@ -110,6 +111,30 @@ class DataFrameAdapter(ValidationInterface[DataFrame], DataImportInterface[DataF
                 raise ValueError(f"Did not find data section with label {dependent_section}")
         return joined_data
 
+    # TEMP: to replace _join_data
+    def _join_dataset(
+        self,
+        identifying_observable_property_ids: list[str],
+        dataset: Dataset[DataFrame],
+        dependent_data: dict[str, Dataset[DataFrame]],
+        dependent_observable_property_ids: set[str],
+        observable_property_id_to_dataset_label_dict: dict[str, str],
+    ) -> DataFrame:
+        joined_data = dataset.data
+        assert isinstance(joined_data, DataFrame), "joined_data in `DataFrameAdapter._join_data` should be a DataFrame"
+        for dependent_obs_prop in dependent_observable_property_ids:
+            dependent_dataset = observable_property_id_to_dataset_label_dict.get(dependent_obs_prop, None)
+            if dependent_dataset is None:
+                raise ValueError(f"Could not find data layout section for observable property {dependent_obs_prop}")
+            other_result_proxy = dependent_data[dependent_dataset]
+            if other_result_proxy is not None:
+                other = other_result_proxy.data
+                assert isinstance(other, DataFrame), "other in `DataFrameAdapter._join_data` should be a DataFrame"
+                joined_data = joined_data.join(other, on=identifying_observable_property_ids, how="left")
+            else:
+                raise ValueError(f"Did not find data section with label {dependent_dataset}")
+        return joined_data
+
     def summarize(self, data: Mapping, config: Mapping):
         pass
 
@@ -161,3 +186,9 @@ class DataFrameAdapter(ValidationInterface[DataFrame], DataImportInterface[DataF
             )
 
         return ret
+
+    def get_element_labels(self, data: DataFrame) -> list[str]:
+        return data.columns
+
+    def get_element_values(self, data: DataFrame, element_label: str) -> set[str]:
+        return set(data.get_column(element_label))

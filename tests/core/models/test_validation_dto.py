@@ -2,6 +2,10 @@ import pytest
 import yaml
 
 from peh_model import peh
+from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
+from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.utils import load_entities_from_tree
+from pypeh.core.models.internal_data_layout import DatasetSeries
 from pypeh.core.models.validation_dto import ValidationConfig
 
 from tests.test_utils.dirutils import get_absolute_path
@@ -42,3 +46,58 @@ class TestBasicValidationConfig:
                     found = True
 
         assert found
+
+    @pytest.fixture(scope="function")
+    def get_cache(self):
+        source = get_absolute_path("input")
+        container = CacheContainerFactory.new()
+        host = DirectoryIO()
+        roots = host.load(source, format="yaml")
+        for root in roots:
+            for entity in load_entities_from_tree(root):
+                container.add(entity)
+
+        return CacheContainerView(container)
+
+    def test_config_from_dataset(self, get_cache):
+        cache_view = get_cache
+        layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        layout = get_cache.get(layout_id, "DataLayoutLayout")
+        all_sections = set()
+        for section in layout.sections:
+            section_id = section.id
+            if section.id is not None:
+                all_sections.add(section_id)
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            layout,
+            cache_view=cache_view,
+        )
+        assert isinstance(dataset_series, DatasetSeries)
+        # add fake data
+        fake_dataset_series = {
+            "SAMPLE": {
+                "id_sample": [
+                    "SMP00123",
+                ],
+                "matrix": [
+                    "plasma",
+                ],
+            },
+            "SAMPLETIMEPOINT_BS": {
+                "id_sample": [
+                    "SMP00123",
+                ],
+                "adults_u_crt": [
+                    1.87,
+                ],
+            },
+        }
+        for dataset_label, fake_dataset in fake_dataset_series.items():
+            dataset_series.add_data(dataset_label, fake_dataset, non_empty_dataset_elements=list(fake_dataset.keys()))
+
+        for dataset_label, dataset in dataset_series.parts.items():
+            config = ValidationConfig.from_dataset(
+                dataset=dataset,
+                cache_view=cache_view,
+            )
+            assert isinstance(config, ValidationConfig)

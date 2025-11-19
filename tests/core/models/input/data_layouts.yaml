@@ -10,6 +10,7 @@ layouts:
     elements:
     - label: id_sample
       observable_property: peh:adults_id_subject
+      is_observable_entity_key: true
     - label: matrix
       observable_property: peh:adults_u_matrix
   - id: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BS

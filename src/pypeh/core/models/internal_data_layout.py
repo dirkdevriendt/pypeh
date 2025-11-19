@@ -9,10 +9,12 @@ from typing import TYPE_CHECKING, Generic, Sequence
 
 from pypeh.core.cache.containers import CacheContainerView
 from pypeh.core.models.typing import T_DataType
-from pypeh.core.models.constants import ObservablePropertyValueType
+from pypeh.core.models.constants import ObservablePropertyValueType, ValidationErrorLevel
+from pypeh.core.models.validation_dto import ValidationDesign, ValidationExpression
 
 if TYPE_CHECKING:
     from typing import Any
+    from pypeh.core.interfaces.outbound.dataops import DataImportInterface
 
 
 logger = logging.getLogger(__name__)
@@ -199,6 +201,12 @@ class DatasetSchema:
         "context": CSVW_CONTEXT,
     }
 
+    def __post_init__(self):
+        self._index = {}
+        for element in self.elements:
+            self._index[element.label] = element
+        self._type = self.get_type_annotations()
+
     def get_type_annotations(self) -> dict[str, ObservablePropertyValueType]:
         ret: dict[str, ObservablePropertyValueType] = dict()
         for element in self.elements:
@@ -208,12 +216,25 @@ class DatasetSchema:
 
         return ret
 
+    def get_type(self, element_label: str) -> ObservablePropertyValueType:
+        return self._type[element_label]
+
+    def get_dataset_elements(self) -> list[str]:
+        return [element.label for element in self.elements]
+
+    def get_element(self, element_label: str) -> DatasetSchemaElement | None:
+        return self._index.get(element_label, None)
+
+    def get_observable_property_ids(self) -> list[str]:
+        return [element.observable_property_id for element in self.elements]
+
     @classmethod
     def from_peh_data_layout_elements(
         cls, data_layout_elements: list[peh.DataLayoutElement], cache_view: CacheContainerView
     ):
         schema_elements = []
         processed_foreign_keys = []
+        processed_primary_keys = []
         for element in data_layout_elements:
             assert isinstance(element, peh.DataLayoutElement)
             element_label = element.label
@@ -239,11 +260,17 @@ class DatasetSchema:
                         ),
                     )
                 )
+            is_primary_key = element.is_observable_entity_key
+            if is_primary_key is not None:
+                if is_primary_key:
+                    processed_primary_keys.append(element_label)
 
             schema_elements.append(DatasetSchemaElement.from_peh_data_layout_element(element, cache_view))
 
         return cls(
             elements=schema_elements,
+            foreign_keys=processed_foreign_keys,
+            primary_keys=processed_primary_keys,
         )
 
 
@@ -251,7 +278,7 @@ class DatasetSchema:
 class Resource:
     label: str
     identifier: str = field(default_factory=lambda: str(uuid.uuid4()))
-    metadata: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     __metadata__ = {
         "id": "dcat:resource",
@@ -272,8 +299,9 @@ class Resource:
 
 @dataclass(kw_only=True)
 class Dataset(Resource, Generic[T_DataType]):
-    data: T_DataType | None = None
+    data: T_DataType | None = field(default=None)
     schema: DatasetSchema
+    part_of: DatasetSeries | None = field(default=None)
 
     __metadata__ = {
         "id": "dcat:dataset",
@@ -284,7 +312,12 @@ class Dataset(Resource, Generic[T_DataType]):
         return self.schema.get_type_annotations()
 
     @classmethod
-    def from_peh_datalayout_section(cls, data_layout_section: peh.DataLayoutSection, cache_view: CacheContainerView):
+    def from_peh_datalayout_section(
+        cls,
+        data_layout_section: peh.DataLayoutSection,
+        cache_view: CacheContainerView,
+        part_of_dataset_series: DatasetSeries | None = None,
+    ) -> Dataset[T_DataType]:
         label = data_layout_section.ui_label
         assert label is not None
         elements = getattr(data_layout_section, "elements")
@@ -298,13 +331,24 @@ class Dataset(Resource, Generic[T_DataType]):
 
         schema = DatasetSchema.from_peh_data_layout_elements(elements, cache_view)
 
-        ret = cls(
+        ret: Dataset[T_DataType] = cls(
             label=label,
             schema=schema,
+            part_of=part_of_dataset_series,
         )
         _ = ret.add_metadata("described_by", data_layout_section.id)
 
         return ret
+
+    @property
+    def non_empty(self):
+        return self.metadata.get("non_empty_dataset_elements", None)
+
+    def get_schema_element(self, element_label: str) -> DatasetSchemaElement | None:
+        return self.schema.get_element(element_label)
+
+    def get_observable_property_ids(self) -> list[str]:
+        return self.schema.get_observable_property_ids()
 
 
 @dataclass(kw_only=True)
@@ -326,9 +370,14 @@ class DatasetSeries(Resource, Generic[T_DataType]):
             raise ValueError("No sections found in DataLayout")
         for section in sections:
             label = getattr(section, "ui_label")
-            parts[label] = Dataset.from_peh_datalayout_section(section, cache_view)
+            parts[label] = Dataset.from_peh_datalayout_section(
+                section,
+                cache_view,
+            )
 
         ret = cls(label=label, parts=parts)
+        for dataset in ret.parts.values():
+            dataset.part_of = ret
         _ = ret.add_metadata("described_by", data_layout.id)
 
         return ret
@@ -341,13 +390,89 @@ class DatasetSeries(Resource, Generic[T_DataType]):
 
         return ret
 
-    def add_data(self, dataset_label: str, data: T_DataType) -> bool:
+    def add_data(
+        self, dataset_label: str, data: T_DataType, non_empty_dataset_elements: list[str] | None = None
+    ) -> bool:
         dataset = self.parts.get(dataset_label, None)
         assert dataset is not None
+        assert dataset.data is None
+        observable_property_ids = dataset.get_observable_property_ids()
+
+        if len(observable_property_ids) == 0:
+            return False
         dataset.data = data
+        dataset.metadata["non_empty_dataset_elements"] = non_empty_dataset_elements
 
         return True
+
+    def get_identifier_validation_config_dict(
+        self,
+        data_import_adapter: DataImportInterface,
+        cache_view: CacheContainerView,
+    ) -> dict[str, list[ValidationDesign]]:
+        ret: dict[str, list[ValidationDesign]] = dict()
+
+        for dataset_label in self.parts:
+            validation_designs = []
+            dataset = self[dataset_label]
+            assert dataset is not None
+            schema = dataset.schema
+            foreign_keys = schema.foreign_keys
+            if foreign_keys is not None:
+                for foreign_key in foreign_keys:
+                    element_label = foreign_key.element_label
+                    reference = foreign_key.reference
+                    referenced_dataset = self[reference.dataset_label]
+                    assert referenced_dataset is not None
+                    referenced_data = referenced_dataset.data
+                    assert referenced_data is not None
+                    validation_arg_values = list(
+                        data_import_adapter.get_element_values(
+                            data=referenced_data, element_label=reference.element_label
+                        )
+                    )
+                    assert (
+                        len(validation_arg_values) > 0
+                    ), f"No identifiers to validate against found in {reference.element_label}"
+                    validation_name = validation_name = (
+                        f"check_foreignkey_{dataset_label.replace(':', '_')}_{element_label}"
+                    )
+                    element = schema.get_element(element_label)
+                    assert element is not None
+                    element_observable_property = cache_view.get(element.observable_property_id, "ObservableProperty")
+                    assert isinstance(element_observable_property, peh.ObservableProperty)
+                    element_observable_property_short_name = element_observable_property.short_name
+                    assert element_observable_property_short_name is not None
+                    validation_design = ValidationDesign(
+                        name=validation_name,
+                        error_level=ValidationErrorLevel.ERROR,
+                        expression=ValidationExpression(
+                            command="is_in",
+                            subject=[
+                                element_label,
+                            ],
+                            arg_values=validation_arg_values,
+                        ),
+                    )
+
+                    validation_designs.append(validation_design)
+
+                ret[dataset_label] = validation_designs
+
+        return ret
 
     @property
     def data_import_config(self) -> str | None:
         return self.metadata.get("data_import_config", None)
+
+    def __len__(self):
+        return len(self.parts)
+
+    def __get__(self):
+        return
+
+    def __getitem__(self, key) -> Dataset | None:
+        return self.parts.get(key)
+
+    def __iter__(self):
+        return iter(self.parts)
