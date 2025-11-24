@@ -6,14 +6,17 @@ import uuid
 from datetime import datetime
 from decimal import Decimal, getcontext
 from pydantic import BaseModel, field_validator
-from typing import Generic, Any, Dict, Sequence
+from typing import Generic, Any, Dict, Sequence, TYPE_CHECKING
 
 from pypeh.core.cache.containers import CacheContainerView
 from pypeh.core.models.typing import CategoricalString, T_DataType
 from pypeh.core.models.constants import ValidationErrorLevel
-from pypeh.core.models.internal_data_layout import InternalDataLayout
 from peh_model import pydanticmodel_v2 as pehs
 from peh_model import peh
+
+
+if TYPE_CHECKING:
+    from pypeh.core.models.internal_data_layout import Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -173,6 +176,7 @@ class ValidationExpression(BaseModel):
         validation_command = getattr(expression, "validation_command", "conjunction")
 
         subject_source_paths = getattr(expression, "validation_subject_source_paths", None)
+        # TODO: extract type from dataset schema
         arg_type = None
         observable_property_id_based_subject_source_paths = []
         if subject_source_paths:
@@ -237,7 +241,8 @@ class ValidationDesign(BaseModel):
         if expression is None:
             raise AttributeError
         expression = ValidationExpression.from_peh(
-            expression, observable_property_short_name_dict=observable_property_short_name_dict
+            expression,
+            observable_property_short_name_dict=observable_property_short_name_dict,
         )
         name = getattr(validation_design, "validation_name", None)
         if name is None:
@@ -338,7 +343,7 @@ class ColumnValidation(BaseModel):
     validations: list[ValidationDesign] | None = None
 
     @classmethod
-    def from_peh(
+    def from_observable_property(
         cls,
         column_name: str,
         observable_property: peh.ObservableProperty | pehs.ObservableProperty,
@@ -396,91 +401,8 @@ class ValidationConfig(BaseModel, Generic[T_DataType]):
     dependent_observable_property_ids: set[str] | None = None
 
     @classmethod
-    def get_dataset_validations(
-        cls,
-        observation_list: Sequence[peh.Observation],
-        layout: peh.DataLayout,
-        dataset_mapping: Dict[str, Dict[str, str | int]],
-    ) -> Sequence[ValidationDesign] | None:
-        return None
-
-    @classmethod
-    def get_dataset_identifier_consistency_validations_dict(
-        cls,
-        observation_list: Sequence[peh.Observation],
-        data_import_config: peh.DataImportConfig,
-        data_dict: Dict[str, Dict[str, Sequence] | T_DataType],
-        cache_view: CacheContainerView,
-    ) -> Dict[str, Sequence[ValidationDesign]] | None:
-        """Returns validation designs that verify consistency of the entity identifiers in the data."""
-
-        data_layout = cache_view.get(data_import_config.layout, "DataLayout")
-        assert isinstance(data_layout, peh.DataLayout)
-        internal_data_representation = InternalDataLayout.from_peh(data_layout)
-        observable_property_list = cache_view.get_all("ObservableProperty")
-        observable_property_short_name_dict = {op.short_name: op for op in observable_property_list}
-
-        def get_identifier_values(section_id, column_label, data_import_config, data_dict):
-            identifier_values = None
-            observation_id_list = []
-            for link in data_import_config.section_mapping.section_mapping_links:
-                if link.section == section_id:
-                    observation_id_list.extend(link.observation_id_list)
-            assert len(observation_id_list) > 0
-            for observation_id in observation_id_list:
-                if column_label in data_dict[observation_id].observed_data.columns:
-                    identifier_values = [str(e) for e in data_dict[observation_id].observed_data[column_label]]
-            assert identifier_values is not None
-            assert len(identifier_values) > 0
-            return identifier_values
-
-        validation_designs_dict = {observation.id: [] for observation in observation_list}
-        for section_mapping_link in data_import_config.section_mapping.section_mapping_links:
-            section = cache_view.get(section_mapping_link.section, "DataLayoutSection")
-
-            validation_designs = []
-            if str(section.section_type) == "data_table":
-                bimap = internal_data_representation.get(section.ui_label, None)
-                for element in section.elements:
-                    if element.foreign_key_link is not None:
-                        assert element.foreign_key_link.section is not None
-                        assert element.foreign_key_link.label is not None
-                        if element.is_observable_entity_key:
-                            validation_name = f"check_primarykey_{section.ui_label.replace(':', '_')}_{element.label}"
-                        else:
-                            validation_name = f"check_foreignkey_{section.ui_label.replace(':', '_')}_{element.label}"
-
-                        validation_arg_values = get_identifier_values(
-                            section_id=element.foreign_key_link.section,
-                            column_label=bimap.get_by_key(element.foreign_key_link.label),
-                            data_import_config=data_import_config,
-                            data_dict=data_dict,
-                        )
-                        validation_designs.append(
-                            peh.ValidationDesign(
-                                validation_name=validation_name,
-                                validation_expression=peh.ValidationExpression(
-                                    validation_subject_source_paths=[
-                                        observable_property_short_name_dict[element.label].short_name
-                                    ],
-                                    validation_command=peh.ValidationCommand.is_in,
-                                    validation_arg_values=validation_arg_values,
-                                ),
-                                validation_error_level=peh.ValidationErrorLevel.error,
-                            )
-                        )
-
-            if len(validation_designs):
-                for observation_id in section_mapping_link.observation_id_list:
-                    if observation_id in validation_designs_dict.keys():
-                        validation_designs_dict[observation_id].extend(validation_designs)
-
-        return validation_designs_dict if len(validation_designs_dict) else None
-
-    @classmethod
     def get_sample_matrix_validations_dict_from_section_labels(
         cls,
-        observation_list: Sequence[peh.Observation],
         data_import_config: peh.DataImportConfig,
         data_dict: Dict[str, Dict[str, Sequence] | T_DataType],
         cache_view: CacheContainerView,
@@ -548,7 +470,9 @@ class ValidationConfig(BaseModel, Generic[T_DataType]):
             raise TypeError
         observable_property_short_name_dict = {op.short_name: op for op in observable_property_dict.values()}
         columns = [
-            ColumnValidation.from_peh(op_id, observable_property_dict[op_id], observable_property_short_name_dict)
+            ColumnValidation.from_observable_property(
+                op_id, observable_property_dict[op_id], observable_property_short_name_dict
+            )
             for op_id in all_op_ids
             if op_id in observable_property_dict and op_id in observable_property_id_selection
         ]
@@ -629,6 +553,91 @@ class ValidationConfig(BaseModel, Generic[T_DataType]):
             dataset_validations,
         )
         return validation_config
+
+    @classmethod
+    def extract_source_paths(cls, column_validations: list[ColumnValidation]) -> set:
+        # source path should become frozen dataclass
+        ret = set()
+        expression_stack = []
+
+        for column_validation in column_validations:
+            validation_designs = getattr(column_validation, "validations", None)
+            if validation_designs is None:
+                continue
+            for validation_design in validation_designs:
+                expression = getattr(validation_design, "expression", None)
+                assert expression is not None
+                expression_stack.append(expression)
+
+        while expression_stack:
+            expression = expression_stack.pop()
+            assert isinstance(expression, ValidationExpression)
+            conditional_expression = expression.conditional_expression
+            if conditional_expression is not None:
+                expression_stack.append(conditional_expression)
+            arg_expressions = expression.arg_expressions
+            if arg_expressions is not None:
+                for arg_expression in arg_expressions:
+                    expression_stack.append(arg_expression)
+            arg_columns = expression.arg_columns
+            if arg_columns is not None:
+                for arg_column in arg_columns:
+                    ret.add(arg_column)
+            subject = expression.subject
+            if subject is not None:
+                for s in subject:
+                    ret.add(s)
+
+        return ret
+
+    @classmethod
+    def from_dataset(
+        cls,
+        dataset: Dataset[T_DataType],
+        cache_view: CacheContainerView,
+        dataset_validations: Sequence[ValidationDesign] | None = None,
+    ) -> ValidationConfig:
+        # TODO: remove observable_property_short_name_dict: replace with proper source_paths
+        # source path is dataset depedent
+        observable_property_short_name_dict = {op.short_name: op for op in cache_view.get_all("ObservableProperty")}
+        dataset_series = getattr(dataset, "part_of")
+        assert dataset_series is not None
+        # use typing information: dict uses {dataset_series_label: {dataset_label: type}}
+        # can then be accessed with source_paths
+        # TODO: dataset_series_type_info = dataset_series.get_type_annotations()
+
+        column_validations = []
+        non_empty_columns = dataset.non_empty
+        assert non_empty_columns is not None
+        for non_empty_column in non_empty_columns:
+            dataset_element = dataset.get_schema_element(non_empty_column)
+            assert dataset_element is not None
+            observable_property_id = dataset_element.observable_property_id
+            observable_property = cache_view.get(observable_property_id, "ObservableProperty")
+            assert isinstance(observable_property, peh.ObservableProperty)
+            # TODO: should be ColumnValidation.from_dataset_element
+            column_validation = ColumnValidation.from_observable_property(
+                column_name=non_empty_column,
+                observable_property=observable_property,
+                short_name_dict=observable_property_short_name_dict,
+            )
+            column_validations.append(column_validation)
+
+        dependent_observable_property_ids = cls.extract_source_paths(column_validations)
+        obs_prop_in_dataset = set(dataset.get_observable_property_ids())
+        cross_dataset_dependent_observable_property_ids = dependent_observable_property_ids - obs_prop_in_dataset
+
+        peh_dataset_validations = None
+        if dataset_validations is not None:
+            peh_dataset_validations = list(dataset_validations)
+
+        return cls(
+            name=dataset.label,
+            columns=column_validations,
+            identifying_column_names=dataset.schema.primary_keys,
+            validations=peh_dataset_validations,
+            dependent_observable_property_ids=cross_dataset_dependent_observable_property_ids,
+        )
 
 
 class ValidationDTO(BaseModel):

@@ -68,7 +68,7 @@ class TestSessionValidation:
                 ]
             ),
         )
-        result = session._load_tabular_data_collection(
+        result = session._load_tabular_dataset_series(
             source="validation_test_03_data.xlsx", data_import_config=data_import_config, connection_label="local_file"
         )
 
@@ -179,26 +179,3 @@ class TestSessionValidation:
         )
         assert isinstance(data, dict)
         assert len(data) == 1
-
-
-class TestMapping:
-    def test_layout_map(self):
-        session = Session(
-            connection_config=[
-                LocalFileConfig(
-                    label="local_file_validation_config",
-                    config_dict={
-                        "root_folder": get_absolute_path("./input/layout_obsprop_map"),
-                    },
-                ),
-            ],
-            default_connection="local_file_validation_config",
-        )
-        session.load_persisted_cache()
-        data_layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
-        data_layout = session.cache.get(data_layout_id, "DataLayout")
-        assert isinstance(data_layout, DataLayout)
-        ret = session.layout_section_elements_to_observable_property_value_types(data_layout, flatten=True)
-        assert isinstance(ret, dict)
-        for value in ret.values():
-            assert value in set(["decimal", "string", "integer", "float", "boolean"])

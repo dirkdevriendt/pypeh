@@ -26,7 +26,7 @@ from peh_model.peh import (
 from typing import TYPE_CHECKING, Generic, cast, List
 
 from pypeh.core.cache.containers import CacheContainerView, CacheContainer
-from pypeh.core.models.internal_data_layout import InternalDataLayout, ObservationResultProxy
+from pypeh.core.models.internal_data_layout import Dataset, DatasetSeries, InternalDataLayout, ObservationResultProxy
 from pypeh.core.models.internal_data_layout import get_observable_property_id_to_dataset_label_dict
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.settings import FileSystemSettings
@@ -36,7 +36,7 @@ from pypeh.core.models.graph import Graph
 from pypeh.core.session.connections import ConnectionManager
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from typing import Sequence, Mapping
     from pypeh.core.models.validation_errors import ValidationErrorReport
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,19 @@ class OutDataOpsInterface:
         self,
         identifying_observable_property_ids: list[str],
         data: dict[str, Sequence] | T_DataType,
-        dependent_data: dict[str, dict[str, Sequence]] | dict[str, T_DataType],
+        dependent_data: Mapping[str, dict[str, Sequence]] | Mapping[str, T_DataType],
+        dependent_observable_property_ids: set[str],
+        observable_property_id_to_dataset_label_dict: dict[str, str],
+    ) -> T_DataType:
+        raise NotImplementedError
+
+    # TEMP: to replace _join_data
+    @abstractmethod
+    def _join_dataset(
+        self,
+        identifying_observable_property_ids: list[str],
+        dataset: Dataset[T_DataType],
+        dependent_data: Mapping[str, Dataset[T_DataType]],
         dependent_observable_property_ids: set[str],
         observable_property_id_to_dataset_label_dict: dict[str, str],
     ) -> T_DataType:
@@ -78,6 +90,65 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
             logger.error("Exception encountered while attempting to import a Pandera-based DataFrameAdapter")
             raise e
         return adapter_class
+
+    # TEMP method signature, to replace `validate`
+    def _validate_dataset(
+        self,
+        dataset: Dataset[T_DataType],
+        cache_view: CacheContainerView,
+        dataset_validations=None,
+        dependent_dataset_series: DatasetSeries[T_DataType] | None = None,
+    ) -> ValidationErrorReport:
+        validation_config = ValidationConfig.from_dataset(
+            dataset,
+            cache_view,
+            dataset_validations,
+        )
+        assert dataset.data is not None
+        to_validate: T_DataType = dataset.data
+        join_required = False
+        # check whether data requires join to perform validation (cross DataLayoutSection validation)
+        dependent_observable_property_ids = validation_config.dependent_observable_property_ids
+        if dependent_observable_property_ids is not None:
+            join_required = len(dependent_observable_property_ids) > 0
+
+        if join_required:
+            if dependent_dataset_series is None:
+                me = f"`dependent_data` is required to perform all validations. One or more of the following `ObservableProperty`s cannot be found in the current `DataLayoutSection`: {', '.join(dependent_observable_property_ids)}"
+                logger.error(me)
+                raise ValueError(me)
+            else:
+                assert (
+                    dependent_observable_property_ids is not None
+                ), "dependent_observable_property_ids in `ValidationInterface.validate` should not be None"
+                assert dependent_dataset_series is not None
+                # TEMP: looping over datasets should not be necessary when source_paths are implemented
+                observable_property_id_to_dataset_label_dict = dict()
+                for observable_property_id in dependent_observable_property_ids:
+                    for dataset_label in dependent_dataset_series:
+                        dependent_dataset = dependent_dataset_series[dataset_label]
+                        assert dependent_dataset is not None
+                        all_obs_props = set(dependent_dataset.get_observable_property_ids())
+                        if observable_property_id in all_obs_props:
+                            observable_property_id_to_dataset_label_dict[observable_property_id] = dataset_label
+                            break
+
+                identifying_obs_prop_id_list = dataset.schema.primary_keys
+                assert (
+                    identifying_obs_prop_id_list is not None
+                ), "identitfying_obs_prop_id_list in `ValidationInterface.validate` should not be None"
+
+                to_validate = self._join_dataset(
+                    identifying_observable_property_ids=identifying_obs_prop_id_list,
+                    dataset=dataset,
+                    dependent_data=dependent_dataset_series.parts,
+                    dependent_observable_property_ids=dependent_observable_property_ids,
+                    observable_property_id_to_dataset_label_dict=observable_property_id_to_dataset_label_dict,
+                )
+
+        ret = self._validate(to_validate, validation_config)
+
+        return ret
 
     def validate(
         self,
@@ -354,3 +425,9 @@ class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
         }
 
         return transformed_results
+
+    def get_element_labels(self, data: T_DataType) -> list[str]:
+        raise NotImplementedError
+
+    def get_element_values(self, data: T_DataType, element_label: str) -> set[str]:
+        raise NotImplementedError

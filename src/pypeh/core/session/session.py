@@ -18,11 +18,12 @@ from pypeh.core.models.settings import (
     DEFAULT_CONNECTION_LABEL,
 )
 from pypeh.core.models.typing import T_NamedThingLike, T_DataType
+from pypeh.core.models.validation_dto import ValidationDesign
 from pypeh.core.models.validation_errors import (
     ValidationErrorReport,
     ValidationErrorReportCollection,
 )
-from pypeh.core.models.internal_data_layout import DatasetSeries, InternalDataLayout, ObservationResultProxy
+from pypeh.core.models.internal_data_layout import DatasetSeries, Dataset, InternalDataLayout, ObservationResultProxy
 from pypeh.core.models.internal_data_layout import get_observations_from_data_import_config
 from pypeh.core.interfaces.outbound.dataops import ValidationInterface, DataImportInterface
 from pypeh.core.cache.utils import load_entities_from_tree
@@ -217,7 +218,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         assert ret
 
     # TEMP: this will replace load_tabular_data_collection
-    def _load_tabular_data_collection(
+    def _load_tabular_dataset_series(
         self,
         source: str,
         data_import_config: peh.DataImportConfig,
@@ -244,8 +245,13 @@ class Session(Generic[T_AdapterType, T_DataType]):
         with self.connection_manager.get_connection(connection_label=connection_label) as connection:
             data_dict = connection.load(source, validation_layout=data_layout, data_schema=data_schema)
         assert isinstance(data_dict, dict)
+        import_adapter = self.get_adapter("data_import")
         for raw_dataset_label, raw_dataset in data_dict.items():
-            _ = dataset_series.add_data(dataset_label=raw_dataset_label, data=raw_dataset)
+            assert isinstance(import_adapter, DataImportInterface)
+            non_empty_dataset_elements = import_adapter.get_element_labels(raw_dataset)
+            _ = dataset_series.add_data(
+                dataset_label=raw_dataset_label, data=raw_dataset, non_empty_dataset_elements=non_empty_dataset_elements
+            )
 
         return dataset_series
 
@@ -265,7 +271,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
                 The connection_label should be a key of the provided connection_config.
         """
         assert isinstance(data_import_config, peh.DataImportConfig)
-        data_layout = self.get_resource(data_import_config.layout, "DataLayout")
+        data_layout_id = data_import_config.layout
+        assert isinstance(data_layout_id, str)
+        data_layout = self.get_resource(data_layout_id, "DataLayout")
         assert isinstance(data_layout, peh.DataLayout)
         internal_data_representation = InternalDataLayout.from_peh(data_layout)
         cache_view = CacheContainerView(self.cache)
@@ -352,6 +360,28 @@ class Session(Generic[T_AdapterType, T_DataType]):
     def dump_project(self, project_identifier: str, version: str | None) -> bool:
         return self.dump_resource(project_identifier, resource_type="Project", version=version)
 
+    # TO REPLACE `validate_tabular_data`
+    def validate_tabular_dataset(
+        self,
+        data: Dataset[DataFrame],
+        dataset_validations: Sequence[ValidationDesign] | None = None,
+        dependent_data: DatasetSeries[DataFrame] | None = None,
+    ) -> ValidationErrorReport:
+        # try:
+        assert data.data is not None, f"No data associated with {data.label}"
+        cache_view = CacheContainerView(self.cache)
+        validation_adapter = self.get_adapter("validation")
+        assert isinstance(validation_adapter, ValidationInterface)
+        return validation_adapter._validate_dataset(
+            dataset=data,
+            cache_view=cache_view,
+            dataset_validations=dataset_validations,
+            dependent_dataset_series=dependent_data,
+        )
+
+        # except Exception as e:
+        #    return ValidationErrorReport.from_runtime_error(e)
+
     def validate_tabular_data(
         self,
         data: dict[str, Sequence] | DataFrame,
@@ -378,6 +408,35 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
         except Exception as e:
             return ValidationErrorReport.from_runtime_error(e)
+
+    def validate_tabular_dataset_series(
+        self,
+        dataset_series: DatasetSeries[DataFrame],
+        dataset_series_validations: dict[str, list[ValidationDesign]] | None = None,
+    ) -> ValidationErrorReportCollection:
+        """
+        dataset_series_validations: keys are `Dataset` labels
+        """
+
+        result_dict = ValidationErrorReportCollection()
+        for dataset_label in dataset_series:
+            dataset = dataset_series[dataset_label]
+            assert dataset is not None
+            dataset_validations = (
+                dataset_series_validations.get(dataset_label, None) if dataset_series_validations else None
+            )
+
+            ret = self.validate_tabular_dataset(
+                data=dataset,
+                dataset_validations=dataset_validations,
+                dependent_data=dataset_series,
+            )
+            assert isinstance(
+                ret, ValidationErrorReport
+            ), "ret in `Session.validate_tabular_dataset_series` should be a`ValidationErrorReport`"
+            result_dict[dataset_label] = ret
+
+        return result_dict
 
     def validate_tabular_data_collection(
         self,
@@ -422,6 +481,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         data_import_config_connection_label: str | None = None,
     ) -> ValidationErrorReportCollection:
         # fetch data_import_config
+        cache_view = CacheContainerView(self.cache)
         data_import_config = self.load_resource(
             resource_identifier=data_import_config_id,
             resource_type="DataImportConfig",
@@ -443,7 +503,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
         observations = [
             observation
-            for observation in get_observations_from_data_import_config(data_import_config, self.cache)
+            for observation in get_observations_from_data_import_config(data_import_config, cache_view)
             if observation.id in data_collection.keys()
         ]
 

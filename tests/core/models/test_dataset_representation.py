@@ -9,6 +9,7 @@ from pypeh.core.cache.utils import load_entities_from_tree
 from tests.test_utils.dirutils import get_absolute_path
 
 
+@pytest.mark.core
 class TestInternalDataLayout:
     @pytest.fixture(scope="class")
     def get_cache(self):
@@ -45,6 +46,7 @@ class TestInternalDataLayout:
         layout = get_cache.get(layout_id, "DataLayoutLayout")
         internal_layout = InternalDataLayout.from_peh(data_layout=layout)
         schema = internal_layout.collect_schema(get_cache)
+        assert schema is not None
         expected_schema = {
             "SAMPLE": {"id_sample": ObservablePropertyValueType.STRING, "matrix": ObservablePropertyValueType.STRING},
             "SAMPLETIMEPOINT_BS": {
