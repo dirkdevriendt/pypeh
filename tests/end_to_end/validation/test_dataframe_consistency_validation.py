@@ -2,8 +2,6 @@ import pytest
 import peh_model.peh as peh
 import logging
 
-from pypeh.core.cache.containers import CacheContainerView
-from pypeh.core.interfaces.outbound.dataops import DataImportInterface
 from tests.test_utils.dirutils import get_absolute_path
 
 from pypeh import Session
@@ -48,17 +46,9 @@ class TestDatasetConsistency:
         assert isinstance(dataset_series, DatasetSeries)
         assert len(dataset_series) > 0
 
-        cache_view = CacheContainerView(session.cache)
-        data_import_adapter = session.get_adapter("data_import")
-        assert isinstance(data_import_adapter, DataImportInterface)
-        id_validations_dict = dataset_series.get_identifier_validation_config_dict(
-            data_import_adapter=data_import_adapter,
-            cache_view=cache_view,
-        )
-
         validation_report_collection = session.validate_tabular_dataset_series(
             dataset_series=dataset_series,
-            dataset_series_validations=id_validations_dict,
+            data_import_config=data_import_config,
         )
 
         assert isinstance(validation_report_collection, dict)

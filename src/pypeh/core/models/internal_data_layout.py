@@ -14,6 +14,7 @@ from pypeh.core.models.proxy import TypedLazyProxy
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.constants import ObservablePropertyValueType, ValidationErrorLevel
 from pypeh.core.models.validation_dto import ValidationDesign, ValidationExpression
+from pypeh.core.models.constants import ObservablePropertyValueType
 
 if TYPE_CHECKING:
     from typing import Any

@@ -134,7 +134,6 @@ class ValidationExpression(BaseModel):
     arg_expressions: list[ValidationExpression] | None = None
     command: str
     arg_values: list[Any] | None = None
-    # TODO: Evaluate the need for a two-level field_reference implementation in ValidationExpression.arg_columns
     arg_columns: list[str] | None = None
     subject: list[str] | None = None
 
@@ -212,22 +211,16 @@ class ValidationExpression(BaseModel):
                 logger.error(f"Could not cast values in {arg_values} to {arg_type}: {e}")
                 raise
 
-        # TODO: add support for cross-dataset column references
+        # TODO: review cross-dataset column reference approach (in arg_columns and subject) and column identifier to return
         arg_columns = [fr.field_label for fr in getattr(expression, "validation_arg_contextual_field_references", None)]
-        validation_arg_contextual_field_references = []
-        if arg_columns is not None:
-            assert isinstance(arg_values, Sequence)
-            validation_arg_contextual_field_references = [
-                observable_property_short_name_dict(c).id for c in arg_columns
-            ]
 
         return cls(
             conditional_expression=conditional_expression_instance,
             arg_expressions=arg_expression_instances,
             command=validation_command,
             arg_values=arg_values,
-            arg_columns=validation_arg_contextual_field_references,
-            subject=observable_property_id_based_subject_contextual_field_references,
+            arg_columns=arg_columns,
+            subject=[fr.field_label for fr in subject_contextual_field_references],
         )
 
 
@@ -241,7 +234,6 @@ class ValidationDesign(BaseModel):
         cls,
         validation_design: peh.ValidationDesign | pehs.ValidationDesign,
         observable_property_short_name_dict: dict | None = None,
-        layout_section: peh.DataLayoutSection | None = None,
     ) -> "ValidationDesign":
         error_level = getattr(validation_design, "error_level", None)
         error_level = convert_peh_validation_error_level_to_validation_dto_error_level(error_level)
@@ -409,52 +401,6 @@ class ValidationConfig(BaseModel, Generic[T_DataType]):
     dependent_observable_property_ids: set[str] | None = None
 
     @classmethod
-    def get_sample_matrix_validations_dict_from_section_labels(
-        cls,
-        data_import_config: peh.DataImportConfig,
-        data_dict: Dict[str, Dict[str, Sequence] | T_DataType],
-        cache_view: CacheContainerView,
-    ) -> Dict[str, Sequence[ValidationDesign]] | None:
-        # TODO: Make configurable
-        SAMPLETIMEPOINT_LABEL_PREFIX = "SAMPLETIMEPOINT_"
-        MATRIX_SHORT_NAME = "matrix"
-
-        observable_property_list = cache_view.get_all("ObservableProperty")
-        observable_property_short_name_dict = {op.short_name: op for op in observable_property_list}
-        matrix_column_name = observable_property_short_name_dict[MATRIX_SHORT_NAME].id
-
-        def get_matrix_values(data_import_config: peh.DataImportConfig, cache_view: CacheContainerView):
-            matrix_values = []
-            layout = cache_view.get(data_import_config.layout, "DataLayout")
-            for section in layout.sections:
-                if section.ui_label.find(SAMPLETIMEPOINT_LABEL_PREFIX) >= 0:
-                    matrix_values.append(
-                        section.ui_label[
-                            section.ui_label.find(SAMPLETIMEPOINT_LABEL_PREFIX) + len(SAMPLETIMEPOINT_LABEL_PREFIX) :
-                        ]
-                    )
-            return matrix_values if len(matrix_values) else None
-
-        matrix_values = get_matrix_values(data_import_config, cache_view)
-
-        dataset_validations_dict = {}
-        for observation_id, observation_result in data_dict.items():
-            if matrix_column_name in observation_result.observed_data.columns:
-                dataset_validations = [
-                    peh.ValidationDesign(
-                        validation_name="check_sample_matrix",
-                        validation_expression=peh.ValidationExpression(
-                            validation_subject_contextual_field_references=[MATRIX_SHORT_NAME],
-                            validation_command=peh.ValidationCommand.is_in,
-                            validation_arg_values=matrix_values,
-                        ),
-                        validation_error_level=peh.ValidationErrorLevel.error,
-                    ),
-                ]
-                dataset_validations_dict[observation_id] = dataset_validations
-        return dataset_validations_dict
-
-    @classmethod
     def from_peh(
         cls,
         observation_id: str,
@@ -602,8 +548,8 @@ class ValidationConfig(BaseModel, Generic[T_DataType]):
     def from_dataset(
         cls,
         dataset: Dataset[T_DataType],
-        cache_view: CacheContainerView,
         dataset_validations: Sequence[ValidationDesign] | None = None,
+        cache_view: CacheContainerView | None = None,
     ) -> ValidationConfig:
         # TODO: remove observable_property_short_name_dict: replace with proper contextual_field_references
         # source path is dataset depedent
@@ -637,7 +583,16 @@ class ValidationConfig(BaseModel, Generic[T_DataType]):
 
         peh_dataset_validations = None
         if dataset_validations is not None:
-            peh_dataset_validations = list(dataset_validations)
+            peh_dataset_validations = []
+            for dataset_validation in dataset_validations:
+                if (
+                    dataset_validation.expression.command == peh.ValidationCommand.is_in
+                    and dataset_validation.expression.arg_columns
+                ):
+                    dataset_validation.expression.arg_values = []
+                    for arg_column in dataset_validation.expression.arg_columns:
+                        dataset_validation.expression.arg_values.extend()
+                peh_dataset_validations = list(dataset_validations)
 
         identifying_column_names = dataset.schema.primary_keys
         assert identifying_column_names is not None

@@ -18,7 +18,6 @@ from pypeh.core.models.settings import (
     DEFAULT_CONNECTION_LABEL,
 )
 from pypeh.core.models.typing import T_NamedThingLike, T_DataType
-from pypeh.core.models.validation_dto import ValidationDesign
 from pypeh.core.models.validation_errors import (
     ValidationErrorReport,
     ValidationErrorReportCollection,
@@ -364,8 +363,8 @@ class Session(Generic[T_AdapterType, T_DataType]):
     def validate_tabular_dataset(
         self,
         data: Dataset[DataFrame],
-        dataset_validations: Sequence[ValidationDesign] | None = None,
         dependent_data: DatasetSeries[DataFrame] | None = None,
+        layout_section: peh.DataLayoutSection | None = None,
     ) -> ValidationErrorReport:
         # try:
         assert data.data is not None, f"No data associated with {data.label}"
@@ -374,9 +373,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
         assert isinstance(validation_adapter, ValidationInterface)
         return validation_adapter._validate_dataset(
             dataset=data,
-            cache_view=cache_view,
-            dataset_validations=dataset_validations,
             dependent_dataset_series=dependent_data,
+            layout_section=layout_section,
+            cache_view=cache_view,
         )
 
         # except Exception as e:
@@ -412,24 +411,22 @@ class Session(Generic[T_AdapterType, T_DataType]):
     def validate_tabular_dataset_series(
         self,
         dataset_series: DatasetSeries[DataFrame],
-        dataset_series_validations: dict[str, list[ValidationDesign]] | None = None,
+        data_import_config: peh.DataImportConfig,
     ) -> ValidationErrorReportCollection:
         """
         dataset_series_validations: keys are `Dataset` labels
         """
+        cache_view = CacheContainerView(self.cache)
+        data_layout = cache_view.get(data_import_config.layout, "DataLayout")
+        layout_section_dict = {s.ui_label: s for s in data_layout.sections}
 
         result_dict = ValidationErrorReportCollection()
         for dataset_label in dataset_series:
             dataset = dataset_series[dataset_label]
             assert dataset is not None
-            dataset_validations = (
-                dataset_series_validations.get(dataset_label, None) if dataset_series_validations else None
-            )
 
             ret = self.validate_tabular_dataset(
-                data=dataset,
-                dataset_validations=dataset_validations,
-                dependent_data=dataset_series,
+                data=dataset, dependent_data=dataset_series, layout_section=layout_section_dict[dataset_label]
             )
             assert isinstance(
                 ret, ValidationErrorReport
