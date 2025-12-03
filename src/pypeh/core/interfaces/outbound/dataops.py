@@ -37,7 +37,7 @@ from pypeh.core.models.graph import Graph
 from pypeh.core.session.connections import ConnectionManager
 
 if TYPE_CHECKING:
-    from typing import Sequence, Mapping
+    from typing import Sequence, Mapping, Any
     from pypeh.core.models.validation_errors import ValidationErrorReport
 
 logger = logging.getLogger(__name__)
@@ -439,3 +439,13 @@ class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
 
     def get_element_values(self, data: T_DataType, element_label: str) -> set[str]:
         raise NotImplementedError
+
+    def subset(
+        self,
+        data: T_DataType,
+        element_group: list[str],
+        id_group: list[tuple[Any]] | None = None,
+        identifying_elements: list[str] | None = None,
+    ) -> T_DataType: ...
+
+    def relabel(self, data: T_DataType, element_mapping: dict[str, str]) -> T_DataType: ...

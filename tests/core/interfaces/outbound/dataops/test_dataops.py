@@ -15,11 +15,17 @@ from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory, C
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.interfaces.outbound.dataops import T_DataType, ValidationInterface, DataEnrichmentInterface
 from pypeh.core.models.internal_data_layout import (
+    Dataset,
+    DatasetSchema,
+    DatasetSchemaElement,
+    DatasetSeries,
+    ElementReference,
+    ForeignKey,
     InternalDataLayout,
     ObservationResultProxy,
 )
 from pypeh.core.models.validation_errors import ValidationErrorReport
-from pypeh.core.models.constants import ValidationErrorLevel
+from pypeh.core.models.constants import ObservablePropertyValueType, ValidationErrorLevel
 from pypeh.core.models.validation_dto import (
     ValidationExpression,
     ValidationDesign,
@@ -443,7 +449,6 @@ class TestValidation(abc.ABC):
     def test_validate(self, config, data, expected_output):
         adapter = self.get_adapter()
         result = adapter._validate(data, config)
-
         assert result is not None
         assert result.groups[0].name == expected_output.get("name")
         assert result.total_errors == expected_output.get("total_errors")
@@ -536,8 +541,168 @@ class TestDataImport(abc.ABC):
         assert observation_result.observed_data.shape == (2, 4)
 
 
+class TestDatasetSeriesMods(abc.ABC):
+    def get_adapter(self):
+        raise NotImplementedError
+
+    def verify_dataset_subset(self, dataset: Dataset, num_elements: int):
+        raise NotImplementedError
+
+    def verify_dataset_relabel(self, dataset: Dataset, expected_labels: list[str]):
+        raise NotImplementedError
+
+    @pytest.fixture(scope="function")
+    def raw_data(self):
+        raise NotImplementedError
+
+    @pytest.fixture(scope="function")
+    def dataset_series(self, raw_data) -> DatasetSeries:
+        # Schema for urine_lab
+        urine_lab_schema = DatasetSchema(
+            elements={
+                "id_subject": DatasetSchemaElement(
+                    label="id_subject",
+                    observable_property_id="id_subject",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+                "matrix": DatasetSchemaElement(
+                    label="matrix",
+                    observable_property_id="matrix",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+                "crt": DatasetSchemaElement(
+                    label="crt",
+                    observable_property_id="crt",
+                    data_type=ObservablePropertyValueType.FLOAT,
+                ),
+                "crt_lod": DatasetSchemaElement(
+                    label="crt_lod",
+                    observable_property_id="crt_lod",
+                    data_type=ObservablePropertyValueType.FLOAT,
+                ),
+                "crt_loq": DatasetSchemaElement(
+                    label="crt_loq",
+                    observable_property_id="crt_loq",
+                    data_type=ObservablePropertyValueType.FLOAT,
+                ),
+                "sg": DatasetSchemaElement(
+                    label="sg",
+                    observable_property_id="sg",
+                    data_type=ObservablePropertyValueType.FLOAT,
+                ),
+            },
+            primary_keys={"id_subject"},
+            foreign_keys={},
+        )
+
+        # Schema for analyticalinfo
+        analyticalinfo_schema = DatasetSchema(
+            elements={
+                "id_subject": DatasetSchemaElement(
+                    label="id_subject",
+                    observable_property_id="id_subject",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+                "biomarkercode": DatasetSchemaElement(
+                    label="biomarkercode",
+                    observable_property_id="biomarkercode",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+                "matrix": DatasetSchemaElement(
+                    label="matrix",
+                    observable_property_id="matrix",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+                "labinstitution": DatasetSchemaElement(
+                    label="labinstitution",
+                    observable_property_id="labinstitution",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+            },
+            primary_keys={"id_subject", "biomarkercode"},
+            foreign_keys={
+                "fk_subject": ForeignKey(
+                    element_label="id_subject",
+                    reference=ElementReference(
+                        dataset_label="urine_lab",
+                        element_label="id_subject",
+                    ),
+                )
+            },
+        )
+
+        # --- DATASET INSTANCES ------------------------------------------------------
+
+        urine_lab_dataset = Dataset(label="urine_lab", schema=urine_lab_schema, data=raw_data["urine_lab"])
+
+        analyticalinfo_dataset = Dataset(
+            label="analyticalinfo", schema=analyticalinfo_schema, data=raw_data["analyticalinfo"]
+        )
+
+        # --- DATASET SERIES ---------------------------------------------------------
+
+        series = DatasetSeries(
+            label="urine_study_series",
+            parts={
+                "urine_lab": urine_lab_dataset,
+                "analyticalinfo": analyticalinfo_dataset,
+            },
+        )
+        # Make the reverse link (Dataset.part_of)
+        urine_lab_dataset.part_of = series
+        analyticalinfo_dataset.part_of = series
+
+        return series
+
+    def test_subset_dataset(self, dataset_series):
+        element_groups = {
+            "urine_lab_part_one": ["id_subject", "matrix", "crt"],
+            "urine_lab_part_two": ["id_subject", "crt_lod", "crt_loq", "sg"],
+        }
+        expected_labels = [*element_groups.keys(), "analyticalinfo"]
+        num_primary_keys_urine_lab = len(dataset_series["urine_lab"].schema.primary_keys)
+        _ = dataset_series.subset_dataset("urine_lab", element_groups, dataops_adapter=self.get_adapter())
+        assert len(dataset_series.parts) == 3
+        labels = set(dataset_series.parts)
+        assert labels == set(expected_labels)
+        # check schema
+        for dataset_label in ["urine_lab_part_one", "urine_lab_part_two", "analyticalinfo"]:
+            dataset = dataset_series.get(dataset_label)
+            schema = dataset.schema
+            assert schema is not None
+            if dataset_label in element_groups:
+                assert len(schema) == len(element_groups[dataset_label])
+                assert len(schema.primary_keys) == num_primary_keys_urine_lab
+
+            if dataset_label == "analyticalinfo":
+                num_elements = 4
+            else:
+                num_elements = len(element_groups[dataset_label])
+            self.verify_dataset_subset(dataset, num_elements=num_elements)
+
+    def test_relabel_dataset(self, dataset_series):
+        element_mapping = {
+            "id_subject": "id_subject_new",
+            "matrix": "matrix_new",
+            "crt": "crt_new",
+            "crt_loq": "crt_loq_new",
+            "crt_lod": "crt_lod_new",
+            "sg": "sg_new",
+        }
+        _ = dataset_series.relabel_dataset(
+            "urine_lab", element_mapping=element_mapping, dataops_adapter=self.get_adapter()
+        )
+        dataset = dataset_series.get("urine_lab")
+        for _, new_label in element_mapping.items():
+            schema_element = dataset.get_schema_element_by_label(new_label)
+            assert schema_element is not None
+            assert schema_element.label == new_label
+
+        self.verify_dataset_relabel(dataset, expected_labels=list(element_mapping.values()))
+
+
 @pytest.mark.dataframe
-class TestDataFrameDataOps(TestValidation, TestDataImport):
+class TestDataFrameDataOps(TestValidation, TestDataImport, TestDatasetSeriesMods):
     def get_adapter(self) -> DataOpsProtocol:
         try:
             from pypeh.adapters.outbound.validation.pandera_adapter import dataops as dfops
@@ -591,6 +756,17 @@ class TestDataFrameDataOps(TestValidation, TestDataImport):
         )
 
         return layout
+
+    def verify_dataset_subset(self, dataset: Dataset, num_elements: int):
+        data = dataset.data
+        assert data is not None
+        assert data.shape[-1] == num_elements
+
+    def verify_dataset_relabel(self, dataset: Dataset, expected_labels: list[str]):
+        data = dataset.data
+        assert data is not None
+        labels = data.columns
+        assert set(labels) == set(expected_labels)
 
 
 @pytest.mark.other

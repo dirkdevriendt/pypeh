@@ -618,7 +618,7 @@ class ValidationConfig(BaseModel, Generic[T_DataType]):
         non_empty_columns = dataset.non_empty
         assert non_empty_columns is not None
         for non_empty_column in non_empty_columns:
-            dataset_element = dataset.get_schema_element(non_empty_column)
+            dataset_element = dataset.get_schema_element_by_label(non_empty_column)
             assert dataset_element is not None
             observable_property_id = dataset_element.observable_property_id
             observable_property = cache_view.get(observable_property_id, "ObservableProperty")
@@ -639,10 +639,13 @@ class ValidationConfig(BaseModel, Generic[T_DataType]):
         if dataset_validations is not None:
             peh_dataset_validations = list(dataset_validations)
 
+        identifying_column_names = dataset.schema.primary_keys
+        assert identifying_column_names is not None
+
         return cls(
             name=dataset.label,
             columns=column_validations,
-            identifying_column_names=dataset.schema.primary_keys,
+            identifying_column_names=list(identifying_column_names),
             validations=peh_dataset_validations,
             dependent_observable_property_ids=cross_dataset_dependent_observable_property_ids,
         )
