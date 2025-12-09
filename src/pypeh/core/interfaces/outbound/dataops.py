@@ -23,10 +23,13 @@ from peh_model.peh import (
     ObservableProperty,
     ObservationDesign,
     CalculationDesign,
+    CalculationImplementation,
+    CalculationKeywordArgument,
 )
 from typing import TYPE_CHECKING, Generic, cast, List
 
 from pypeh.core.cache.containers import CacheContainerView, CacheContainer
+from pypeh.core.models import graph
 from pypeh.core.models.internal_data_layout import Dataset, DatasetSeries, InternalDataLayout, ObservationResultProxy
 from pypeh.core.models.internal_data_layout import get_observable_property_id_to_dataset_label_dict
 from pypeh.core.models.typing import T_DataType
@@ -239,24 +242,23 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
         return adapter_class
 
     @staticmethod
-    def _normalize_contextual_field_reference(
-        observation_id: str, contextual_field_reference: ContextualFieldReference
-    ) -> str:
-        if contextual_field_reference.dataset_label is not None:
-            return f"{contextual_field_reference.dataset_label}\\{contextual_field_reference.field_label}"
-        elif "\\" in contextual_field_reference.field_label:
-            return contextual_field_reference.field_label
-        else:
-            return f"{observation_id}\\{contextual_field_reference.field_label}"
-
-    @staticmethod
-    def _extract_calculation_kwarg_field_references(calculation_designs: list[CalculationDesign | None]) -> list[str]:
+    def _extract_calculation_kwarg_field_references(
+        calculation_designs: list[CalculationDesign | None],
+    ) -> list[ContextualFieldReference]:
         try:
             (calculation_design,) = calculation_designs
-            return [
-                kwargs.contextual_field_reference
-                for kwargs in calculation_design.calculation_implementation.function_kwargs
-            ]
+            assert calculation_design is not None
+            calculation_implementation = calculation_design.calculation_implementation
+            assert isinstance(calculation_implementation, CalculationImplementation)
+            function_kwargs = calculation_implementation.function_kwargs
+            assert function_kwargs is not None
+            ret = []
+            for function_kwarg in function_kwargs:
+                assert isinstance(function_kwarg, CalculationKeywordArgument)
+                contextextual_field_reference = function_kwarg.contextual_field_reference
+                ret.append(contextextual_field_reference)
+
+            return ret
 
         except ValueError:
             raise NotImplementedError("Multiple calculation designs not supported yet")
@@ -284,12 +286,18 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
                             isinstance(calculation_design, CalculationDesign)
                             for calculation_design in calculation_designs
                         )
-                        child = f"{observation_id}\\{observable_property.id}"
-
-                        parents = [
-                            self._normalize_contextual_field_reference(observation_id, field_ref)
-                            for field_ref in self._extract_calculation_kwarg_field_references(calculation_designs)
-                        ]
+                        child = graph.Node(dataset_label=observation_id, field_label=observable_property.id)
+                        parents = []
+                        assert all(
+                            isinstance(calculation_design, CalculationDesign)
+                            for calculation_design in calculation_designs
+                        )
+                        for field_ref in self._extract_calculation_kwarg_field_references(calculation_designs):
+                            dataset_label = field_ref.dataset_label
+                            assert dataset_label is not None
+                            field_label = field_ref.field_label
+                            assert field_label is not None
+                            parents.append(graph.Node(dataset_label=dataset_label, field_label=field_label))
 
                         for parent in parents:
                             g.add_edge(parent, child)

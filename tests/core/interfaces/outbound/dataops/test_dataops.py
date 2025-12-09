@@ -32,7 +32,7 @@ from pypeh.core.models.validation_dto import (
     ColumnValidation,
     ValidationConfig,
 )
-from pypeh.core.models.graph import Graph
+from pypeh.core.models.graph import Graph, Node
 from pypeh.core.models.settings import LocalFileSettings
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
 from tests.test_utils.dirutils import get_absolute_path
@@ -775,13 +775,8 @@ class TestUnknownDataOps(TestValidation):
         raise NotImplementedError
 
 
-@pytest.mark.dataframe
-class TestEnrichmentInterface:
-    @abc.abstractmethod
-    def get_adapter(self) -> DataOpsProtocol:
-        """Return the adapter implementation to test."""
-        raise NotImplementedError
-
+@pytest.mark.core
+class TestEnrichmentInterfaceCore:
     def container(self, path: str) -> CacheContainer:
         source = get_absolute_path(path)
         container = CacheContainerFactory.new()
@@ -793,12 +788,6 @@ class TestEnrichmentInterface:
 
         return container
 
-    def test_getting_default_adapter_from_interface(self):
-        adapter_class = DataEnrichmentInterface.get_default_adapter_class()
-        adapter = adapter_class()
-        assert isinstance(adapter, DataEnrichmentInterface)
-        # assert isinstance(adapter, type(self.get_adapter()))
-
     def load_data(self, observations_path):
         with open(observations_path, "r") as f:
             obs_prop_data = yaml.safe_load(f)
@@ -807,7 +796,7 @@ class TestEnrichmentInterface:
         return observations
 
     def test_building_dependency_graph(self):
-        adapter = DataEnrichmentInterface.get_default_adapter_class()()
+        adapter = DataEnrichmentInterface()
 
         observations = self.load_data(
             get_absolute_path("./input/ProcessingExamples/Enrichment_01_SINGLE_SOURCE/_YAML_Config/ProjectConfig.yaml")
@@ -823,66 +812,65 @@ class TestEnrichmentInterface:
     def test_topological_sort_single_source(self):
         src_path = "./input/ProcessingExamples/Enrichment_01_SINGLE_SOURCE"
         observation_path = "_YAML_Config/ProjectConfig.yaml"
-        adapter = DataEnrichmentInterface.get_default_adapter_class()()
+        adapter = DataEnrichmentInterface()
         observations = self.load_data(get_absolute_path(src_path + "/" + observation_path))
         container = self.container(src_path)
         g = adapter.build_dependency_graph(observations, container)
         sorted_nodes = g.topological_sort()
         # Simple check to see if the sorted variables list is correct
         assert isinstance(g, Graph)
-        assert all(isinstance(var, str) for var in sorted_nodes)
+        assert all(isinstance(var, Node) for var in sorted_nodes)
         assert len(sorted_nodes) == len(g.nodes)
         assert sorted_nodes.index(
-            "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\peh:agemonths"
-        ) > sorted_nodes.index("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\N1Birthdate")
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "N1Birthdate"))
         assert sorted_nodes.index(
-            "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\peh:agemonths"
-        ) > sorted_nodes.index("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\Todaysdate")
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "Todaysdate"))
 
     def test_topological_sort_linked_source(self):
         src_path = "./input/ProcessingExamples/Enrichment_02_LINKED_SOURCE"
         observation_path = "_YAML_Config/ProjectConfig.yaml"
-        adapter = DataEnrichmentInterface.get_default_adapter_class()()
+        adapter = DataEnrichmentInterface()
         observations = self.load_data(get_absolute_path(src_path + "/" + observation_path))
         container = self.container(src_path)
         g = adapter.build_dependency_graph(observations, container)
         sorted_nodes = g.topological_sort()
         # Simple check to see if the sorted variables list is correct
         assert isinstance(g, Graph)
-        assert all(isinstance(var, str) for var in sorted_nodes)
+        assert all(isinstance(var, Node) for var in sorted_nodes)
         assert len(sorted_nodes) == len(g.nodes)
         assert sorted_nodes.index(
-            "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\peh:agemonths"
-        ) > sorted_nodes.index("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\N1Birthdate")
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "N1Birthdate"))
         assert sorted_nodes.index(
-            "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\peh:agemonths"
-        ) > sorted_nodes.index("peh:ENRICHMENT_TEST_OBSERVATION_HOUSEHOLD_INGESTED\\Todaysdate")
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_HOUSEHOLD_INGESTED", "Todaysdate"))
 
     def test_topological_sort_multi_steps(self):
         src_path = "./input/ProcessingExamples/Enrichment_03_MULTI_STEP"
         observation_path = "_YAML_Config/ProjectConfig.yaml"
-        adapter = DataEnrichmentInterface.get_default_adapter_class()()
+        adapter = DataEnrichmentInterface()
         observations = self.load_data(get_absolute_path(src_path + "/" + observation_path))
         container = self.container(src_path)
         g = adapter.build_dependency_graph(observations, container)
         sorted_nodes = g.topological_sort()
-
         # Simple check to see if the sorted variables list is correct
         assert isinstance(g, Graph)
-        assert all(isinstance(var, str) for var in sorted_nodes)
+        assert all(isinstance(var, Node) for var in sorted_nodes)
         assert len(sorted_nodes) == len(g.nodes)
         assert sorted_nodes.index(
-            "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\peh:agemonths"
-        ) > sorted_nodes.index("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED\\N1Birthdate")
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "N1Birthdate"))
         assert sorted_nodes.index(
-            "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\peh:agemonths"
-        ) > sorted_nodes.index("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\peh:Todaysdate")
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate"))
         assert sorted_nodes.index(
-            "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\peh:Todaysdate"
-        ) > sorted_nodes.index("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\peh:current_day")
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:current_day"))
         assert sorted_nodes.index(
-            "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\peh:Todaysdate"
-        ) > sorted_nodes.index("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\peh:current_month")
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:current_month"))
         assert sorted_nodes.index(
-            "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\peh:Todaysdate"
-        ) > sorted_nodes.index("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED\\peh:current_year")
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:current_year"))
