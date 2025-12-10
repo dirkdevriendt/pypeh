@@ -75,7 +75,7 @@ observable_properties:
   calculation_designs:
   - calculation_name: age_in_months_from_birth_and_interview_dates
     calculation_implementation:
-      function_name: tests.core.interfaces.outbound.dataops.enrichment_functions.age_in_months_from_birth_and_interview_dates
+      function_name: tests.core.models.enrichment_functions.age_in_months_from_birth_and_interview_dates
       function_kwargs:
       - mapping_name: birth_date
         contextual_field_reference:

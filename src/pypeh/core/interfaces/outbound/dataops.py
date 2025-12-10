@@ -17,26 +17,20 @@ from peh_model.peh import (
     DataImportConfig,
     DataLayout,
     ValidationDesign,
-    ContextualFieldReference,
     EntityList,
     Observation,
     ObservableProperty,
     ObservationDesign,
-    CalculationDesign,
-    CalculationImplementation,
-    CalculationKeywordArgument,
 )
 from typing import TYPE_CHECKING, Generic, cast, List
 
-from pypeh.core.cache.containers import CacheContainerView, CacheContainer
-from pypeh.core.models import graph
+from pypeh.core.cache.containers import CacheContainerView
 from pypeh.core.models.internal_data_layout import Dataset, DatasetSeries, InternalDataLayout, ObservationResultProxy
 from pypeh.core.models.internal_data_layout import get_observable_property_id_to_dataset_label_dict
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.settings import FileSystemSettings
 from pypeh.core.models.validation_dto import ValidationConfig
 from pypeh.core.models.proxy import TypedLazyProxy
-from pypeh.core.models.graph import Graph
 from pypeh.core.session.connections import ConnectionManager
 
 if TYPE_CHECKING:
@@ -46,7 +40,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class OutDataOpsInterface:
+class OutDataOpsInterface(Generic[T_DataType]):
     """
     Example of DataOps methods
     def validate(self, data: Mapping, config: Mapping):
@@ -79,6 +73,33 @@ class OutDataOpsInterface:
     ) -> T_DataType:
         raise NotImplementedError
 
+    @abstractmethod
+    def select_field(self, dataset, field_label: str):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_element_labels(self, data: T_DataType) -> list[str]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_element_values(self, data: T_DataType, element_label: str) -> set[str]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def subset(
+        self,
+        data: T_DataType,
+        element_group: list[str],
+        id_group: list[tuple[Any]] | None = None,
+        identifying_elements: list[str] | None = None,
+    ) -> T_DataType: ...
+
+    def relabel(self, data: T_DataType, element_mapping: dict[str, str]) -> T_DataType: ...
+
+    @abstractmethod
+    def collect(self, datasets: dict):
+        raise NotImplementedError
+
 
 class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
     @abstractmethod
@@ -88,8 +109,10 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
     @classmethod
     def get_default_adapter_class(cls):
         try:
-            adapter_module = importlib.import_module("pypeh.adapters.outbound.validation.pandera_adapter.dataops")
-            adapter_class = getattr(adapter_module, "DataFrameAdapter")
+            adapter_module = importlib.import_module(
+                "pypeh.adapters.outbound.validation.pandera_adapter.validation_adapter"
+            )
+            adapter_class = getattr(adapter_module, "DataFrameValidationAdapter")
         except Exception as e:
             logger.error("Exception encountered while attempting to import a Pandera-based DataFrameAdapter")
             raise e
@@ -234,82 +257,31 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
     @classmethod
     def get_default_adapter_class(cls):
         try:
-            adapter_module = importlib.import_module("pypeh.adapters.outbound.enrichment.dataops")
-            adapter_class = getattr(adapter_module, "DataFrameAdapter")
+            adapter_module = importlib.import_module("pypeh.adapters.outbound.enrichment.dataframe_adapter")
+            adapter_class = getattr(adapter_module, "DataFrameEnrichmentAdapter")
         except Exception as e:
             logger.error("Exception encountered while attempting to import enrichment DataFrameAdapter")
             raise e
         return adapter_class
 
-    @staticmethod
-    def _extract_calculation_kwarg_field_references(
-        calculation_designs: list[CalculationDesign | None],
-    ) -> list[ContextualFieldReference]:
-        try:
-            (calculation_design,) = calculation_designs
-            assert calculation_design is not None
-            calculation_implementation = calculation_design.calculation_implementation
-            assert isinstance(calculation_implementation, CalculationImplementation)
-            function_kwargs = calculation_implementation.function_kwargs
-            assert function_kwargs is not None
-            ret = []
-            for function_kwarg in function_kwargs:
-                assert isinstance(function_kwarg, CalculationKeywordArgument)
-                contextextual_field_reference = function_kwarg.contextual_field_reference
-                ret.append(contextextual_field_reference)
+    @abstractmethod
+    def apply_joins(self, dataset, datasets, join_specs, node): ...
 
-            return ret
+    @abstractmethod
+    def apply_map(self, dataset, map_fn, field_label, output_dtype, base_fields, **kwargs): ...
 
-        except ValueError:
-            raise NotImplementedError("Multiple calculation designs not supported yet")
-
-    def build_dependency_graph(self, observations: list[Observation], cache: CacheContainer) -> Graph:
-        g = Graph()
-
-        nested_entity_paths = [
-            ["observation_design", "identifying_observable_property_id_list"],
-            ["observation_design", "required_observable_property_id_list"],
-            ["observation_design", "optional_observable_property_id_list"],
-        ]
-
-        for observation in observations:
-            observation_id = observation.id
-            for path in nested_entity_paths:
-                for observable_property in cache.walk_entity(
-                    entity_id=observation_id, nested_entity_path=path, entity_type="Observation"
-                ):
-                    assert isinstance(observable_property, ObservableProperty)
-                    calculation_designs = observable_property.calculation_designs
-                    if calculation_designs:
-                        assert isinstance(calculation_designs, list)
-                        assert all(
-                            isinstance(calculation_design, CalculationDesign)
-                            for calculation_design in calculation_designs
-                        )
-                        child = graph.Node(dataset_label=observation_id, field_label=observable_property.id)
-                        parents = []
-                        assert all(
-                            isinstance(calculation_design, CalculationDesign)
-                            for calculation_design in calculation_designs
-                        )
-                        for field_ref in self._extract_calculation_kwarg_field_references(calculation_designs):
-                            dataset_label = field_ref.dataset_label
-                            assert dataset_label is not None
-                            field_label = field_ref.field_label
-                            assert field_label is not None
-                            parents.append(graph.Node(dataset_label=dataset_label, field_label=field_label))
-
-                        for parent in parents:
-                            g.add_edge(parent, child)
-        return g
+    @abstractmethod
+    def map_type(self, peh_value_type: str): ...
 
 
 class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
     @classmethod
     def get_default_adapter_class(cls):
         try:
-            adapter_module = importlib.import_module("pypeh.adapters.outbound.validation.pandera_adapter.dataops")
-            adapter_class = getattr(adapter_module, "DataFrameAdapter")
+            adapter_module = importlib.import_module(
+                "pypeh.adapters.outbound.validation.pandera_adapter.validation_adapter"
+            )
+            adapter_class = getattr(adapter_module, "DataFrameValidationAdapter")
         except Exception as e:
             logger.error("Exception encountered while attempting to import a Pandera-based DataFrameAdapter")
             raise e
@@ -441,19 +413,3 @@ class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
         }
 
         return transformed_results
-
-    def get_element_labels(self, data: T_DataType) -> list[str]:
-        raise NotImplementedError
-
-    def get_element_values(self, data: T_DataType, element_label: str) -> set[str]:
-        raise NotImplementedError
-
-    def subset(
-        self,
-        data: T_DataType,
-        element_group: list[str],
-        id_group: list[tuple[Any]] | None = None,
-        identifying_elements: list[str] | None = None,
-    ) -> T_DataType: ...
-
-    def relabel(self, data: T_DataType, element_mapping: dict[str, str]) -> T_DataType: ...

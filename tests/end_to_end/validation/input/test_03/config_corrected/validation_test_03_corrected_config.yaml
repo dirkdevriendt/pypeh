@@ -72,6 +72,9 @@ layouts:
     - label: id_sample
       observable_property: id_sample
       is_observable_entity_key: true
+      foreign_key_link:
+        section: SAMPLE_METADATA_SECTION_SAMPLE
+        label: id_sample
     - label: chol
       observable_property: chol
     - label: chol_lod
@@ -218,7 +221,8 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BWB
@@ -237,7 +241,8 @@ observable_properties:
         - VAMS
       validation_arg_expressions:
       - validation_subject_contextual_field_references:
-        - field_label: chol
+        - dataset_label: SAMPLETIMEPOINT_BSS
+          field_label: chol
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '50'
@@ -247,14 +252,16 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BM
         - BMG
       validation_arg_expressions:
       - validation_subject_contextual_field_references:
-        - field_label: chol
+        - dataset_label: SAMPLETIMEPOINT_BSS
+          field_label: chol
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '5'

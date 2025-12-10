@@ -1,6 +1,10 @@
 import pytest
 
+from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
+from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.models.graph import Graph, Node
+from tests.test_utils.dirutils import get_absolute_path
 
 
 @pytest.mark.core
@@ -92,3 +96,85 @@ class TestGraph:
             g.topological_sort()
 
         assert "Circular dependency detected" in str(excinfo.value)
+
+
+@pytest.mark.core
+class TestEnrichmentInterfaceCore:
+    def container(self, path: str) -> CacheContainerView:
+        source = get_absolute_path(path)
+        container = CacheContainerFactory.new()
+        host = DirectoryIO()
+        roots = host.load(source, format="yaml", maxdepth=3)
+        for root in roots:
+            for entity in load_entities_from_tree(root):
+                container.add(entity)
+
+        return CacheContainerView(container)
+
+    def test_building_dependency_graph(self):
+        container = self.container("./input/dependency_graph/Enrichment_01_SINGLE_SOURCE")
+        observations = list(container.get_all("Observation"))
+        g = Graph.from_observations(observations, container)
+
+        # Simple check to see if the dependency graph is built
+        assert isinstance(g, Graph)
+
+    def test_topological_sort_single_source(self):
+        src_path = "./input/dependency_graph/Enrichment_01_SINGLE_SOURCE"
+        container = self.container(src_path)
+        observations = list(container.get_all("Observation"))
+        g = Graph.from_observations(observations, container)
+        sorted_nodes = g.topological_sort()
+        # Simple check to see if the sorted variables list is correct
+        assert isinstance(g, Graph)
+        assert all(isinstance(var, Node) for var in sorted_nodes)
+        assert len(sorted_nodes) == len(g.nodes)
+        assert sorted_nodes.index(
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "N1Birthdate"))
+        assert sorted_nodes.index(
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "Todaysdate"))
+
+    def test_topological_sort_linked_source(self):
+        src_path = "./input/dependency_graph/Enrichment_02_LINKED_SOURCE"
+        container = self.container(src_path)
+        observations = list(container.get_all("Observation"))
+        g = Graph.from_observations(observations, container)
+        sorted_nodes = g.topological_sort()
+        # Simple check to see if the sorted variables list is correct
+        assert isinstance(g, Graph)
+        assert all(isinstance(var, Node) for var in sorted_nodes)
+        assert len(sorted_nodes) == len(g.nodes)
+        assert sorted_nodes.index(
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "N1Birthdate"))
+        assert sorted_nodes.index(
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_HOUSEHOLD_INGESTED", "Todaysdate"))
+
+    def test_topological_sort_multi_steps(self):
+        src_path = "./input/dependency_graph/Enrichment_03_MULTI_STEP"
+        container = self.container(src_path)
+        observations = list(container.get_all("Observation"))
+        g = Graph.from_observations(observations, container)
+        sorted_nodes = g.topological_sort()
+        # Simple check to see if the sorted variables list is correct
+        assert isinstance(g, Graph)
+        assert all(isinstance(var, Node) for var in sorted_nodes)
+        assert len(sorted_nodes) == len(g.nodes)
+        assert sorted_nodes.index(
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "N1Birthdate"))
+        assert sorted_nodes.index(
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate"))
+        assert sorted_nodes.index(
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:current_day"))
+        assert sorted_nodes.index(
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:current_month"))
+        assert sorted_nodes.index(
+            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate")
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:current_year"))

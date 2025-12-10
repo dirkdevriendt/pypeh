@@ -1263,10 +1263,12 @@ observable_properties:
   validation_designs:
   - validation_expression:
       validation_subject_contextual_field_references:
-      - field_label: chol
+      - dataset_label: SAMPLETIMEPOINT_BWB
+        field_label: chol
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BWB
@@ -1292,7 +1294,8 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BWB
@@ -1311,7 +1314,8 @@ observable_properties:
         - VAMS
       validation_arg_expressions:
       - validation_subject_contextual_field_references:
-        - field_label: chol
+        - dataset_label: SAMPLETIMEPOINT_BWB
+          field_label: chol
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '50'
@@ -1321,14 +1325,16 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BM
         - BMG
       validation_arg_expressions:
       - validation_subject_contextual_field_references:
-        - field_label: chol
+        - dataset_label: SAMPLETIMEPOINT_BWB
+          field_label: chol
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '5'
@@ -1409,10 +1415,12 @@ observable_properties:
   validation_designs:
   - validation_expression:
       validation_subject_contextual_field_references:
-      - field_label: trigl
+      - dataset_label: SAMPLETIMEPOINT_BWB
+        field_label: trigl
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BWB
@@ -1438,7 +1446,8 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BWB
@@ -1457,7 +1466,8 @@ observable_properties:
         - VAMS
       validation_arg_expressions:
       - validation_subject_contextual_field_references:
-        - field_label: trigl
+        - dataset_label: SAMPLETIMEPOINT_BWB
+          field_label: trigl
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '10'
@@ -1467,14 +1477,16 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BM
         - BMG
       validation_arg_expressions:
       - validation_subject_contextual_field_references:
-        - field_label: trigl
+        - dataset_label: SAMPLETIMEPOINT_BWB
+          field_label: trigl
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '500'
@@ -1555,10 +1567,12 @@ observable_properties:
   validation_designs:
   - validation_expression:
       validation_subject_contextual_field_references:
-      - field_label: lipid
+      - dataset_label: SAMPLETIMEPOINT_BWB
+        field_label: lipid
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: lipidassessment
+        - dataset_label: SAMPLE
+          field_label: lipidassessment
         validation_command: is_in
         validation_arg_values:
         - '1'
@@ -1570,10 +1584,12 @@ observable_properties:
       \  THEN lipid [150,900]; \n\nIF matrix IS (BM,BMG)  THEN lipid [500,50000]"
   - validation_expression:
       validation_subject_contextual_field_references:
-      - field_label: lipid
+      - dataset_label: SAMPLETIMEPOINT_BWB
+        field_label: lipid
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BWB
@@ -1600,7 +1616,8 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BWB
@@ -1619,7 +1636,8 @@ observable_properties:
         - VAMS
       validation_arg_expressions:
       - validation_subject_contextual_field_references:
-        - field_label: lipid
+        - dataset_label: SAMPLETIMEPOINT_BWB
+          field_label: lipid
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '150'
@@ -1630,14 +1648,16 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BM
         - BMG
       validation_arg_expressions:
       - validation_subject_contextual_field_references:
-        - field_label: lipid
+        - dataset_label: SAMPLETIMEPOINT_BWB
+          field_label: lipid
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '500'
@@ -1718,10 +1738,12 @@ observable_properties:
   validation_designs:
   - validation_expression:
       validation_subject_contextual_field_references:
-      - field_label: lipid_enz
+      - dataset_label: SAMPLETIMEPOINT_BWB
+        field_label: lipid_enz
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: lipidassessment
+        - dataset_label: SAMPLE
+          field_label: lipidassessment
         validation_command: is_in
         validation_arg_values:
         - '2'
@@ -1732,10 +1754,12 @@ observable_properties:
       lipid_enz IS not empty
   - validation_expression:
       validation_subject_contextual_field_references:
-      - field_label: lipid_enz
+      - dataset_label: SAMPLETIMEPOINT_BWB
+        field_label: lipid_enz
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BWB
