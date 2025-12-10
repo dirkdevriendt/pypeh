@@ -5,16 +5,17 @@
 from __future__ import annotations
 
 import fsspec
+import fsspec.utils
 import json
 import logging
 import os
 import pathlib
-import posixpath
 import requests
 import urllib3
 
 from abc import abstractmethod
 from contextlib import contextmanager
+from pathlib import Path, PurePosixPath
 from requests.adapters import HTTPAdapter
 from typing import TYPE_CHECKING, Generic, Callable, Any, Optional, Dict
 from urllib3.util.retry import Retry
@@ -45,29 +46,70 @@ class HostAdapter(PersistenceInterface):
 
 
 class FileIO(PersistenceInterface):
-    def __init__(self, file_system: fsspec.AbstractFileSystem | None = None):
+    """
+    File-level I/O abstraction.
+
+    Contract:
+        - `path` must be filesystem-relative (no protocol).
+        - `file_system` must be provided.
+    """
+
+    def __init__(self, file_system: fsspec.AbstractFileSystem):
+        if file_system is None:
+            raise ValueError("FileIO requires an explicit filesystem")
         self.file_system = file_system
 
-    @classmethod
-    def get_format(cls, path: Union[str, pathlib.Path]) -> str:
-        return os.path.splitext(str(path))[1].lower().lstrip(".")
+    @staticmethod
+    def get_format(path: str) -> str:
+        """
+        Infer file format from extension.
+        """
+        return os.path.splitext(path)[1].lower().lstrip(".")
 
-    def load(self, source: Union[str, pathlib.Path], format: Optional[str] = None, **kwargs) -> Any:
-        """Load data from file using the appropriate adapter."""
+    def load(
+        self,
+        path: str,
+        *,
+        format: Optional[str] = None,
+        **kwargs,
+    ) -> Any:
+        """
+        Load data from a file using the appropriate serialization adapter.
+        """
         if format is None:
-            format = self.get_format(source)
-        adapter = serializations.IOAdapterFactory.create(format.lower())
-        open_func = self.file_system.open if self.file_system is not None else fsspec.open
+            format = self.get_format(path)
 
-        with open_func(source, adapter.read_mode) as f:
-            try:
-                return adapter.load(f, **kwargs)  # type: ignore ## fsspec does not provide type hints
-            except Exception as e:
-                logger.error(f"Error in FileIO: {e}")
-                raise
+        adapter = serializations.IOAdapterFactory.create(format)
 
-    def dump(self, destination: str, entity: BaseModel, **kwargs) -> None:
-        raise NotImplementedError
+        try:
+            with self.file_system.open(path, adapter.read_mode) as f:
+                return adapter.load(f, **kwargs)  # type: ignore[fsspec]
+        except Exception:
+            logger.exception(f"Failed to load file: {path}")
+            raise
+
+    def dump(
+        self,
+        path: str,
+        entity: BaseModel,
+        *,
+        format: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        """
+        Persist an entity to a file.
+        """
+        if format is None:
+            format = self.get_format(path)
+
+        adapter = serializations.IOAdapterFactory.create(format)
+
+        try:
+            with self.file_system.open(path, adapter.write_mode) as f:
+                adapter.dump(entity, f, **kwargs)  # type: ignore[fsspec]
+        except Exception:
+            logger.exception(f"Failed to write file: {path}")
+            raise
 
 
 class DirectoryIO(HostAdapter):
@@ -76,101 +118,154 @@ class DirectoryIO(HostAdapter):
     supported_formats = serializations.IOAdapterFactory._adapters.keys()
 
     def __init__(self, root: str | None = None, protocol: str = "file", **storage_options):
-        self.root = root.rstrip("/") if root is not None else None
+        self.protocol = protocol
         self.file_system: fsspec.AbstractFileSystem = fsspec.filesystem(protocol, **storage_options)
+        self.root = self._normalize_root(root)
 
-    def _resolve_path(self, path: Union[str, pathlib.Path]) -> str:
-        path_str = str(path)
-        if self.root is not None:
-            return str(pathlib.Path(self.root) / path_str)
-        return path_str
+    def _strip_protocol(self, path: str) -> str:
+        so = fsspec.utils.infer_storage_options(path)
+        return so["path"]
 
-    def _join_paths(self, root: str, path: str) -> str:
-        return str(pathlib.Path(root) / path)
+    def _normalize_root(self, root: Optional[str]) -> Optional[str]:
+        if not root:
+            return None
+
+        raw = self._strip_protocol(str(root))
+
+        if self.protocol == "file":
+            p = Path(raw).expanduser()
+            if not p.is_absolute():
+                raise ValueError(f"DirectoryIO root must be absolute: {root}")
+            return str(p)
+
+        # Remote filesystem (S3, etc.)
+        return str(PurePosixPath(raw).as_posix().strip("/"))
+
+    def _normalize_path(self, path: Union[str, Any]) -> str:
+        raw = self._strip_protocol(str(path))
+
+        if self.protocol == "file":
+            p = Path(raw).expanduser()
+
+            # Absolute user path: pass through unchanged
+            if p.is_absolute():
+                return str(p)
+
+            # Relative path: must have a root
+            if not self.root:
+                raise ValueError(f"Relative path without root: {path}")
+
+            return str(Path(self.root) / p)
+
+        # Remote filesystem (S3)
+        p = PurePosixPath(raw)
+
+        if self.root:
+            return str(PurePosixPath(self.root) / p)
+
+        return str(p)
+
+    def _join(self, *parts: str) -> str:
+        """
+        Filesystem-native path join.
+        """
+        sep = self.file_system.sep
+        return sep.join(parts)
 
     def walk(
         self,
-        source: Union[str, pathlib.Path],
+        source: Union[str, Any],
         format: Optional[str] = None,
-        maxdepth: int | None = None,
+        maxdepth: Optional[int] = None,
         **load_options,
     ) -> Generator[Any, None, None]:
         """
-        Yield data loaded from files in a directory and its subdirectories.
-        This implementation assumes that all supported file formats (jsonn, yaml, csv, xslx, xls)
-        should be loaded.
+        Yield loaded entities from a directory tree.
         """
-        full_source = self._resolve_path(source)
+        base_path = self._normalize_path(source)
         file_io = FileIO(file_system=self.file_system)
-        assert self.file_system is not None
 
-        for root, _, files in self.file_system.walk(full_source, maxdepth=maxdepth):
-            for file in files:
-                assert isinstance(root, str)
-                file_path = self._join_paths(root, file)
+        for root, _, files in self.file_system.walk(base_path, maxdepth=maxdepth):
+            for name in files:
+                file_path = self.file_system.sep.join(map(str, (root, name)))
                 inferred_format = FileIO.get_format(file_path)
-                if format is not None:
-                    if inferred_format != format:
-                        continue  # Skip formats other than format
-                    yield file_io.load(file_path, format=format, **load_options)
 
-                else:
-                    if inferred_format in self.supported_formats:
-                        yield file_io.load(file_path, format=inferred_format, **load_options)
-                    else:
-                        continue  # Skip unsupported formats
+                if format and inferred_format != format:
+                    continue
+
+                if inferred_format not in self.supported_formats:
+                    continue
+
+                yield file_io.load(file_path, format=inferred_format, **load_options)
 
     def load(
-        self, source: Union[str, pathlib.Path], format: Optional[str] = None, maxdepth: int = 1, **load_options
+        self,
+        source: Union[str, Any],
+        format: Optional[str] = None,
+        maxdepth: int = 1,
+        **load_options,
     ) -> Any:
-        assert self.file_system is not None
-        full_source = self._resolve_path(source)
-        if self.file_system.isfile(full_source):
-            file_io = FileIO(file_system=self.file_system)
-            return file_io.load(full_source, format=format, **load_options)
-        elif self.file_system.isdir(full_source):
-            return list(self.walk(source=source, format=format, maxdepth=maxdepth, **load_options))
-        else:
-            logger.error(f"Source {source} could not be resolved as a path")
-            raise ValueError
+        """
+        Load a single file or all supported files in a directory.
+        """
+        path = self._normalize_path(source)
+        if not self.file_system.exists(path):
+            raise ValueError(f"Path does not exist: {path}")
+        if self.file_system.isfile(path):
+            return FileIO(file_system=self.file_system).load(path, format=format, **load_options)
 
-    def dump(self, destination: str, entities: List[BaseModel], **kwargs) -> None:
-        pass
+        if self.file_system.isdir(path):
+            return list(
+                self.walk(
+                    source=source,
+                    format=format,
+                    maxdepth=maxdepth,
+                    **load_options,
+                )
+            )
+
+        raise ValueError(f"Path does not exist: {source!r} was resolved as {path}")
+
+    def dump(self, destination: Union[str, Any], entities: list[Any], **kwargs) -> None:
+        """
+        Persist entities to the filesystem.
+        """
+        raise NotImplementedError
 
 
 class LocalStorageProvider(DirectoryIO):
     def __init__(self, settings: LocalFileSettings, **storage_options):
-        self.settings = settings
-        self._storage_options = storage_options
-        super().__init__(root=settings.root_folder, protocol="file", **storage_options)
+        super().__init__(
+            protocol="file",
+            root=settings.root_folder,
+            **storage_options,
+        )
 
     def connect(self) -> "LocalStorageProvider":
         return self
 
-    def close(self):
+    def close(self) -> None:
         pass
 
 
 class S3StorageProvider(DirectoryIO):
     def __init__(self, settings: S3Settings, **storage_options):
-        session_kwargs = {**storage_options, **settings.to_s3fs()}
-        self.bucket = settings.bucket_name
-        super().__init__(root=settings.bucket_name, protocol="s3", **session_kwargs)
+        s3_conf = settings.to_s3fs()
+        session_kwargs = {"use_listings_cache": False, **storage_options, **s3_conf}
+
+        root = f"{settings.bucket_name}/{settings.prefix}" if settings.prefix else settings.bucket_name
+
+        super().__init__(
+            protocol="s3",
+            root=root,
+            **session_kwargs,
+        )
 
     def connect(self) -> "S3StorageProvider":
         return self
 
-    def close(self):
+    def close(self) -> None:
         pass
-
-    def _resolve_path(self, path: Union[str, pathlib.Path]) -> str:
-        path_str = str(path)
-        if self.root is not None:
-            return posixpath.join(self.root.rstrip("/"), path_str)
-        return path_str
-
-    def _join_paths(self, root: str, path: str) -> str:
-        return posixpath.join(root.rstrip("/"), path)
 
 
 ## WebIO implementation

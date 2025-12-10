@@ -1,5 +1,4 @@
 import pytest
-import pathlib
 
 from peh_model.peh import DataImportConfig, DataImportSectionMapping, DataImportSectionMappingLink
 
@@ -14,12 +13,11 @@ from tests.test_utils.dirutils import get_absolute_path
 class TestSessionValidation:
     def test_invalid_file(self, monkeypatch):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
-        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input/validation_config"))
-        excel_path = get_absolute_path("./input/validation_files/invalid_excel.xlsx")
-        assert pathlib.Path(excel_path).is_file()
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input"))
+        excel_path = "validation_files/invalid_excel.xlsx"
 
         session = Session()
-        session.load_persisted_cache()
+        session.load_persisted_cache(source="validation_config")
         data_import_config = session.cache.get("peh:IMPORT_CONFIG_TEST_DATA_LAYOUT", "DataImportConfig")
         assert isinstance(data_import_config, DataImportConfig)
         with pytest.raises(Exception, match="calamine error: Cannot detect file format.*"):
@@ -27,11 +25,11 @@ class TestSessionValidation:
 
     def test_valid_file(self, monkeypatch):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
-        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input/validation_config"))
-        excel_path = get_absolute_path("./input/validation_files/valid_excel_wrong_format.xlsx")
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input"))
+        excel_path = "validation_files/valid_excel_wrong_format.xlsx"
 
         session = Session()
-        session.load_persisted_cache()
+        session.load_persisted_cache(source="validation_config")
         data_import_config = session.cache.get("peh:IMPORT_CONFIG_TEST_DATA_LAYOUT", "DataImportConfig")
         assert isinstance(data_import_config, DataImportConfig)
         with pytest.raises(Exception, match=r"Sheet name\(s\) Template do not correspond with provided data layout"):
@@ -139,11 +137,11 @@ class TestSessionValidation:
 
     def test_invalid_sheets(self, monkeypatch):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
-        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input/validation_config"))
-        excel_path = get_absolute_path("./input/validation_files/valid_excel_wrong_format.xlsx")
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input"))
+        excel_path = "validation_files/valid_excel_wrong_format.xlsx"
 
         session = Session()
-        session.load_persisted_cache()
+        session.load_persisted_cache(source="validation_config")
         data_import_config = session.cache.get("peh:IMPORT_CONFIG_TEST_DATA_LAYOUT", "DataImportConfig")
         assert isinstance(data_import_config, DataImportConfig)
         with pytest.raises(Exception, match=r"Sheet name\(s\) Template do not correspond with provided data layout"):
