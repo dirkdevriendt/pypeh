@@ -132,6 +132,18 @@ class CacheContainerView(Generic[T_Container]):
         else:
             yield from self._container.get_all(entity_type)
 
+    def walk_entity(
+        self,
+        entity_id: str,
+        nested_entity_path: list[str],
+        entity_type: str | None = None,
+    ) -> Generator[T_NamedThingLike, None, None]:
+        yield from self._container.walk_entity(
+            entity_id=entity_id,
+            nested_entity_path=nested_entity_path,
+            entity_type=entity_type,
+        )
+
     def __len__(self) -> int:
         return len(self._container)
 
