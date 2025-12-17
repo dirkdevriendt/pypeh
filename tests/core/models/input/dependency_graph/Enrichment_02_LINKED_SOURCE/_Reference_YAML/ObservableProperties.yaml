@@ -13,6 +13,20 @@ observable_properties:
   default_observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
+- id: peh:id_household
+  unique_name: id_household
+  name: id_household
+  short_name: id_household
+  description: Household Identifier
+  value_type: string
+  categorical: false
+  multivalued: false
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: false
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
 - id: peh:Todaysdate
   unique_name: Todaysdate
   name: Todaysdate
@@ -75,7 +89,7 @@ observable_properties:
   calculation_designs:
   - calculation_name: age_in_months_from_birth_and_interview_dates
     calculation_implementation:
-      function_name: tests.core.interfaces.outbound.dataops.enrichment_functions.age_in_months_from_birth_and_interview_dates
+      function_name: tests.core.models.enrichment_functions.age_in_months_from_birth_and_interview_dates
       function_kwargs:
       - mapping_name: birth_date
         contextual_field_reference:
@@ -85,7 +99,7 @@ observable_properties:
         unit: UNITLESS
       - mapping_name: interview_date
         contextual_field_reference:
-          dataset_label: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
+          dataset_label: peh:ENRICHMENT_TEST_OBSERVATION_HOUSEHOLD_INGESTED 
           field_label: Todaysdate
         process_state: clean
         unit: UNITLESS

@@ -25,16 +25,17 @@ from pypeh.core.models.validation_errors import ValidationErrorReport, EntityLoc
 from pypeh.core.models.validation_dto import ValidationConfig
 from pypeh.core.session.connections import ConnectionManager
 from pypeh.adapters.outbound.validation.pandera_adapter.parsers import parse_config, parse_error_report
+from pypeh.adapters.outbound.dataops.dataframe_adapter import DataFrameAdapter
 from pypeh.adapters.outbound.persistence.hosts import FileIO
 
 if TYPE_CHECKING:
-    from typing import Mapping, Any
+    from typing import Mapping
     from pypeh.core.models.settings import FileSystemSettings
 
 logger = logging.getLogger(__name__)
 
 
-class DataFrameAdapter(ValidationInterface[DataFrame], DataImportInterface[DataFrame]):
+class DataFrameValidationAdapter(DataFrameAdapter, ValidationInterface[DataFrame], DataImportInterface[DataFrame]):
     data_format = DataFrame
 
     def parse_configuration(self, config: ValidationConfig) -> Mapping:
@@ -186,27 +187,3 @@ class DataFrameAdapter(ValidationInterface[DataFrame], DataImportInterface[DataF
             )
 
         return ret
-
-    def get_element_labels(self, data: DataFrame) -> list[str]:
-        return data.columns
-
-    def get_element_values(self, data: DataFrame, element_label: str) -> set[str]:
-        return set(data.get_column(element_label))
-
-    def subset(
-        self,
-        data: DataFrame,
-        element_group: list[str],
-        id_group: list[tuple[Any]] | None = None,
-        identifying_elements: list[str] | None = None,
-    ) -> DataFrame:
-        if id_group is None:
-            ret = data.select(element_group)
-        else:
-            assert identifying_elements is not None
-            ret = data.filter(pl.struct(identifying_elements).is_in(id_group)).select(element_group)
-
-        return ret
-
-    def relabel(self, data: DataFrame, element_mapping: dict[str, str]) -> DataFrame:
-        return data.rename(element_mapping)

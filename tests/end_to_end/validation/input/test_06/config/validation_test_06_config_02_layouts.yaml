@@ -39,6 +39,9 @@ layouts:
     - label: id_subject
       observable_property: peh:OBSPROP_ID_id_subject
       is_observable_entity_key: true
+      foreign_key_link:
+          section: peh:SAMPLE_METADATA_SECTION_SAMPLE
+          label: id_subject
     - label: id_participant
       observable_property: peh:OBSPROP_ID_id_participant
       foreign_key_link:

@@ -1,19 +1,18 @@
 import pytest
 import abc
-import yaml
 
+from datetime import date
 from typing import Protocol, Any, Generic
 from peh_model.peh import (
     DataImportConfig,
     DataImportSectionMapping,
     DataImportSectionMappingLink,
     DataLayout,
-    Observation,
 )
 
-from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
 from pypeh.core.cache.utils import load_entities_from_tree
-from pypeh.core.interfaces.outbound.dataops import T_DataType, ValidationInterface, DataEnrichmentInterface
+from pypeh.core.interfaces.outbound.dataops import T_DataType, ValidationInterface
 from pypeh.core.models.internal_data_layout import (
     Dataset,
     DatasetSchema,
@@ -32,8 +31,8 @@ from pypeh.core.models.validation_dto import (
     ColumnValidation,
     ValidationConfig,
 )
-from pypeh.core.models.graph import Graph, Node
 from pypeh.core.models.settings import LocalFileSettings
+from pypeh.core.models.graph import Graph
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
 from tests.test_utils.dirutils import get_absolute_path
 
@@ -701,13 +700,130 @@ class TestDatasetSeriesMods(abc.ABC):
         self.verify_dataset_relabel(dataset, expected_labels=list(element_mapping.values()))
 
 
+class TestEnrichment(abc.ABC):
+    """Abstract base class for enrichment adapters."""
+
+    @abc.abstractmethod
+    def get_adapter(self) -> DataOpsProtocol:
+        """Return the adapter implementation to test."""
+        raise NotImplementedError
+
+    def container(self, path: str) -> CacheContainerView:
+        source = get_absolute_path(path)
+        container = CacheContainerFactory.new()
+        host = DirectoryIO()
+        roots = host.load(source, format="yaml", maxdepth=3)
+        for root in roots:
+            for entity in load_entities_from_tree(root):
+                container.add(entity)
+
+        return CacheContainerView(container)
+
+    def raw_data(self):
+        raise NotImplementedError
+
+    def raw_dataset_series(self) -> DatasetSeries:
+        return DatasetSeries(
+            label="raw_dataset_series",
+            parts={
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED": Dataset(
+                    label="peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
+                    schema=DatasetSchema(
+                        elements={
+                            "peh:id_subject": DatasetSchemaElement(
+                                label="peh:id_subject",
+                                observable_property_id="peh:id_subject",
+                                data_type=ObservablePropertyValueType.STRING,
+                            ),
+                            "peh:current_year": DatasetSchemaElement(
+                                label="peh:current_year",
+                                observable_property_id="peh:current_year",
+                                data_type=ObservablePropertyValueType.INTEGER,
+                            ),
+                            "peh:current_month": DatasetSchemaElement(
+                                label="peh:current_month",
+                                observable_property_id="peh:current_month",
+                                data_type=ObservablePropertyValueType.INTEGER,
+                            ),
+                            "peh:current_day": DatasetSchemaElement(
+                                label="peh:current_day",
+                                observable_property_id="peh:current_day",
+                                data_type=ObservablePropertyValueType.INTEGER,
+                            ),
+                            "peh:N1Birthdate": DatasetSchemaElement(
+                                label="peh:N1Birthdate",
+                                observable_property_id="peh:N1Birthdate",
+                                data_type=ObservablePropertyValueType.DATETIME,
+                            ),
+                            "peh:N1Birthweight": DatasetSchemaElement(
+                                label="peh:N1Birthweight",
+                                observable_property_id="peh:N1Birthweight",
+                                data_type=ObservablePropertyValueType.INTEGER,
+                            ),
+                        }
+                    ),
+                ),
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED": Dataset(
+                    label="peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
+                    schema=DatasetSchema(
+                        elements={
+                            "peh:id_subject": DatasetSchemaElement(
+                                label="peh:id_subject",
+                                observable_property_id="peh:id_subject",
+                                data_type=ObservablePropertyValueType.STRING,
+                            ),
+                            "peh:agemonths": DatasetSchemaElement(
+                                label="peh:agemonths",
+                                observable_property_id="peh:agemonths",
+                                data_type=ObservablePropertyValueType.INTEGER,
+                            ),
+                            "peh:Todaysdate": DatasetSchemaElement(
+                                label="peh:Todaysdate",
+                                observable_property_id="peh:Todaysdate",
+                                data_type=ObservablePropertyValueType.DATETIME,
+                            ),
+                        },
+                        primary_keys=set(["peh:id_subject"]),
+                        foreign_keys={
+                            "peh:id_subject": ForeignKey(
+                                element_label="peh:id_subject",
+                                reference=ElementReference(
+                                    dataset_label="peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
+                                    element_label="peh:id_subject",
+                                ),
+                            )
+                        },
+                    ),
+                ),
+            },
+        )
+
+    @pytest.fixture(scope="function")
+    def simple_graph(self):
+        dataset_series = self.raw_dataset_series()
+        join_spec_mapping = dataset_series.resolve_all_joins()
+        src_path = "./input/ProcessingExamples/Enrichment_03_MULTI_STEP"
+        cache_view = self.container(src_path)
+        observations = list(cache_view.get_all("Observation"))
+        return Graph.from_observations(observations, cache_view, join_spec_mapping=join_spec_mapping)
+
+    def test_dependency_graph_compilation(self, simple_graph):
+        dataset_series = self.raw_dataset_series()
+        adapter = self.get_adapter()
+        datasets = self.raw_data()
+        execution_plan = simple_graph.compile(adapter=adapter)
+        assert len(execution_plan) == 2
+        simple_graph.compute(datasets=datasets, adapter=adapter)
+        assert dataset_series.matches(datasets, adapter)
+
+
 @pytest.mark.dataframe
 class TestDataFrameDataOps(TestValidation, TestDataImport, TestDatasetSeriesMods):
     def get_adapter(self) -> DataOpsProtocol:
         try:
-            from pypeh.adapters.outbound.validation.pandera_adapter import dataops as dfops
+            from pypeh.adapters.outbound.validation.pandera_adapter import validation_adapter as dfops
 
-            return dfops.DataFrameAdapter()  # type: ignore
+            return dfops.DataFrameValidationAdapter()  # type: ignore
         except ImportError:
             pytest.skip("Necessary modules not installed")
 
@@ -769,108 +885,49 @@ class TestDataFrameDataOps(TestValidation, TestDataImport, TestDatasetSeriesMods
         assert set(labels) == set(expected_labels)
 
 
+@pytest.mark.dataframe
+class TestDataFrameEnrichment(TestEnrichment):
+    def get_adapter(self) -> DataOpsProtocol:
+        try:
+            from pypeh.adapters.outbound.enrichment import dataframe_adapter as dfops
+
+            return dfops.DataFrameEnrichmentAdapter()  # type: ignore
+        except ImportError:
+            pytest.skip("Necessary modules not installed")
+
+    def raw_data(self) -> dict:
+        import polars as pl
+
+        df_ingested = pl.DataFrame(
+            {
+                "peh:id_subject": [1, 2, 3, 4, 5],
+                "peh:current_year": [2025, 2025, 2025, 2025, 2025],
+                "peh:current_month": [12, 12, 12, 12, 12],
+                "peh:current_day": [11, 11, 11, 11, 11],
+                "peh:N1Birthdate": [
+                    date(1990, 5, 21),
+                    date(1985, 7, 14),
+                    date(2000, 1, 3),
+                    date(1995, 9, 30),
+                    date(1988, 3, 12),
+                ],
+                "peh:N2Birthweight": [3.2, 2.8, 3.5, 4.0, 3.0],
+            }
+        )
+
+        df_enriched = pl.DataFrame(
+            {
+                "peh:id_subject": [1, 2, 3, 4, 5],
+            }
+        )
+
+        return {
+            "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED": df_ingested,
+            "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED": df_enriched,
+        }
+
+
 @pytest.mark.other
 class TestUnknownDataOps(TestValidation):
     def get_adapter(self) -> DataOpsProtocol:
         raise NotImplementedError
-
-
-@pytest.mark.core
-class TestEnrichmentInterfaceCore:
-    def container(self, path: str) -> CacheContainer:
-        source = get_absolute_path(path)
-        container = CacheContainerFactory.new()
-        host = DirectoryIO()
-        roots = host.load(source, format="yaml", maxdepth=3)
-        for root in roots:
-            for entity in load_entities_from_tree(root):
-                container.add(entity)
-
-        return container
-
-    def load_data(self, observations_path):
-        with open(observations_path, "r") as f:
-            obs_prop_data = yaml.safe_load(f)
-            observations = [Observation(**observation) for observation in obs_prop_data["observations"]]
-
-        return observations
-
-    def test_building_dependency_graph(self):
-        adapter = DataEnrichmentInterface()
-
-        observations = self.load_data(
-            get_absolute_path("./input/ProcessingExamples/Enrichment_01_SINGLE_SOURCE/_YAML_Config/ProjectConfig.yaml")
-        )
-
-        container = self.container("./input/ProcessingExamples/Enrichment_01_SINGLE_SOURCE")
-
-        g = adapter.build_dependency_graph(observations, container)
-
-        # Simple check to see if the dependency graph is built
-        assert isinstance(g, Graph)
-
-    def test_topological_sort_single_source(self):
-        src_path = "./input/ProcessingExamples/Enrichment_01_SINGLE_SOURCE"
-        observation_path = "_YAML_Config/ProjectConfig.yaml"
-        adapter = DataEnrichmentInterface()
-        observations = self.load_data(get_absolute_path(src_path + "/" + observation_path))
-        container = self.container(src_path)
-        g = adapter.build_dependency_graph(observations, container)
-        sorted_nodes = g.topological_sort()
-        # Simple check to see if the sorted variables list is correct
-        assert isinstance(g, Graph)
-        assert all(isinstance(var, Node) for var in sorted_nodes)
-        assert len(sorted_nodes) == len(g.nodes)
-        assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "N1Birthdate"))
-        assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "Todaysdate"))
-
-    def test_topological_sort_linked_source(self):
-        src_path = "./input/ProcessingExamples/Enrichment_02_LINKED_SOURCE"
-        observation_path = "_YAML_Config/ProjectConfig.yaml"
-        adapter = DataEnrichmentInterface()
-        observations = self.load_data(get_absolute_path(src_path + "/" + observation_path))
-        container = self.container(src_path)
-        g = adapter.build_dependency_graph(observations, container)
-        sorted_nodes = g.topological_sort()
-        # Simple check to see if the sorted variables list is correct
-        assert isinstance(g, Graph)
-        assert all(isinstance(var, Node) for var in sorted_nodes)
-        assert len(sorted_nodes) == len(g.nodes)
-        assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "N1Birthdate"))
-        assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_HOUSEHOLD_INGESTED", "Todaysdate"))
-
-    def test_topological_sort_multi_steps(self):
-        src_path = "./input/ProcessingExamples/Enrichment_03_MULTI_STEP"
-        observation_path = "_YAML_Config/ProjectConfig.yaml"
-        adapter = DataEnrichmentInterface()
-        observations = self.load_data(get_absolute_path(src_path + "/" + observation_path))
-        container = self.container(src_path)
-        g = adapter.build_dependency_graph(observations, container)
-        sorted_nodes = g.topological_sort()
-        # Simple check to see if the sorted variables list is correct
-        assert isinstance(g, Graph)
-        assert all(isinstance(var, Node) for var in sorted_nodes)
-        assert len(sorted_nodes) == len(g.nodes)
-        assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "N1Birthdate"))
-        assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate"))
-        assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:current_day"))
-        assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:current_month"))
-        assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:current_year"))

@@ -17,7 +17,7 @@ from pypeh.core.models.validation_dto import ValidationDesign, ValidationExpress
 
 if TYPE_CHECKING:
     from typing import Any
-    from pypeh.core.interfaces.outbound.dataops import DataImportInterface
+    from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface
 
 
 logger = logging.getLogger(__name__)
@@ -146,6 +146,14 @@ class InternalDataLayout(dict[str, ElementToObservableProperty]):
         except Exception as _:
             logger.info("Could not infer schema with provided cache_view")
             return
+
+
+@dataclass
+class JoinSpec:
+    left_element: str
+    left_dataset: str
+    right_element: str
+    right_dataset: str
 
 
 @dataclass
@@ -283,7 +291,7 @@ class DatasetSchema:
 
             # foreign_keys
             if element_label in self.foreign_keys:
-                foreign_key = foreign_keys.pop(element_label)
+                foreign_key = self.foreign_keys.pop(element_label)
                 foreign_keys[new_element_label] = foreign_key
 
         if len(self.elements) > 0:
@@ -361,6 +369,64 @@ class DatasetSchema:
             foreign_keys=processed_foreign_keys,
             primary_keys=processed_primary_keys,
         )
+
+    def detect_join(
+        self,
+        dataset_label: str,
+        other_schema: DatasetSchema,
+        other_dataset_label: str,
+    ) -> list[JoinSpec] | None:
+        # Case 1: A → B directly
+        for col, fk in self.foreign_keys.items():
+            if fk.reference.dataset_label == other_dataset_label:
+                return [
+                    JoinSpec(
+                        left_element=fk.element_label,
+                        left_dataset=dataset_label,
+                        right_element=fk.reference.element_label,
+                        right_dataset=other_dataset_label,
+                    )
+                ]
+
+        # Case 2: B → A directly
+        for col, fk in other_schema.foreign_keys.items():
+            if fk.reference.dataset_label == dataset_label:
+                return [
+                    JoinSpec(
+                        left_element=fk.reference.element_label,
+                        left_dataset=dataset_label,
+                        right_element=fk.element_label,
+                        right_dataset=other_dataset_label,
+                    )
+                ]
+
+        # Case 3: shared third dataset: requires two `JoinSpec`
+        refs_a = {
+            fk.reference.dataset_label: (fk.element_label, fk.reference.element_label)
+            for fk in self.foreign_keys.values()
+        }
+        refs_b = {
+            fk.reference.dataset_label: (fk.element_label, fk.reference.element_label)
+            for fk in other_schema.foreign_keys.values()
+        }
+
+        shared = set(refs_a.keys()).intersection(set(refs_b.keys()))
+        if shared:
+            shared_label = next(iter(shared))
+            a_col_local, a_other = refs_a[shared_label]
+            b_col_local, b_other = refs_b[shared_label]
+
+            return [
+                JoinSpec(
+                    left_element=a_col_local,
+                    left_dataset=dataset_label,
+                    right_element=a_other,
+                    right_dataset=shared_label,
+                ),
+                JoinSpec(left_element=b_col_local, left_dataset="", right_element=b_other, right_dataset=shared_label),
+            ]
+
+        return None
 
 
 @dataclass(kw_only=True)
@@ -442,10 +508,13 @@ class Dataset(Resource, Generic[T_DataType]):
     def get_observable_property_ids(self) -> list[str]:
         return self.schema.get_observable_property_ids()
 
+    def get_primary_keys(self) -> set[str] | None:
+        return self.schema.primary_keys
+
     def subset(
         self,
         element_groups: dict[str, list[str]],
-        dataops_adapter: DataImportInterface,
+        dataops_adapter: OutDataOpsInterface,
         metadata: dict[str, dict] | None = None,
     ) -> bool:
         dataset_series: DatasetSeries = self.part_of  # type: ignore[attr-defined] ## can't figure out the type checker issue
@@ -475,7 +544,7 @@ class Dataset(Resource, Generic[T_DataType]):
 
         return True
 
-    def relabel(self, element_mapping: dict[str, str], dataops_adapter: DataImportInterface) -> bool:
+    def relabel(self, element_mapping: dict[str, str], dataops_adapter: OutDataOpsInterface) -> bool:
         # uniqueness check
         if len(set(element_mapping.values())) != len(element_mapping):
             raise ValueError("Not all values in the element_mapping are unique")
@@ -485,6 +554,11 @@ class Dataset(Resource, Generic[T_DataType]):
         self.data = dataops_adapter.relabel(self.data, element_mapping)
 
         return True
+
+    def resolve_join(self, other: Dataset) -> list[JoinSpec] | None:
+        schema = self.schema
+        assert schema is not None
+        return schema.detect_join(dataset_label=self.label, other_schema=other.schema, other_dataset_label=other.label)
 
 
 @dataclass(kw_only=True)
@@ -545,7 +619,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         self,
         dataset_label: str,
         element_groups: dict[str, list[str]],
-        dataops_adapter: DataImportInterface,
+        dataops_adapter: OutDataOpsInterface,
         metadata: dict[str, dict[str, str]] | None = None,
     ) -> bool:
         """
@@ -557,7 +631,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         return dataset.subset(element_groups, dataops_adapter=dataops_adapter, metadata=metadata)
 
     def relabel_dataset(
-        self, dataset_label: str, element_mapping: dict[str, str], dataops_adapter: DataImportInterface
+        self, dataset_label: str, element_mapping: dict[str, str], dataops_adapter: OutDataOpsInterface
     ):
         dataset = self.get(dataset_label)
         assert dataset is not None
@@ -565,7 +639,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
 
     def get_identifier_validation_config_dict(
         self,
-        data_import_adapter: DataImportInterface,
+        data_import_adapter: OutDataOpsInterface,
         cache_view: CacheContainerView,
     ) -> dict[str, list[ValidationDesign]]:
         ret: dict[str, list[ValidationDesign]] = dict()
@@ -624,7 +698,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
     def _cast_from_data_import_config(
         self,
         data_import_config: peh.DataImportConfig,
-        dataops_adapter: DataImportInterface,
+        dataops_adapter: OutDataOpsInterface,
         cache_view: CacheContainerView,
     ):
         """
@@ -634,7 +708,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         :param data_import_config: Description
         :type data_import_config: peh.DataImportConfig
         :param dataops_adapter: DataImportAdapter with `subset()` and `relabel()` functionality
-        :type dataops_adapter: DataImportInterface
+        :type dataops_adapter: OutDataOpsInterface
         :param cache_view: Immutable view on the cache associated with a session.
         :type cache_view: CacheContainerView
         """
@@ -716,6 +790,34 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         to_remove = set(self.parts) - visited
         for dataset_label in to_remove:
             self.parts.pop(dataset_label)
+
+    def resolve_join(self, left_dataset_label: str, right_dataset_label: str) -> list[JoinSpec] | None:
+        left = self.get(left_dataset_label)
+        assert left is not None
+        right = self.get(right_dataset_label)
+        assert right is not None
+        return left.resolve_join(right)
+
+    def resolve_all_joins(self) -> dict[frozenset, list[JoinSpec] | None]:
+        ret = {}
+        for combo in itertools.combinations(self.parts, 2):
+            key = frozenset(combo)
+            ret[key] = self.resolve_join(*combo)
+        return ret
+
+    def matches(self, dataset: dict[str, T_DataType], adapter) -> bool:
+        ret = True
+        for dataset_label in self.parts:
+            if dataset_label not in dataset:
+                return False
+
+        # TODO finish comparison
+        # this_dataset = self.get(dataset_label)
+        # assert this_dataset is not None
+        # type_annotations = this_dataset.get_type_annotations()
+        # dataset_fields = adapter.get_element_labels(dataset[dataset_label])
+
+        return ret
 
     @property
     def data_import_config(self) -> str | None:
