@@ -5,10 +5,9 @@ import importlib
 import logging
 import peh_model.peh as peh
 
-from typing import TYPE_CHECKING, TypeVar, Sequence, List, Dict, Generic
+from typing import TYPE_CHECKING, TypeVar, Sequence, Generic
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory, CacheContainerView
-from pypeh.core.models.constants import ObservablePropertyValueType
 from pypeh.core.models.proxy import TypedLazyProxy
 from pypeh.core.models.settings import (
     LocalFileConfig,
@@ -22,8 +21,7 @@ from pypeh.core.models.validation_errors import (
     ValidationErrorReport,
     ValidationErrorReportCollection,
 )
-from pypeh.core.models.internal_data_layout import DatasetSeries, Dataset, InternalDataLayout, ObservationResultProxy
-from pypeh.core.models.internal_data_layout import get_observations_from_data_import_config
+from pypeh.core.models.internal_data_layout import DatasetSeries, Dataset
 from pypeh.core.interfaces.outbound.dataops import ValidationInterface, DataImportInterface
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.session.connections import ConnectionManager
@@ -216,8 +214,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         ret = self._source_to_cache(roots)
         assert ret
 
-    # TEMP: this will replace load_tabular_data_collection
-    def _load_tabular_dataset_series(
+    def load_tabular_dataset_series(
         self,
         source: str,
         data_import_config: peh.DataImportConfig,
@@ -253,54 +250,6 @@ class Session(Generic[T_AdapterType, T_DataType]):
             )
 
         return dataset_series
-
-    def load_tabular_data_collection(
-        self,
-        source: str,
-        data_import_config: peh.DataImportConfig,
-        connection_label: str | None = None,
-    ) -> dict[str, ObservationResultProxy[DataFrame]]:
-        """
-        Load a binary resource and return its content as tabular ObservationResultProxy data
-        Args:
-            source (str): A path or url pointing to the data to be loaded in.
-            data_import_config (DataImportConfig): DataImportConfig object used for parsing and validation.
-            connection_label (str | None):
-                Optional key pointing to the connection to be used to load in the data source.
-                The connection_label should be a key of the provided connection_config.
-        """
-        assert isinstance(data_import_config, peh.DataImportConfig)
-        data_layout_id = data_import_config.layout
-        assert isinstance(data_layout_id, str)
-        data_layout = self.get_resource(data_layout_id, "DataLayout")
-        assert isinstance(data_layout, peh.DataLayout)
-        internal_data_representation = InternalDataLayout.from_peh(data_layout)
-        cache_view = CacheContainerView(self.cache)
-        data_schema = internal_data_representation.collect_schema(cache_view=cache_view)
-
-        # TODO: fix host calls with unified ConnectionManager
-        if is_url(source):
-            raise NotImplementedError
-        elif connection_label is not None:
-            pass
-        else:
-            connection_label = DEFAULT_CONNECTION_LABEL
-
-        with self.connection_manager.get_connection(connection_label=connection_label) as connection:
-            data_dict = connection.load(source, validation_layout=data_layout, data_schema=data_schema)
-        assert isinstance(data_dict, dict)
-
-        import_adapter = self.get_adapter("data_import")
-        assert isinstance(import_adapter, DataImportInterface)
-        # ret = import_adapter._extract_observed_value_provenance()  # TODO: extract ObservedValue provenance metadata
-        # ret = import_adapter._normalize_observable_properties()  # TODO: normalize based on ObservableProperty metadata
-
-        return import_adapter._data_layout_to_observation_results(
-            raw_data=data_dict,
-            data_import_config=data_import_config,
-            cache_view=cache_view,
-            internal_data_layout=internal_data_representation,
-        )
 
     def get_resource(self, resource_identifier: str, resource_type: str) -> T_NamedThingLike | None:
         """Get resource from cache"""
@@ -359,55 +308,20 @@ class Session(Generic[T_AdapterType, T_DataType]):
     def dump_project(self, project_identifier: str, version: str | None) -> bool:
         return self.dump_resource(project_identifier, resource_type="Project", version=version)
 
-    # TO REPLACE `validate_tabular_data`
     def validate_tabular_dataset(
         self,
         data: Dataset[DataFrame],
         dependent_data: DatasetSeries[DataFrame] | None = None,
     ) -> ValidationErrorReport:
-        # try:
         assert data.data is not None, f"No data associated with {data.label}"
         cache_view = CacheContainerView(self.cache)
         validation_adapter = self.get_adapter("validation")
         assert isinstance(validation_adapter, ValidationInterface)
-        return validation_adapter._validate_dataset(
+        return validation_adapter.validate(
             dataset=data,
             dependent_dataset_series=dependent_data,
             cache_view=cache_view,
         )
-
-        # except Exception as e:
-        #    return ValidationErrorReport.from_runtime_error(e)
-
-    def validate_tabular_data(
-        self,
-        data: dict[str, Sequence] | DataFrame,
-        observation: peh.Observation,
-        dataset_validations: Sequence[peh.ValidationDesign] | None = None,
-        dependent_data: dict[str, dict[str, Sequence]] | dict[str, DataFrame] | None = None,
-    ) -> ValidationErrorReport:
-        try:
-            assert isinstance(
-                observation, peh.Observation
-            ), "observation in `Session.validate_tabular_data` should be an `Observation`"
-            observable_properties = [op for op in self.cache.get_all("ObservableProperty")]
-            assert len(observable_properties) > 0
-
-            validation_adapter = self.get_adapter("validation")
-            assert isinstance(validation_adapter, ValidationInterface)
-
-            cache_view = CacheContainerView(self.cache)
-            return validation_adapter.validate(
-                data=data,
-                observation=observation,
-                observable_properties=observable_properties,
-                dataset_validations=dataset_validations,
-                dependent_data=dependent_data,
-                cache_view=cache_view,
-            )
-
-        except Exception as e:
-            return ValidationErrorReport.from_runtime_error(e)
 
     def validate_tabular_dataset_series(
         self,
@@ -423,114 +337,3 @@ class Session(Generic[T_AdapterType, T_DataType]):
             ), "validation_result in `Session.validate_tabular_dataset_series` should be a`ValidationErrorReport`"
             validation_result_dict[dataset_label] = validation_result
         return validation_result_dict
-
-    def validate_tabular_data_collection(
-        self,
-        data_collection: dict[str, ObservationResultProxy[dict[str, Sequence]]]
-        | dict[str, ObservationResultProxy[DataFrame]],
-        observations: List[peh.Observation],
-        data_collection_validations: Dict[str, Sequence[peh.ValidationDesign]] | None = None,
-    ) -> ValidationErrorReportCollection:
-        """
-        data_collection: keys are `Observation` IDs
-        """
-
-        result_dict = ValidationErrorReportCollection()
-        for observation in observations:
-            assert isinstance(
-                observation, peh.Observation
-            ), f"Observation {observation} wrong type. Should be an `Observation`"
-
-            dataset_validations = (
-                data_collection_validations.get(observation.id, None) if data_collection_validations else None
-            )
-
-            ret = self.validate_tabular_data(
-                data=data_collection[observation.id].observed_data,
-                observation=observation,
-                dataset_validations=dataset_validations,
-                dependent_data=data_collection,
-            )
-            assert isinstance(
-                ret, ValidationErrorReport
-            ), "ret in `Session.validate_tabular_data_collection` should be a`ValidationErrorReport`"
-            result_dict[observation.id] = ret
-
-        return result_dict
-
-    def validate_tabular_data_collection_by_reference(
-        self,
-        data_collection_id: str,
-        data_import_config_id: str,
-        data_collection_connection_label: str | None = None,
-        data_import_config_path: str | None = None,
-        data_import_config_connection_label: str | None = None,
-    ) -> ValidationErrorReportCollection:
-        # fetch data_import_config
-        cache_view = CacheContainerView(self.cache)
-        data_import_config = self.load_resource(
-            resource_identifier=data_import_config_id,
-            resource_type="DataImportConfig",
-            resource_path=data_import_config_path,
-            connection_label=data_import_config_connection_label,
-        )
-        assert isinstance(
-            data_import_config, peh.DataImportConfig
-        ), "data_import_config in `Session.validate_tabular_data_collection_by_reference` should be a `peh.DataImportConfig`"
-        # fetch data_collection
-        data_collection = self.load_tabular_data_collection(
-            source=data_collection_id,
-            data_import_config=data_import_config,
-            connection_label=data_collection_connection_label,
-        )
-        assert isinstance(
-            data_collection, dict
-        ), "data_collection in `Session.validate_tabular_data_collection_by_reference` should be a dict"
-
-        observations = [
-            observation
-            for observation in get_observations_from_data_import_config(data_import_config, cache_view)
-            if observation.id in data_collection.keys()
-        ]
-
-        return self.validate_tabular_data_collection(
-            data_collection=data_collection,
-            observations=observations,
-        )
-
-    ### CREATE MAPPINGS BASED ON CACHE CONTENT ###
-
-    # TODO: ready for removal
-    def layout_section_elements_to_observable_property_value_types(
-        self, layout: peh.DataLayout, flatten=False
-    ) -> dict[str, ObservablePropertyValueType | dict[str, ObservablePropertyValueType]] | None:
-        ret = {}
-
-        sections = getattr(layout, "sections")
-        if sections is None:
-            raise ValueError("No sections found in DataLayout")
-        for section in sections:
-            label = getattr(section, "ui_label")
-            elements = getattr(section, "elements")
-            if elements is None:
-                logger.info("DataLayout does not contain elements. Cannot determine observable_entity_value_types.")
-                return None
-            for element in elements:
-                element_label = getattr(element, "label")
-                observable_property_id = getattr(element, "observable_property")
-                observable_property = self.cache.get(observable_property_id, "ObservableProperty")
-                if observable_property is None:
-                    logger.info(
-                        f"Could not find {observable_property_id} in cache. Cannot determine observable_property_value_types. "
-                    )
-                    return None
-                assert isinstance(label, str)
-                value_type = getattr(observable_property, "value_type")
-                if flatten:
-                    ret[element_label] = ObservablePropertyValueType(value_type)
-                else:
-                    if label not in ret:
-                        ret[label] = {}
-                    ret[label][element_label] = ObservablePropertyValueType(value_type)
-
-        return ret
