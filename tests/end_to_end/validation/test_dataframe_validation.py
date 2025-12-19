@@ -20,10 +20,10 @@ logger = logging.getLogger(__name__)
 class TestSessionDefaultLocalFile:
     def test_end_to_end_dataframe_validation(self, monkeypatch):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
-        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input/test_01/config"))
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input/test_01"))
 
         session = Session()
-        session.load_persisted_cache()
+        session.load_persisted_cache(source="config")
 
         observation_id = "peh:VALIDATION_TEST_SAMPLE_METADATA"
         observation = session.get_resource(observation_id, "Observation")
@@ -34,7 +34,7 @@ class TestSessionDefaultLocalFile:
         )
         assert isinstance(data_import_config, peh.DataImportConfig)
 
-        excel_path = get_absolute_path("./input/test_01/validation_test_01_data.xlsx")
+        excel_path = "validation_test_01_data.xlsx"
         data_dict = session.load_tabular_data_collection(
             source=excel_path,
             data_import_config=data_import_config,
@@ -363,17 +363,17 @@ class TestCollectionRoundTripReference:
 class TestDatasetValidation:
     def test_end_to_end_dataframe_validation(self, monkeypatch):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
-        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input/test_01/config"))
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input/test_01"))
 
         session = Session()
-        session.load_persisted_cache()
+        session.load_persisted_cache(source="config")
 
         data_import_config = session.cache.get(
             "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataImportConfig"
         )
         assert isinstance(data_import_config, peh.DataImportConfig)
 
-        excel_path = get_absolute_path("./input/test_01/validation_test_01_data.xlsx")
+        excel_path = "validation_test_01_data.xlsx"
         dataset_series = session._load_tabular_dataset_series(
             source=excel_path,
             data_import_config=data_import_config,

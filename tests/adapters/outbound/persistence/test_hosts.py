@@ -1,3 +1,4 @@
+import fsspec
 import pytest
 
 from pathlib import Path
@@ -32,7 +33,7 @@ class TestFileIO:
     @pytest.mark.core
     def test_basic(self):
         source = get_absolute_path("./input/config_basic/_Reference_YAML/observable_entities.yaml")
-        fio = FileIO()
+        fio = FileIO(fsspec.filesystem("file"))
         data = fio.load(source)
         assert isinstance(data, EntityList)
 
@@ -49,7 +50,7 @@ class TestFileIO:
 class TestFileIOCsv:
     def test_basic(self):
         source = get_absolute_path("./input/config_basic/_Tabular_Data/sampling_data_to_import.csv")
-        fio = FileIO()
+        fio = FileIO(fsspec.filesystem("file"))
         data = fio.load(source, raise_if_empty=False)
         from polars import DataFrame
 
@@ -60,55 +61,48 @@ class TestFileIOCsv:
 class TestFileIOExcel:
     def test_basic(self):
         source = get_absolute_path("./input/config_basic/_Tabular_Data/sampling_data_to_import.xlsx")
-        fio = FileIO()
+        fio = FileIO(fsspec.filesystem("file"))
         data = fio.load(source)
         assert isinstance(data, dict)
 
 
 class TestDirectoryIO:
+    @pytest.fixture(scope="class")
+    def provider(self):
+        abs_root_folder = get_absolute_path("./input")
+        config = LocalFileConfig(config_dict={"root_folder": abs_root_folder})
+        settings = config.make_settings(_env_file=None)
+        return ConnectionManager._create_adapter(settings)
+
     @pytest.mark.dataframe
-    def test_basic(self):
-        directory_io = DirectoryIO()
-        source = get_absolute_path("./input/config_basic")
-        all_data = list(directory_io.load(source, maxdepth=10))
+    def test_basic(self, provider):
+        source = "config_basic"
+        all_data = list(provider.load(source, maxdepth=10))
         assert len(all_data) > 1
 
     @pytest.mark.core
-    def test_no_root(self):
-        source = get_absolute_path("./input/config_basic/_Reference_YAML")
-        directory_io = DirectoryIO()
-        all_data = directory_io.load(source)
+    def test_no_root(self, provider):
+        source = "config_basic/_Reference_YAML"
+        all_data = provider.load(source)
         assert len(all_data) > 0
 
     @pytest.mark.core
-    def test_unknown_format(self):
-        source = Path("input/unknown_format")
-        path = Path(get_absolute_path(str(source)))
-        root = path.parents[len(source.parts) - 1]
-
-        directory_io = DirectoryIO(root=str(root))
-        all_data = list(directory_io.load(str(source)))
+    def test_unknown_format(self, provider):
+        source = Path("unknown_format")
+        all_data = list(provider.load(str(source)))
         assert len(all_data) == 0
 
     @pytest.mark.core
-    def test_incompatible_file(self):
-        source = Path("input/wrong_input")
-        path = Path(get_absolute_path(str(source)))
-        root = path.parents[len(source.parts) - 1]
-
-        directory_io = DirectoryIO(root=str(root))
+    def test_incompatible_file(self, provider):
+        source = Path("wrong_input")
         with pytest.raises(TypeError):
-            _ = list(directory_io.load(str(source)))
+            _ = list(provider.load(str(source)))
 
     @pytest.mark.core
-    def test_walk(self):
-        source = Path("input/config_basic")
-        path = Path(get_absolute_path(str(source)))
-        root = path.parents[len(source.parts) - 1]
-
-        directory_io = DirectoryIO(root=str(root))
+    def test_walk(self, provider):
+        source = Path("config_basic")
         i = 0
-        for _ in directory_io.walk(str(source), format="yaml"):
+        for _ in provider.walk(str(source), format="yaml"):
             i += 1
         assert i > 1
 
@@ -139,6 +133,18 @@ class TestS3StorageProvider:
         settings = config_base.make_settings()
         s3io = S3StorageProvider(settings)
         assert s3io is not None
+
+    def test_path(self, monkeypatch):
+        monkeypatch.setenv("MYBUCKET_BUCKET_NAME", "my-test-bucket")
+        monkeypatch.setenv("MYBUCKET_ENDPOINT_URL", "http://endpoint-example.local")
+        override = {"aws_region": "eu-central-1"}
+
+        config_base = S3Config(env_prefix="MYBUCKET_", config_dict=override)
+        settings = config_base.make_settings()
+        s3io = S3StorageProvider(settings)
+        assert s3io is not None
+        test = s3io._normalize_root("s3://my-test-bucket")
+        assert test == "my-test-bucket"
 
 
 @pytest.mark.core

@@ -35,6 +35,7 @@ class S3Settings(FileSystemSettings):
     aws_region: Optional[str] = "us-east-1"
     endpoint_url: Optional[str] = None
     bucket_name: str
+    prefix: str | None = None
 
     def to_s3fs(self):
         return {
