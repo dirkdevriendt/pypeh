@@ -1,6 +1,7 @@
 layouts:
 - id: TEST_DATA_LAYOUT
   name: TEST_DATA_LAYOUT
+  ui_label: TEST_DATA_LAYOUT
   sections:
   - id: TEST_DATA_LAYOUT_SECTION_SUBJECTTIMEPOINT
     ui_label: SUBJECTTIMEPOINT

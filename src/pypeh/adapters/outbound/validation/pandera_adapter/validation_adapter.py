@@ -89,30 +89,6 @@ class DataFrameValidationAdapter(DataFrameAdapter, ValidationInterface[DataFrame
 
         return report
 
-    def _join_data(
-        self,
-        identifying_observable_property_ids: list[str],
-        data: dict[str, list] | DataFrame,
-        dependent_data: dict[str, dict[str, list]] | dict[str, DataFrame],
-        dependent_observable_property_ids: set[str],
-        observable_property_id_to_dataset_label_dict: dict[str, str],
-    ) -> DataFrame:
-        joined_data = data
-        assert isinstance(joined_data, DataFrame), "joined_data in `DataFrameAdapter._join_data` should be a DataFrame"
-        for dependent_obs_prop in dependent_observable_property_ids:
-            dependent_section = observable_property_id_to_dataset_label_dict.get(dependent_obs_prop, None)
-            if dependent_section is None:
-                raise ValueError(f"Could not find data layout section for observable property {dependent_obs_prop}")
-            other_result_proxy = dependent_data.get(dependent_section, None)
-            if other_result_proxy is not None:
-                other = other_result_proxy.observed_data
-                assert isinstance(other, DataFrame), "other in `DataFrameAdapter._join_data` should be a DataFrame"
-                joined_data = joined_data.join(other, on=identifying_observable_property_ids, how="left")
-            else:
-                raise ValueError(f"Did not find data section with label {dependent_section}")
-        return joined_data
-
-    # TEMP: to replace _join_data
     def _join_dataset(
         self,
         identifying_observable_property_ids: list[str],
@@ -122,7 +98,9 @@ class DataFrameValidationAdapter(DataFrameAdapter, ValidationInterface[DataFrame
         observable_property_id_to_dataset_label_dict: dict[str, str],
     ) -> DataFrame:
         joined_data = dataset.data
-        assert isinstance(joined_data, DataFrame), "joined_data in `DataFrameAdapter._join_data` should be a DataFrame"
+        assert isinstance(
+            joined_data, DataFrame
+        ), "joined_data in `DataFrameAdapter._join_dataset` should be a DataFrame"
         for dependent_obs_prop in dependent_observable_property_ids:
             dependent_dataset = observable_property_id_to_dataset_label_dict.get(dependent_obs_prop, None)
             if dependent_dataset is None:
@@ -130,7 +108,7 @@ class DataFrameValidationAdapter(DataFrameAdapter, ValidationInterface[DataFrame
             other_result_proxy = dependent_data[dependent_dataset]
             if other_result_proxy is not None:
                 other = other_result_proxy.data
-                assert isinstance(other, DataFrame), "other in `DataFrameAdapter._join_data` should be a DataFrame"
+                assert isinstance(other, DataFrame), "other in `DataFrameAdapter._join_dataset` should be a DataFrame"
                 joined_data = joined_data.join(other, on=identifying_observable_property_ids, how="left")
             else:
                 raise ValueError(f"Did not find data section with label {dependent_dataset}")

@@ -3,12 +3,7 @@ import abc
 
 from datetime import date
 from typing import Protocol, Any, Generic
-from peh_model.peh import (
-    DataImportConfig,
-    DataImportSectionMapping,
-    DataImportSectionMappingLink,
-    DataLayout,
-)
+from peh_model.peh import DataLayout
 
 from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
 from pypeh.core.cache.utils import load_entities_from_tree
@@ -20,8 +15,6 @@ from pypeh.core.models.internal_data_layout import (
     DatasetSeries,
     ElementReference,
     ForeignKey,
-    InternalDataLayout,
-    ObservationResultProxy,
 )
 from pypeh.core.models.validation_errors import ValidationErrorReport
 from pypeh.core.models.constants import ObservablePropertyValueType, ValidationErrorLevel
@@ -42,19 +35,17 @@ class DataOpsProtocol(Protocol, Generic[T_DataType]):
 
     def _validate(self, data, config) -> ValidationErrorReport: ...
 
-    def validate(self, data, config) -> ValidationErrorReport: ...
+    def validate(self, dataset, dependent_dataset_series, cache_view) -> ValidationErrorReport: ...
 
     def import_data(self, source, config) -> Any: ...
 
     def import_data_layout(self, source, config) -> Any: ...
 
-    def _data_layout_to_observation_results(
-        self, raw_data, data_import_config, cache_view, internal_data_layout
-    ) -> dict[str, ObservationResultProxy]: ...
-
 
 class TestValidation(abc.ABC):
     """Abstract base class for testing dataops adapters."""
+
+    __test__ = False
 
     @abc.abstractmethod
     def get_adapter(self) -> DataOpsProtocol:
@@ -457,6 +448,8 @@ class TestValidation(abc.ABC):
 class TestDataImport(abc.ABC):
     """Abstract base class for testing dataops adapters."""
 
+    __test__ = False
+
     @abc.abstractmethod
     def get_adapter(self) -> DataOpsProtocol:
         """Return the adapter implementation to test."""
@@ -500,47 +493,10 @@ class TestDataImport(abc.ABC):
                 container.add(entity)
         return container
 
-    def test_data_layout_to_observation_results(self, data_layout_container, raw_data):
-        data_import_config = DataImportConfig(
-            id="peh:IMPORT_CONFIG_PARC_ALIGNED_STUDIES_LAYOUT_ADULTS",
-            layout="peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS",
-            section_mapping=DataImportSectionMapping(
-                section_mapping_links=[
-                    DataImportSectionMappingLink(
-                        section="peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS_SECTION_urine_lab",
-                        observation_id_list=["peh:SAMPLE_DATA"],
-                    ),
-                    DataImportSectionMappingLink(
-                        section="peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS_SECTION_analyticalinfo",
-                        observation_id_list=["peh:SAMPLE_METADATA"],
-                    ),
-                ],
-            ),
-        )
-        cache_view = CacheContainerView(container=data_layout_container)
-        data_layout = cache_view.get("peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS", "DataLayout")
-        assert isinstance(data_layout, DataLayout)
-        internal_data_layout = InternalDataLayout.from_peh(data_layout=data_layout)
-        adapter = self.get_adapter()
-        ret = adapter._data_layout_to_observation_results(
-            raw_data=raw_data,
-            data_import_config=data_import_config,
-            cache_view=cache_view,
-            internal_data_layout=internal_data_layout,
-        )
-
-        assert isinstance(ret, dict)
-        assert len(ret) == 2
-        observation_result = ret["peh:SAMPLE_DATA"]
-        assert isinstance(observation_result, ObservationResultProxy)
-        assert observation_result.observed_data.shape == (2, 3)
-
-        observation_result = ret["peh:SAMPLE_METADATA"]
-        assert isinstance(observation_result, ObservationResultProxy)
-        assert observation_result.observed_data.shape == (2, 4)
-
 
 class TestDatasetSeriesMods(abc.ABC):
+    __test__ = False
+
     def get_adapter(self):
         raise NotImplementedError
 
@@ -703,6 +659,8 @@ class TestDatasetSeriesMods(abc.ABC):
 class TestEnrichment(abc.ABC):
     """Abstract base class for enrichment adapters."""
 
+    __test__ = False
+
     @abc.abstractmethod
     def get_adapter(self) -> DataOpsProtocol:
         """Return the adapter implementation to test."""
@@ -819,6 +777,8 @@ class TestEnrichment(abc.ABC):
 
 @pytest.mark.dataframe
 class TestDataFrameDataOps(TestValidation, TestDataImport, TestDatasetSeriesMods):
+    __test__ = True
+
     def get_adapter(self) -> DataOpsProtocol:
         try:
             from pypeh.adapters.outbound.validation.pandera_adapter import validation_adapter as dfops
@@ -887,6 +847,8 @@ class TestDataFrameDataOps(TestValidation, TestDataImport, TestDatasetSeriesMods
 
 @pytest.mark.dataframe
 class TestDataFrameEnrichment(TestEnrichment):
+    __test__ = True
+
     def get_adapter(self) -> DataOpsProtocol:
         try:
             from pypeh.adapters.outbound.enrichment import dataframe_adapter as dfops
