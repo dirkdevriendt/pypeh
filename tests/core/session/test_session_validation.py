@@ -128,7 +128,6 @@ class TestSessionValidation:
             source="validation_test_03_data.xlsx", data_import_config=data_import_config, connection_label="local_file"
         )
         assert isinstance(result, DatasetSeries)
-        print(list(result.parts.keys()))
         assert "SAMPLETIMEPOINT_BSS" in result
         dataset = result["SAMPLETIMEPOINT_BSS"]
         assert isinstance(dataset, Dataset)

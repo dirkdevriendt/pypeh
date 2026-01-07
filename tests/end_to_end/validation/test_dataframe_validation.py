@@ -4,12 +4,12 @@ import logging
 
 from pypeh.core.cache.containers import CacheContainerView
 from pypeh.core.interfaces.outbound.dataops import DataImportInterface
-from pypeh.core.models.constants import ValidationErrorLevel
+from pypeh.core.models.constants import ObservablePropertyValueType, ValidationErrorLevel
 from tests.test_utils.dirutils import get_absolute_path
 
 from pypeh import Session
-from pypeh.core.models.validation_errors import ValidationErrorReport, EntityLocation
-from pypeh.core.models.internal_data_layout import Dataset, DatasetSeries
+from pypeh.core.models.validation_errors import ValidationErrorReport, EntityLocation, ValidationErrorReportCollection
+from pypeh.core.models.internal_data_layout import Dataset, DatasetSchema, DatasetSchemaElement, DatasetSeries
 
 
 logger = logging.getLogger(__name__)
@@ -211,6 +211,12 @@ class TestRoundTripDataset:
 
         assert unexpected_errors == 0
 
+        # validate entire dataset_series
+        validation_report_collection = session.validate_tabular_dataset_series(
+            dataset_series=dataset_series,
+        )
+        assert isinstance(validation_report_collection, ValidationErrorReportCollection)
+
     @pytest.mark.parametrize(
         "test_label",
         [
@@ -254,6 +260,28 @@ class TestRoundTripDataset:
             unexpected_errors += len(validation_report.unexpected_errors)
 
         assert unexpected_errors == 0
+
+    def test_empty(self):
+        session = Session()
+        empty_dataset_series = DatasetSeries(
+            label="test",
+            parts={
+                "test": Dataset(
+                    label="test",
+                    schema=DatasetSchema(
+                        elements={
+                            "test_element": DatasetSchemaElement(
+                                label="test_label",
+                                observable_property_id="test_obs_prop",
+                                data_type=ObservablePropertyValueType.STRING,
+                            )
+                        }
+                    ),
+                )
+            },
+        )
+        with pytest.raises(AssertionError):
+            session.validate_tabular_dataset_series(empty_dataset_series)
 
 
 @pytest.mark.end_to_end
