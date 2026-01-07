@@ -331,9 +331,15 @@ class Session(Generic[T_AdapterType, T_DataType]):
         for dataset_label in dataset_series:
             dataset = dataset_series[dataset_label]
             assert dataset is not None
+            if dataset.data is None:
+                continue
             validation_result = self.validate_tabular_dataset(data=dataset, dependent_data=dataset_series)
             assert isinstance(
                 validation_result, ValidationErrorReport
             ), "validation_result in `Session.validate_tabular_dataset_series` should be a`ValidationErrorReport`"
             validation_result_dict[dataset_label] = validation_result
+
+        # Catch no data in dataset_series case
+        assert len(validation_result_dict) > 0, f"DatasetSeries with label {dataset_series.label} contains no data"
+
         return validation_result_dict
