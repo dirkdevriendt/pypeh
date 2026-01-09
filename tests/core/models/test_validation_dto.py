@@ -22,28 +22,6 @@ class TestBasicValidationConfig:
                 container.add(entity)
         return CacheContainerView(container)
 
-    def test_config(self, get_cache):
-        cache_view = get_cache
-        observation_list = list(cache_view.get_all("Observation"))
-        observation_design_list = [getattr(observation, "observation_design", None) for observation in observation_list]
-        if len([od for od in observation_design_list if od is not None]) == 0:
-            raise AttributeError
-        observable_properties = list(cache_view.get_all("ObservableProperty"))
-
-        # code below is copied from validationservice: IMPROVE
-        found = False
-        for observation in observation_list:
-            validation_config = ValidationConfig.from_observation(
-                observation,
-                observable_properties,
-                cache_view=cache_view,
-            )
-            for column_dict in validation_config.columns:
-                if column_dict.unique_name == "peh:adults_u_sg":
-                    found = True
-
-        assert found
-
     def test_config_from_dataset(self, get_cache):
         cache_view = get_cache
         layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"

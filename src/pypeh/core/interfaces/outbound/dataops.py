@@ -109,9 +109,10 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
     ) -> ValidationErrorReport:
         assert dataset.data is not None
         to_validate: T_DataType = dataset.data
-
+        type_annotations = dataset.get_type_annotations()
         # Get Dataset level validations if they exist for the describing DataLayoutSection
         dataset_validations = []
+
         layout_section_id = dataset.described_by
         if layout_section_id:
             assert cache_view is not None
@@ -120,7 +121,7 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
             assert isinstance(layout_section, DataLayoutSection)
             if layout_section.validation_designs:
                 for vd in layout_section.validation_designs:
-                    dataset_validation = validation_dto.ValidationDesign.from_peh(vd, cache_view)
+                    dataset_validation = validation_dto.ValidationDesign.from_layout(vd, type_annotations, cache_view)
                     # For an expression that relies on a field reference spec for its arguments, set the validation arguments
                     # as the actual values from the dataset (e.g. for an "is_in" check on a foreign key relation)
                     if vd.validation_expression.validation_arg_contextual_field_references:
@@ -157,13 +158,16 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
                 # TEMP: looping over datasets should not be necessary when contextual_field_references are implemented
                 observable_property_id_to_dataset_label_dict = dict()
                 for observable_property_id in dependent_observable_property_ids:
+                    found = False
                     for dataset_label in dependent_dataset_series:
                         dependent_dataset = dependent_dataset_series[dataset_label]
                         assert dependent_dataset is not None
                         all_obs_props = set(dependent_dataset.get_observable_property_ids())
                         if observable_property_id in all_obs_props:
                             observable_property_id_to_dataset_label_dict[observable_property_id] = dataset_label
+                            found = True
                             break
+                    assert found, f"Did not find {observable_property_id}"
 
                 identifying_obs_prop_id_list = dataset.schema.primary_keys
                 assert (

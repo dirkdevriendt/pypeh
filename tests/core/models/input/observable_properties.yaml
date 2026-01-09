@@ -114,10 +114,10 @@ observable_properties:
   validation_designs:
   - validation_expression:
       validation_subject_contextual_field_references:
-      - field_label: sg
+      - field_label:  peh:adults_u_sg
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - field_label: peh:adults_u_matrix
         validation_command: is_in
         validation_arg_values:
         - US
@@ -130,18 +130,18 @@ observable_properties:
       validation_command: conjunction
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: crt
+        - field_label: peh:adults_u_crt
         validation_command: is_less_than
         validation_arg_values:
         - '2.0'
       validation_arg_expressions:
       - validation_subject_contextual_field_references:
-        - field_label: sg
+        - field_label:  peh:adults_u_sg
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '1.001'
       - validation_subject_contextual_field_references:
-        - field_label: sg
+        - field_label:  peh:adults_u_sg
         validation_command: is_less_than_or_equal_to
         validation_arg_values:
         - '1.02'
@@ -181,10 +181,10 @@ observable_properties:
   validation_designs:
   - validation_expression:
       validation_subject_contextual_field_references:
-      - field_label: crt
+      - field_label: peh:adults_u_crt
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - field_label: peh:adults_u_matrix
         validation_command: is_in
         validation_arg_values:
         - US
