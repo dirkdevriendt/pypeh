@@ -9,6 +9,7 @@ from pydantic import BaseModel, field_validator
 from typing import Generic, Any, Sequence, TYPE_CHECKING
 
 from pypeh.core.cache.containers import CacheContainerView
+from pypeh.core.models.internal_data_layout import DatasetSchema
 from pypeh.core.models.typing import CategoricalString, T_DataType
 from pypeh.core.models.constants import ObservablePropertyValueType, ValidationErrorLevel
 from peh_model import pydanticmodel_v2 as pehs
@@ -616,6 +617,55 @@ class ValidationConfig(BaseModel, Generic[T_DataType]):
         return ret
 
     @classmethod
+    def apply_context_to_expressions(cls, expressions: list[ValidationExpression], context: dict[str, str]):
+        expression_stack = expressions
+        while expression_stack:
+            expression = expression_stack.pop()
+            assert isinstance(expression, ValidationExpression)
+            conditional_expression = expression.conditional_expression
+            if conditional_expression is not None:
+                expression_stack.append(conditional_expression)
+            arg_expressions = expression.arg_expressions
+            if arg_expressions is not None:
+                for arg_expression in arg_expressions:
+                    expression_stack.append(arg_expression)
+            arg_columns = expression.arg_columns
+            new_arg_columns = []
+            if arg_columns is not None:
+                for arg_column in arg_columns:
+                    new_arg_column = context.get(arg_column, None)
+                    if new_arg_column is not None:
+                        new_arg_columns.append(new_arg_column)
+                    else:
+                        new_arg_columns.append(arg_column)
+                expression.arg_columns = new_arg_columns
+            subject = expression.subject
+            if subject is not None:
+                new_subject = []
+                for s in subject:
+                    new_s = context.get(s, None)
+                    if new_s is not None:
+                        new_subject.append(new_s)
+                    else:
+                        new_subject.append(s)
+                expression.subject = new_subject
+
+    @classmethod
+    def apply_context_to_column_validations(cls, column_validations: list[ColumnValidation], context: dict[str, str]):
+        expression_stack = []
+
+        for column_validation in column_validations:
+            validation_designs = getattr(column_validation, "validations", None)
+            if validation_designs is None:
+                continue
+            for validation_design in validation_designs:
+                expression = getattr(validation_design, "expression", None)
+                assert expression is not None
+                expression_stack.append(expression)
+
+        cls.apply_context_to_expressions(expression_stack, context)
+
+    @classmethod
     def from_dataset(
         cls,
         dataset: Dataset[T_DataType],
@@ -652,6 +702,16 @@ class ValidationConfig(BaseModel, Generic[T_DataType]):
 
         identifying_column_names = dataset.schema.primary_keys
         assert identifying_column_names is not None
+
+        ## transform observable_property_ids to dataset_elements
+        # transform column_validations
+        context = dict()
+        for dataset_label in dataset_series.parts:
+            dataset = dataset_series[dataset_label]
+            for k, v in dataset.schema._elements_by_observable_property.items():
+                context[k] = v
+
+        _ = cls.apply_context_to_column_validations(column_validations, context)
 
         return cls(
             name=dataset.label,
