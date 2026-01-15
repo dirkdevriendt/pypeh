@@ -52,16 +52,34 @@ class ValidationErrorLevel(Enum):
     FATAL = auto()
 
 
-class ObservablePropertyValueType(str, Enum):
-    """
-    Enum representing the possible value types for observable properties.
-    """
+_ALIASES: dict[str, str] = {
+    "decimal": "float",
+}
 
+
+class ObservablePropertyValueType(str, Enum):
     STRING = "string"
     INTEGER = "integer"
     BOOLEAN = "boolean"
     FLOAT = "float"
-    CATEGORICAL = "categorical"
     DECIMAL = "decimal"
+    CATEGORICAL = "categorical"
     DATE = "date"
     DATETIME = "datetime"
+
+    def __new__(cls, value):
+        # remap before Enum processes it
+        normalized = value.lower()
+        if normalized in _ALIASES:
+            value = _ALIASES[normalized]
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        return obj
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            normalized = value.lower()
+            if normalized in _ALIASES:
+                return cls(_ALIASES[normalized])
+        return super()._missing_(value)

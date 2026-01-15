@@ -41,6 +41,8 @@ class DataOpsProtocol(Protocol, Generic[T_DataType]):
 
     def import_data_layout(self, source, config) -> Any: ...
 
+    def build_validation_config(self, dataset, dataset_series, cache_view) -> ValidationConfig: ...
+
 
 class TestValidation(abc.ABC):
     """Abstract base class for testing dataops adapters."""
@@ -51,6 +53,24 @@ class TestValidation(abc.ABC):
     def get_adapter(self) -> DataOpsProtocol:
         """Return the adapter implementation to test."""
         raise NotImplementedError
+
+    def get_container(self, path: str, is_file=True) -> CacheContainerView:
+        source = get_absolute_path(path)
+        container = CacheContainerFactory.new()
+        host = DirectoryIO()
+        roots = host.load(source, format="yaml")
+        if is_file:
+            roots = [roots]
+        for root in roots:
+            for entity in load_entities_from_tree(root):
+                container.add(entity)
+
+        return CacheContainerView(container)
+
+    def get_container_validation_example_03(self) -> CacheContainerView:
+        src_path = "./input/ValidationExamples/validation_test_03_corrected_config.yaml"
+        cache_view = self.get_container(src_path)
+        return cache_view
 
     def test_getting_default_adapter_from_interface(self):
         adapter_class = ValidationInterface.get_default_adapter_class()
@@ -443,6 +463,24 @@ class TestValidation(abc.ABC):
         assert result.groups[0].name == expected_output.get("name")
         assert result.total_errors == expected_output.get("total_errors")
         assert result.error_counts == expected_output.get("errors_counts")
+
+    def test_build_validation_config(self):
+        adapter = self.get_adapter()
+        cache_view = self.get_container_validation_example_03()
+        data_layout = cache_view.get("peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataLayout")
+        assert isinstance(data_layout, DataLayout)
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            data_layout=data_layout, cache_view=cache_view, apply_context=True
+        )
+        dataset = dataset_series.get("SAMPLETIMEPOINT_BSS")
+        assert dataset is not None
+        dataset.metadata["non_empty_dataset_elements"] = ["id_sample", "chol", "chol_lod", "chol_loq"]
+        validation_config = adapter.build_validation_config(
+            dataset=dataset,
+            dataset_series=dataset_series,
+            cache_view=cache_view,
+        )
+        assert isinstance(validation_config, ValidationConfig)
 
 
 class TestDataImport(abc.ABC):

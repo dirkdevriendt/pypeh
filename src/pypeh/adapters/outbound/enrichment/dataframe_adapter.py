@@ -4,14 +4,10 @@ import logging
 
 import polars as pl
 
-from polars.datatypes import DataType
-from enum import Enum
-
 from pypeh.adapters.outbound.dataops.dataframe_adapter import DataFrameAdapter
 from pypeh.core.interfaces.outbound.dataops import (
     DataEnrichmentInterface,
 )
-from pypeh.core.models.constants import ObservablePropertyValueType
 from pypeh.core.models.graph import Node
 from pypeh.core.models.internal_data_layout import JoinSpec
 
@@ -66,25 +62,3 @@ class DataFrameEnrichmentAdapter(DataFrameAdapter, DataEnrichmentInterface[pl.Da
         for dataset in datasets.values():
             if isinstance(dataset, pl.LazyFrame):
                 dataset = dataset.collect()
-
-    def type_mapper(self, peh_value_type: str | ObservablePropertyValueType) -> type[DataType]:
-        if isinstance(peh_value_type, Enum):
-            peh_value_type = peh_value_type.value
-
-        match peh_value_type:
-            case "string":
-                return pl.String
-            case "boolean":
-                return pl.Boolean
-            case "date":
-                return pl.Date
-            case "datetime":
-                return pl.Datetime
-            case "decimal":
-                return pl.Float64
-            case "integer":
-                return pl.Int64
-            case "float":
-                return pl.Float64
-            case _:
-                return pl.String

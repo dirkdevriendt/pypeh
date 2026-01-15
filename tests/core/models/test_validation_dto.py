@@ -1,6 +1,7 @@
 import pytest
 
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
+from pypeh.core.interfaces.outbound.dataops import ValidationInterface
 from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.models.internal_data_layout import DatasetSeries
@@ -23,6 +24,7 @@ class TestBasicValidationConfig:
         return CacheContainerView(container)
 
     def test_config_from_dataset(self, get_cache):
+        validation_interface = ValidationInterface()
         cache_view = get_cache
         layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
         layout = cache_view.get(layout_id, "DataLayoutLayout")
@@ -59,8 +61,9 @@ class TestBasicValidationConfig:
             dataset_series.add_data(dataset_label, fake_dataset, non_empty_dataset_elements=list(fake_dataset.keys()))
 
         for dataset_label, dataset in dataset_series.parts.items():
-            config = ValidationConfig.from_dataset(
+            config = validation_interface.build_validation_config(
                 dataset=dataset,
+                dataset_series=dataset_series,
                 cache_view=cache_view,
             )
             assert isinstance(config, ValidationConfig)

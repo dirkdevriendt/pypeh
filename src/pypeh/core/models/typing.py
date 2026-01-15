@@ -37,7 +37,3 @@ IOLike = Union[
     TextIO,
     BinaryIO,
 ]
-
-
-class CategoricalString(str):
-    pass

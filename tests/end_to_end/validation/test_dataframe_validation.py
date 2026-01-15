@@ -105,6 +105,7 @@ class TestRoundTripDataset:
         assert dataset is not None
         validation_report = session.validate_tabular_dataset(
             data=dataset,
+            dependent_data=dataset_series,
         )
         assert validation_report is not None
         assert isinstance(validation_report, ValidationErrorReport)
