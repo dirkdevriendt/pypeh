@@ -95,7 +95,8 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: matrix_chol
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BWB
@@ -113,7 +114,8 @@ observable_properties:
         - DBS
         - VAMS
       validation_subject_contextual_field_references:
-        - field_label: chol
+        - dataset_label: matrix_chol
+          field_label: chol
       validation_command: is_greater_than_or_equal_to
       validation_arg_values:
         - '50'
@@ -123,13 +125,15 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - dataset_label: matrix_chol
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BM
         - BMG
       validation_subject_contextual_field_references:
-        - field_label: chol
+        - dataset_label: matrix_chol
+          field_label: chol
       validation_command: is_greater_than_or_equal_to
       validation_arg_values:
         - '5'

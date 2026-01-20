@@ -17,8 +17,15 @@ from pypeh.core.models.validation_dto import (
 )
 from pypeh.core.interfaces.outbound.dataops import ValidationInterface
 from pypeh.core.models.constants import ValidationErrorLevel
+from pypeh.core.models.internal_data_layout import (
+    Dataset,
+    DatasetSchema,
+    DatasetSchemaElement,
+    ObservablePropertyValueType,
+)
 from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
 from pypeh.core.cache.utils import load_entities_from_tree
+
 from tests.test_utils.dirutils import get_absolute_path
 
 
@@ -319,32 +326,46 @@ class TestPehToDto:
         Checks whether using a single validation_command leads to the same
         validation configuration as using one validation_arg_expression.
         """
+        adapter = ValidationInterface.get_default_adapter_class()
+        adapter = adapter()
+        matrix_chol_schema = DatasetSchema(
+            elements={
+                "id_sample": DatasetSchemaElement(
+                    label="id_sample",
+                    observable_property_id="id_sample",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+                "matrix": DatasetSchemaElement(
+                    label="matrix",
+                    observable_property_id="matrix",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+                "chol": DatasetSchemaElement(
+                    label="chol",
+                    observable_property_id="chol",
+                    data_type=ObservablePropertyValueType.FLOAT,
+                ),
+            },
+            primary_keys=set("id_sample"),
+            foreign_keys={},
+        )
+
+        dataset = Dataset(
+            label="matrix_chol",
+            schema=matrix_chol_schema,
+        )
+        dataset.metadata["non_empty_dataset_elements"] = ["matrix", "chol"]
+
         check_command_cache_view = get_check_command_cache
-        check_command_obs_props = list(check_command_cache_view.get_all("ObservableProperty"))
-        check_command_observations = list(check_command_cache_view.get_all("Observation"))
-        observation_design_check = check_command_observations[0].observation_design
-
-        vc_check = ValidationConfig.from_peh(
-            "check",
-            check_command_obs_props,
-            observation_design_check,
-            cache_view=check_command_cache_view,
-        )
-
+        vc_check = adapter.build_validation_config(dataset=dataset, cache_view=check_command_cache_view)
         arg_expression_cache_view = get_arg_expression_cache
-        arg_expression_obs_props = list(arg_expression_cache_view.get_all("ObservableProperty"))
-        arg_expression_observations = list(arg_expression_cache_view.get_all("Observation"))
-        observation_design_arg = arg_expression_observations[0].observation_design
-
-        vc_arg = ValidationConfig.from_peh(
-            "arg",
-            arg_expression_obs_props,
-            observation_design_arg,
-            cache_view=arg_expression_cache_view,
-        )
+        vc_arg = adapter.build_validation_config(dataset=dataset, cache_view=arg_expression_cache_view)
 
         assert len(vc_check.columns) == len(vc_arg.columns)
+
         for check_col, arg_col in zip(vc_check.columns, vc_arg.columns):
+            assert check_col.validations is not None
+            assert arg_col.validations is not None
             assert len(check_col.validations) == len(arg_col.validations)
 
         parsed_vc_check = parse_config(vc_check)

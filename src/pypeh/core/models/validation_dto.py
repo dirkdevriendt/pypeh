@@ -3,33 +3,21 @@ from __future__ import annotations
 import logging
 import uuid
 
-from datetime import datetime
-from decimal import Decimal, getcontext
+from collections import defaultdict
+from enum import Enum
 from pydantic import BaseModel, field_validator
 from typing import Generic, Any, Sequence, TYPE_CHECKING
 
-from pypeh.core.cache.containers import CacheContainerView
-from pypeh.core.models.internal_data_layout import DatasetSchema
-from pypeh.core.models.typing import CategoricalString, T_DataType
+from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.constants import ObservablePropertyValueType, ValidationErrorLevel
 from peh_model import pydanticmodel_v2 as pehs
 from peh_model import peh
 
 
 if TYPE_CHECKING:
-    from pypeh.core.models.internal_data_layout import Dataset
+    pass
 
 logger = logging.getLogger(__name__)
-
-
-def get_max_decimal_value():
-    ctx = getcontext()
-    precision = ctx.prec
-    emax = ctx.Emax
-
-    max_digits = "9" * precision
-    max_value = Decimal(f"{max_digits}E{emax}")
-    return max_value
 
 
 def convert_peh_validation_error_level_to_validation_dto_error_level(peh_validation_error_level: str | None):
@@ -49,66 +37,12 @@ def convert_peh_validation_error_level_to_validation_dto_error_level(peh_validat
                 raise ValueError(f"Invalid Error level encountered: {peh_validation_error_level}")
 
 
-def convert_peh_value_type_to_validation_dto_datatype(peh_value_type: str):
-    # TODO: fix for "categorical" ?
-    # TODO: review & extend potential input values
-    # valid input values: "string", "boolean", "date", "datetime", "decimal", "integer", "float"
-    # valid return values: 'date', 'datetime', 'boolean', 'decimal', 'integer', 'varchar', 'float', or 'categorical'
-    if peh_value_type is None:
-        return None
-    else:
-        match peh_value_type:
-            case "decimal":
-                logger.info("Casting decimal to float")
-                return "float"
-            case "boolean" | "date" | "datetime" | "float" | "string" | "integer":
-                return peh_value_type
-            case _:
-                raise ValueError(f"Invalid data type encountered: {peh_value_type}")
-
-
-def infer_type(value: str) -> str:
-    val = value.strip()
-    # Boolean check
-    if val.lower() in ["true", "false"]:
-        return "boolean"
-    # Integer / Float check
-    try:
-        num = float(val)
-        # If it has no decimal part, it's an integer
-        if num.is_integer():
-            return "integer"
-        return "float"
-    except ValueError:
-        pass
-    # Date / Datetime check
-    date_formats = [
-        ("%Y-%m-%d", "date"),
-        ("%Y-%m-%d %H:%M:%S", "datetime"),
-        ("%Y-%m-%dT%H:%M:%S", "datetime"),  # ISO-like
-        ("%Y-%m-%d %H:%M:%S%z", "datetime"),
-        ("%Y-%m-%dT%H:%M:%S%z", "datetime"),
-    ]
-    for fmt, t in date_formats:
-        try:
-            datetime.strptime(val, fmt)
-            return t
-        except ValueError:
-            continue
-
-    # Fallback
-    return "string"
-
-
-def cast_to_peh_value_type(value: str, peh_value_type: str | None) -> Any:
+def cast_to_peh_value_type(value: str, peh_value_type: ObservablePropertyValueType | str | None) -> Any:
     # valid input values: "string", "boolean", "date", "datetime", "decimal", "float", "integer"
+    if isinstance(peh_value_type, Enum):
+        peh_value_type = peh_value_type.value
     if not isinstance(value, str):
         return value
-    if isinstance(value, CategoricalString):
-        return str(value)
-
-    if peh_value_type is None:
-        peh_value_type = infer_type(value)
 
     match peh_value_type:
         case "string":
@@ -130,6 +64,20 @@ def cast_to_peh_value_type(value: str, peh_value_type: str | None) -> Any:
             return str(value)
 
 
+def merge_dependencies(
+    a: dict[str, set[str]] | None,
+    b: dict[str, set[str]] | None,
+) -> dict[str, set[str]]:
+    result: dict[str, set[str]] = defaultdict(set)
+    if a:
+        for ds, fields in a.items():
+            result[ds].update(fields)
+    if b:
+        for ds, fields in b.items():
+            result[ds].update(fields)
+    return result
+
+
 class ValidationExpression(BaseModel):
     conditional_expression: ValidationExpression | None = None
     arg_expressions: list[ValidationExpression] | None = None
@@ -137,6 +85,7 @@ class ValidationExpression(BaseModel):
     arg_values: list[Any] | None = None
     arg_columns: list[str] | None = None
     subject: list[str] | None = None
+    dependent_contextual_field_references: dict[str, set[str]] | None = None
 
     @field_validator("command", mode="before")
     @classmethod
@@ -157,115 +106,83 @@ class ValidationExpression(BaseModel):
     def from_peh(
         cls,
         expression: peh.ValidationExpression | pehs.ValidationExpression,
-        cache_view: CacheContainerView | None = None,
+        type_annotations: dict[str, dict[str, ObservablePropertyValueType]] | None = None,
+        dataset_label: str | None = None,
     ) -> "ValidationExpression":
+        dependent_contextual_field_references = defaultdict(set)
         conditional_expression = getattr(expression, "validation_condition_expression")
         conditional_expression_instance = None
         if conditional_expression is not None:
             conditional_expression_instance = ValidationExpression.from_peh(
-                conditional_expression, cache_view=cache_view
+                conditional_expression,
+                type_annotations,
+                dataset_label=dataset_label,
             )
+            dependent_contextual_field_references = merge_dependencies(
+                dependent_contextual_field_references,
+                conditional_expression_instance.dependent_contextual_field_references,
+            )
+
         arg_expressions = getattr(expression, "validation_arg_expressions")
         arg_expression_instances = None
         if arg_expressions is not None:
-            arg_expression_instances = [
-                ValidationExpression.from_peh(nested_expr, cache_view=cache_view) for nested_expr in arg_expressions
-            ]
-        validation_command = getattr(expression, "validation_command", "conjunction")
-
-        subject_contextual_field_references = getattr(
-            expression, "validation_subject_contextual_field_references", None
-        )
-
-        # TODO: extract type from dataset schema
-        arg_type = None
-        observable_property_id_based_subject_contextual_field_references = []
-        if subject_contextual_field_references:
-            arg_types = set()
-
-            if cache_view is not None:
-                for contextual_field_reference in [
-                    cfr for cfr in subject_contextual_field_references if cfr is not None
-                ]:
-                    obs_prop_id = contextual_field_reference.field_label
-                    observable_property_id_based_subject_contextual_field_references.append(obs_prop_id)
-                    obs_prop = cache_view.get(obs_prop_id, "ObservableProperty")
-                    assert isinstance(
-                        obs_prop, peh.ObservableProperty
-                    ), f"Did not find the ObservableProperty associated with contextual field reference {obs_prop_id}"
-                    new_arg_type = getattr(obs_prop, "value_type", None)
-                    arg_types.add(new_arg_type)
-            if len(arg_types) != 1:
-                logger.error(
-                    f"More than one type corresponds to the ObservableProperties in validation_subject_contextual_field_references: {arg_types}"
+            arg_expression_instances = []
+            for nested_expr in arg_expressions:
+                new_arg_expression = ValidationExpression.from_peh(
+                    nested_expr, type_annotations, dataset_label=dataset_label
                 )
-                raise ValueError
-            arg_type = arg_types.pop()
-
-        arg_values = getattr(expression, "validation_arg_values", None)
-        if arg_values is not None:
-            assert isinstance(arg_values, Sequence)
-            try:
-                arg_values = [cast_to_peh_value_type(arg_value, arg_type) for arg_value in arg_values]
-            except Exception as e:
-                logger.error(f"Could not cast values in {arg_values} to {arg_type}: {e}")
-                raise
-
-        # TODO: review cross-dataset column reference approach (in arg_columns and subject) and column identifier to return
-        arg_columns = [fr.field_label for fr in getattr(expression, "validation_arg_contextual_field_references", None)]
-
-        return cls(
-            conditional_expression=conditional_expression_instance,
-            arg_expressions=arg_expression_instances,
-            command=validation_command,
-            arg_values=arg_values,
-            arg_columns=arg_columns,
-            subject=[fr.field_label for fr in subject_contextual_field_references],
-        )
-
-    @classmethod
-    def from_layout(
-        cls,
-        expression: peh.ValidationExpression | pehs.ValidationExpression,
-        type_annotations: dict[str, ObservablePropertyValueType],
-        cache_view: CacheContainerView | None = None,
-    ) -> "ValidationExpression":
-        conditional_expression = getattr(expression, "validation_condition_expression")
-        conditional_expression_instance = None
-        if conditional_expression is not None:
-            conditional_expression_instance = ValidationExpression.from_peh(
-                conditional_expression, cache_view=cache_view
-            )
-        arg_expressions = getattr(expression, "validation_arg_expressions")
-        arg_expression_instances = None
-        if arg_expressions is not None:
-            arg_expression_instances = [
-                ValidationExpression.from_peh(nested_expr, cache_view=cache_view) for nested_expr in arg_expressions
-            ]
+                arg_expression_instances.append(new_arg_expression)
+                dependent_contextual_field_references = merge_dependencies(
+                    dependent_contextual_field_references, new_arg_expression.dependent_contextual_field_references
+                )
         validation_command = getattr(expression, "validation_command", "conjunction")
 
         subject_contextual_field_references = getattr(
             expression, "validation_subject_contextual_field_references", None
         )
-        subject = None
-        arg_type = None
+        subject_columns = None
+        data_type = None
         if subject_contextual_field_references is not None:
-            subject = [fr.field_label for fr in subject_contextual_field_references]
-            assert len(subject) == 1, "Can't deal with multiple validation_subject_contextual_field_references"
-            arg_type = type_annotations.get(subject[0], ObservablePropertyValueType.STRING)
-            arg_type = arg_type.value
+            subject_columns = []
+            data_types = set()
+            assert type_annotations is not None
+            for field_reference in subject_contextual_field_references:
+                ref_dataset_label = getattr(field_reference, "dataset_label", None)
+                assert ref_dataset_label is not None
+                if ref_dataset_label != dataset_label:
+                    dependent_contextual_field_references[ref_dataset_label].add(field_reference.field_label)
+                subject_columns.append(field_reference.field_label)
+                data_type = type_annotations.get(ref_dataset_label, {}).get(field_reference.field_label, None)
+                assert (
+                    data_type is not None
+                ), f"Did not find type_annotation for dataset with label {ref_dataset_label} and field_label {field_reference.field_label}"
+                data_types.add(data_type)
+            assert (
+                len(data_types) <= 1
+            ), f'Found the following datatypes for the subject_contextual_field_references: {", ".join(dt for dt in data_types)}'
+            data_type = next(iter(data_types), None)
+        if data_type is None:
+            data_type = ObservablePropertyValueType.STRING
 
         arg_values = getattr(expression, "validation_arg_values", None)
         if arg_values is not None:
             assert isinstance(arg_values, Sequence)
             try:
-                arg_values = [cast_to_peh_value_type(arg_value, arg_type) for arg_value in arg_values]
+                arg_values = [cast_to_peh_value_type(arg_value, data_type) for arg_value in arg_values]
             except Exception as e:
-                logger.error(f"Could not cast values in {arg_values} to {arg_type}: {e}")
+                logger.error(f"Could not cast values in {arg_values} to {data_type}: {e}")
                 raise
 
-        # TODO: review cross-dataset column reference approach (in arg_columns and subject) and column identifier to return
-        arg_columns = [fr.field_label for fr in getattr(expression, "validation_arg_contextual_field_references", None)]
+        arg_contextual_field_references = getattr(expression, "validation_arg_contextual_field_references", None)
+        arg_columns = None
+        if arg_contextual_field_references is not None:
+            arg_columns = []
+            for field_reference in arg_contextual_field_references:
+                ref_dataset_label = getattr(field_reference, "dataset_label", None)
+                assert ref_dataset_label is not None
+                if ref_dataset_label != dataset_label:
+                    dependent_contextual_field_references[ref_dataset_label].add(field_reference.field_label)
+                arg_columns.append(field_reference.field_label)
 
         return cls(
             conditional_expression=conditional_expression_instance,
@@ -273,7 +190,8 @@ class ValidationExpression(BaseModel):
             command=validation_command,
             arg_values=arg_values,
             arg_columns=arg_columns,
-            subject=subject,
+            subject=subject_columns,
+            dependent_contextual_field_references=dependent_contextual_field_references,
         )
 
 
@@ -281,55 +199,42 @@ class ValidationDesign(BaseModel):
     name: str
     error_level: ValidationErrorLevel
     expression: ValidationExpression
+    dependent_contextual_field_references: dict[str, set[str]] | None = None
 
     @classmethod
     def from_peh(
         cls,
         validation_design: peh.ValidationDesign | pehs.ValidationDesign,
-        cache_view: CacheContainerView | None = None,
+        type_annotations: dict[str, dict[str, ObservablePropertyValueType]],
+        dataset_label: str | None = None,
     ) -> "ValidationDesign":
+        dependent_contextual_field_references = defaultdict(set)
         error_level = getattr(validation_design, "error_level", None)
         error_level = convert_peh_validation_error_level_to_validation_dto_error_level(error_level)
         expression = getattr(validation_design, "validation_expression", None)
         if expression is None:
             raise AttributeError
-        expression = ValidationExpression.from_peh(expression, cache_view=cache_view)
+        expression = ValidationExpression.from_peh(expression, type_annotations, dataset_label=dataset_label)
         name = getattr(validation_design, "validation_name", None)
         if name is None:
             name = str(uuid.uuid4())
-        return cls(
-            name=name,
-            error_level=error_level,
-            expression=expression,
-        )
 
-    @classmethod
-    def from_layout(
-        cls,
-        validation_design: peh.ValidationDesign | pehs.ValidationDesign,
-        type_annotations: dict[str, ObservablePropertyValueType],
-        cache_view: CacheContainerView | None = None,
-    ) -> "ValidationDesign":
-        error_level = getattr(validation_design, "error_level", None)
-        error_level = convert_peh_validation_error_level_to_validation_dto_error_level(error_level)
-        expression = getattr(validation_design, "validation_expression", None)
-        if expression is None:
-            raise AttributeError
-        expression = ValidationExpression.from_layout(expression, type_annotations, cache_view=cache_view)
-        name = getattr(validation_design, "validation_name", None)
-        if name is None:
-            name = str(uuid.uuid4())
+        dependent_contextual_field_references = merge_dependencies(
+            dependent_contextual_field_references, expression.dependent_contextual_field_references
+        )
         return cls(
             name=name,
             error_level=error_level,
             expression=expression,
+            dependent_contextual_field_references=dependent_contextual_field_references,
         )
 
     @classmethod
     def list_from_metadata(
         cls,
         metadata: list[Any],
-        cache_view: CacheContainerView | None = None,
+        type_annotations: dict[str, dict[str, ObservablePropertyValueType]],
+        dataset_label: str | None = None,
     ) -> list["ValidationDesign"]:
         expression_list = []
         numeric_commands = set(
@@ -402,7 +307,8 @@ class ValidationDesign(BaseModel):
                                 "validation_arg_values": [typed_metadata_value],
                             }
                         ),
-                        cache_view=cache_view,
+                        type_annotations=type_annotations,
+                        dataset_label=dataset_label,
                     )
                 )
 
@@ -419,307 +325,13 @@ class ColumnValidation(BaseModel):
     nullable: bool
     validations: list[ValidationDesign] | None = None
 
-    @classmethod
-    def from_observable_property(
-        cls,
-        column_name: str,
-        observable_property: peh.ObservableProperty | pehs.ObservableProperty,
-        cache_view: CacheContainerView | None = None,
-    ) -> "ColumnValidation":
-        required = observable_property.default_required
-        nullable = not required
-        validations = []
-        assert isinstance(observable_property.value_type, str)
-        data_type = convert_peh_value_type_to_validation_dto_datatype(observable_property.value_type)
-        if validation_designs := getattr(observable_property, "validation_designs", None):
-            validations.extend([ValidationDesign.from_peh(vd, cache_view=cache_view) for vd in validation_designs])
-        if value_metadata := getattr(observable_property, "value_metadata", None):
-            validations.extend(ValidationDesign.list_from_metadata(value_metadata, cache_view=cache_view))
-        if getattr(observable_property, "categorical", None):
-            value_options = getattr(observable_property, "value_options", None)
-            assert (
-                value_options is not None
-            ), f"ObservableProperty {observable_property} lacks `value_options` for categorical type"
-            validation_arg_values: list[str] = [CategoricalString(vo.key) for vo in value_options]
-            validations.append(
-                ValidationDesign.from_peh(
-                    peh.ValidationDesign(
-                        validation_name="check_categorical",
-                        validation_expression=peh.ValidationExpression(
-                            validation_command=peh.ValidationCommand.is_in,
-                            validation_arg_values=validation_arg_values,
-                        ),
-                        validation_error_level=peh.ValidationErrorLevel.error,
-                    ),
-                    cache_view=cache_view,
-                )
-            )
-
-        assert isinstance(required, bool)
-        return cls(
-            unique_name=column_name,
-            data_type=data_type,
-            required=required,
-            nullable=nullable,
-            validations=validations,
-        )
-
 
 class ValidationConfig(BaseModel, Generic[T_DataType]):
     name: str
     columns: list[ColumnValidation]
     identifying_column_names: list[str] | None = None
     validations: list[ValidationDesign] | None = None
-    dependent_observable_property_ids: set[str] | None = None
-
-    # TODO: can be deprecated but tests need to be fixed
-    @classmethod
-    def from_peh(
-        cls,
-        observation_id: str,
-        observable_property_selection: Sequence[peh.ObservableProperty],
-        observation_design: peh.ObservationDesign | pehs.ObservationDesign,
-        dataset_validations: Sequence[peh.ValidationDesign] | None = None,
-        cache_view: CacheContainerView | None = None,
-    ) -> "ValidationConfig":
-        if isinstance(observation_design.required_observable_property_id_list, list) and isinstance(
-            observation_design.optional_observable_property_id_list, list
-        ):
-            assert isinstance(observation_design.identifying_observable_property_id_list, list)
-            assert isinstance(observation_design.required_observable_property_id_list, list)
-            assert isinstance(observation_design.optional_observable_property_id_list, list)
-            all_obsprop_ids = (
-                observation_design.identifying_observable_property_id_list
-                + observation_design.required_observable_property_id_list
-                + observation_design.optional_observable_property_id_list
-            )
-        else:
-            raise TypeError
-        local_obsprop_id_selection = [op.id for op in observable_property_selection]
-        local_obsprop_dict = {op.id: op for op in observable_property_selection}
-        columns = [
-            ColumnValidation.from_observable_property(op_id, local_obsprop_dict[op_id], cache_view)
-            for op_id in all_obsprop_ids
-            if op_id in local_obsprop_id_selection
-        ]
-
-        # figure out dependent_observable_property_ids
-        observable_property_id_set = set(all_obsprop_ids)
-        dependent_observable_property_ids = set()
-        expression_stack = []
-        for column_validation in columns:
-            validation_designs = getattr(column_validation, "validations", None)
-            if validation_designs is None:
-                continue
-            for validation_design in validation_designs:
-                expression = getattr(validation_design, "expression", None)
-                assert expression is not None
-                expression_stack.append(expression)
-
-        while expression_stack:
-            expression = expression_stack.pop()
-            conditional_expression = expression.conditional_expression
-            if conditional_expression is not None:
-                expression_stack.append(conditional_expression)
-            arg_expressions = expression.arg_expressions
-            if arg_expressions is not None:
-                for arg_expression in arg_expressions:
-                    expression_stack.append(arg_expression)
-            arg_columns = expression.arg_columns
-            if arg_columns is not None:
-                for arg_column in arg_columns:
-                    if arg_column not in observable_property_id_set:
-                        dependent_observable_property_ids.add(arg_column)
-            subject = expression.subject
-            if subject is not None:
-                for s in subject:
-                    if s not in observable_property_id_set:
-                        dependent_observable_property_ids.add(s)
-
-        validations = (
-            None
-            if dataset_validations is None
-            else [ValidationDesign.from_peh(v, cache_view) for v in dataset_validations]
-        )
-
-        # Optional: log or raise error if some op_ids are missing
-        missing = set(all_obsprop_ids) - set(local_obsprop_id_selection)
-        if missing:
-            raise ValueError(f"Missing observable properties for IDs: {missing}")
-        assert isinstance(observation_design.identifying_observable_property_id_list, list)
-
-        return cls(
-            name=observation_id,
-            columns=columns,
-            identifying_column_names=observation_design.identifying_observable_property_id_list,
-            validations=validations,
-            dependent_observable_property_ids=dependent_observable_property_ids,
-        )
-
-    # TODO: can be deprecated but tests need to be fixed
-    @classmethod
-    def from_observation(
-        cls,
-        observation: peh.Observation | pehs.Observation,
-        observable_property_selection: Sequence[peh.ObservableProperty],
-        dataset_validations: Sequence[peh.ValidationDesign] | None = None,
-        cache_view: CacheContainerView | None = None,
-    ) -> ValidationConfig:
-        observation_design = getattr(observation, "observation_design", None)
-        if observation_design is None:
-            logger.error(
-                "Cannot generate a ValidationConfig from an Observation that does not contain an ObservationDesign"
-            )
-            raise AttributeError
-
-        validation_config = cls.from_peh(
-            observation.id,
-            observable_property_selection,
-            observation_design,
-            dataset_validations,
-            cache_view,
-        )
-        return validation_config
-
-    @classmethod
-    def extract_dependent_columns(cls, column_validations: list[ColumnValidation]) -> set:
-        ret = set()
-        expression_stack = []
-
-        for column_validation in column_validations:
-            validation_designs = getattr(column_validation, "validations", None)
-            if validation_designs is None:
-                continue
-            for validation_design in validation_designs:
-                expression = getattr(validation_design, "expression", None)
-                assert expression is not None
-                expression_stack.append(expression)
-
-        while expression_stack:
-            expression = expression_stack.pop()
-            assert isinstance(expression, ValidationExpression)
-            conditional_expression = expression.conditional_expression
-            if conditional_expression is not None:
-                expression_stack.append(conditional_expression)
-            arg_expressions = expression.arg_expressions
-            if arg_expressions is not None:
-                for arg_expression in arg_expressions:
-                    expression_stack.append(arg_expression)
-            arg_columns = expression.arg_columns
-            if arg_columns is not None:
-                for arg_column in arg_columns:
-                    ret.add(arg_column)
-            subject = expression.subject
-            if subject is not None:
-                for s in subject:
-                    ret.add(s)
-
-        return ret
-
-    @classmethod
-    def apply_context_to_expressions(cls, expressions: list[ValidationExpression], context: dict[str, str]):
-        expression_stack = expressions
-        while expression_stack:
-            expression = expression_stack.pop()
-            assert isinstance(expression, ValidationExpression)
-            conditional_expression = expression.conditional_expression
-            if conditional_expression is not None:
-                expression_stack.append(conditional_expression)
-            arg_expressions = expression.arg_expressions
-            if arg_expressions is not None:
-                for arg_expression in arg_expressions:
-                    expression_stack.append(arg_expression)
-            arg_columns = expression.arg_columns
-            new_arg_columns = []
-            if arg_columns is not None:
-                for arg_column in arg_columns:
-                    new_arg_column = context.get(arg_column, None)
-                    if new_arg_column is not None:
-                        new_arg_columns.append(new_arg_column)
-                    else:
-                        new_arg_columns.append(arg_column)
-                expression.arg_columns = new_arg_columns
-            subject = expression.subject
-            if subject is not None:
-                new_subject = []
-                for s in subject:
-                    new_s = context.get(s, None)
-                    if new_s is not None:
-                        new_subject.append(new_s)
-                    else:
-                        new_subject.append(s)
-                expression.subject = new_subject
-
-    @classmethod
-    def apply_context_to_column_validations(cls, column_validations: list[ColumnValidation], context: dict[str, str]):
-        expression_stack = []
-
-        for column_validation in column_validations:
-            validation_designs = getattr(column_validation, "validations", None)
-            if validation_designs is None:
-                continue
-            for validation_design in validation_designs:
-                expression = getattr(validation_design, "expression", None)
-                assert expression is not None
-                expression_stack.append(expression)
-
-        cls.apply_context_to_expressions(expression_stack, context)
-
-    @classmethod
-    def from_dataset(
-        cls,
-        dataset: Dataset[T_DataType],
-        dataset_validations: Sequence[ValidationDesign] | None = None,
-        cache_view: CacheContainerView | None = None,
-    ) -> ValidationConfig:
-        # source path is dataset depedent
-        dataset_series = getattr(dataset, "part_of")
-        assert dataset_series is not None
-        # use typing information: dict uses {dataset_series_label: {dataset_label: type}}
-        # can then be accessed with contextual_field_references
-        # TODO: dataset_series_type_info = dataset_series.get_type_annotations()
-
-        column_validations = []
-        non_empty_columns = dataset.non_empty
-        assert non_empty_columns is not None
-        for non_empty_column in non_empty_columns:
-            dataset_element = dataset.get_schema_element_by_label(non_empty_column)
-            assert dataset_element is not None
-            observable_property_id = dataset_element.observable_property_id
-            observable_property = cache_view.get(observable_property_id, "ObservableProperty")
-            assert isinstance(observable_property, peh.ObservableProperty)
-            # TODO: should be ColumnValidation.from_dataset_element
-            column_validation = ColumnValidation.from_observable_property(
-                column_name=non_empty_column,
-                observable_property=observable_property,
-                cache_view=cache_view,
-            )
-            column_validations.append(column_validation)
-
-        dependent_observable_property_ids = cls.extract_dependent_columns(column_validations)
-        obs_prop_in_dataset = set(dataset.get_observable_property_ids())
-        cross_dataset_dependent_observable_property_ids = dependent_observable_property_ids - obs_prop_in_dataset
-
-        identifying_column_names = dataset.schema.primary_keys
-        assert identifying_column_names is not None
-
-        ## transform observable_property_ids to dataset_elements
-        # transform column_validations
-        context = dict()
-        for dataset_label in dataset_series.parts:
-            dataset = dataset_series[dataset_label]
-            for k, v in dataset.schema._elements_by_observable_property.items():
-                context[k] = v
-
-        _ = cls.apply_context_to_column_validations(column_validations, context)
-
-        return cls(
-            name=dataset.label,
-            columns=column_validations,
-            identifying_column_names=list(identifying_column_names),
-            validations=dataset_validations,
-            dependent_observable_property_ids=cross_dataset_dependent_observable_property_ids,
-        )
+    dependent_contextual_field_references: dict[str, set[str]] = defaultdict(set)
 
 
 class ValidationDTO(BaseModel):

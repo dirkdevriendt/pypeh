@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import polars as pl
 
-from collections import defaultdict
+
 from contextlib import contextmanager
 from dataguard import Validator, ErrorCollector
 from peh_model.peh import DataLayout
@@ -21,7 +21,6 @@ from pypeh.core.interfaces.outbound.dataops import (
     ValidationInterface,
     DataImportInterface,
 )
-from pypeh.core.models.internal_data_layout import Dataset
 from pypeh.core.models.validation_errors import ValidationErrorReport, EntityLocation
 from pypeh.core.models.validation_dto import ValidationConfig
 from pypeh.core.session.connections import ConnectionManager
@@ -90,47 +89,25 @@ class DataFrameValidationAdapter(DataFrameAdapter, ValidationInterface[DataFrame
 
         return report
 
-    def _join_dataset(
+    def _join_data(
         self,
-        identifying_observable_property_ids: list[str],
-        dataset: Dataset[DataFrame],
-        dependent_data: dict[str, Dataset[DataFrame]],
-        dependent_observable_property_ids: set[str],
-        observable_property_id_to_dataset_label_dict: dict[str, str],
+        data: DataFrame,
+        other_data: list[DataFrame],
+        join_on: list[str],
+        subset_fields_other: list[list[str]],
     ) -> DataFrame:
-        joined_data = dataset.data
-        assert isinstance(
-            joined_data, DataFrame
-        ), "joined_data in `DataFrameAdapter._join_dataset` should be a DataFrame"
-        if dataset.label not in dependent_data:
-            dependent_data[dataset.label] = dataset
+        assert len(other_data) == len(subset_fields_other)
+        this = data
+        for other, subset_fields in zip(other_data, subset_fields_other):
+            selected = other.select(subset_fields)
 
-        dataset_label_to_observable_property_id_list = defaultdict(list)
-        for observable_property_id in dependent_observable_property_ids:
-            dataset_label = observable_property_id_to_dataset_label_dict.get(observable_property_id, None)
-            assert dataset_label is not None
-            dataset_label_to_observable_property_id_list[dataset_label].append(observable_property_id)
+            this = this.join(
+                selected,
+                on=join_on,
+                how="left",
+            )
 
-        for dataset_label, observable_property_id_list in dataset_label_to_observable_property_id_list.items():
-            dependent_dataset = dependent_data.get(dataset_label, None)
-            if dependent_dataset is not None:
-                dependent_element_labels = []
-                for dependent_obs_prop in observable_property_id_list:
-                    schema_element = dependent_dataset.get_schema_element_by_observable_property_id(dependent_obs_prop)
-                    assert schema_element is not None
-                    dependent_element_labels.append(schema_element.label)
-
-                other = dependent_dataset.data
-                assert isinstance(other, DataFrame), "other in `DataFrameAdapter._join_dataset` should be a DataFrame"
-                # JOIN ONLY WORKS WITH IF TWO FRAMES HAVE THE SAME IDENTIFYING_OBSERVABLE_PROPERTIES
-                joined_data = joined_data.join(
-                    other.select([*identifying_observable_property_ids, *dependent_element_labels]),
-                    on=identifying_observable_property_ids,
-                    how="left",
-                )
-            else:
-                raise ValueError(f"Did not find data section with label {dependent_dataset}")
-        return joined_data
+        return this
 
     def summarize(self, data: Mapping, config: Mapping):
         pass

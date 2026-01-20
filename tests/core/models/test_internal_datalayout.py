@@ -1,6 +1,6 @@
 import pytest
 
-from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory, CacheContainerView
 from pypeh.core.models.internal_data_layout import (
     DatasetSeries,
     DatasetSchema,
@@ -19,7 +19,7 @@ from tests.test_utils.dirutils import get_absolute_path
 @pytest.mark.core
 class TestInternalDataLayout:
     @pytest.fixture(scope="class")
-    def get_cache(self):
+    def get_cache(self) -> CacheContainerView:
         source = get_absolute_path("input")
         container = CacheContainerFactory.new()
         host = DirectoryIO()
@@ -59,6 +59,30 @@ class TestInternalDataLayout:
         for key, subschema in expected_schema.items():
             for subkey, value in subschema.items():
                 assert schema[key][subkey] == value
+
+    def test_apply_context(self, get_cache):
+        cache_view = get_cache
+        layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        layout = get_cache.get(layout_id, "DataLayoutLayout")
+        all_sections = set()
+        for section in layout.sections:
+            section_id = section.id
+            if section.id is not None:
+                all_sections.add(section_id)
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            layout,
+            cache_view=cache_view,
+        )
+        assert isinstance(dataset_series, DatasetSeries)
+
+        cache = cache_view._container
+        assert isinstance(cache, CacheContainer)
+        dataset_series.apply_context(cache)
+        adults_u_crt = cache_view.get("peh:adults_u_crt", "ObservableProperty")
+        expression = adults_u_crt.validation_designs[0].validation_expression
+        contextual_field_reference = expression.validation_subject_contextual_field_references[0]
+        assert contextual_field_reference.dataset_label == "SAMPLETIMEPOINT_BS"
+        assert contextual_field_reference.field_label == "adults_u_crt"
 
 
 class TestJoinConditions:

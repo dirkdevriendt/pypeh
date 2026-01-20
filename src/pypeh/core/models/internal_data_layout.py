@@ -9,10 +9,11 @@ from dataclasses import dataclass, field
 from peh_model import peh
 from typing import TYPE_CHECKING, Generic, Sequence
 
-from pypeh.core.cache.containers import CacheContainerView
+from pypeh.core.cache.containers import CacheContainer, CacheContainerView
 from pypeh.core.models.proxy import TypedLazyProxy
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.constants import ObservablePropertyValueType
+
 
 if TYPE_CHECKING:
     from typing import Any
@@ -120,6 +121,89 @@ class DatasetSchema:
     def get_observable_property_ids(self) -> list[str]:
         return [element.observable_property_id for element in self.elements.values()]
 
+    # TODO: move method, this is probably not the right location
+    def apply_context_to_expression(
+        self,
+        expression: peh.ValidationExpression,
+        context: dict[str, dict[str, str]],
+        this_dataset: str,  # temporary fix
+    ):
+        expression_stack = [expression]
+        while expression_stack:
+            expression = expression_stack.pop()
+            assert isinstance(expression, peh.ValidationExpression)
+            conditional_expression = expression.validation_condition_expression
+            if conditional_expression is not None:
+                assert isinstance(conditional_expression, peh.ValidationExpression)
+                expression_stack.append(conditional_expression)
+            arg_expressions = expression.validation_arg_expressions
+            if arg_expressions is not None:
+                for arg_expression in arg_expressions:
+                    assert isinstance(arg_expression, peh.ValidationExpression)
+                    expression_stack.append(arg_expression)
+
+            # apply context
+            arg_field_references = expression.validation_arg_contextual_field_references
+            if arg_field_references is not None:
+                for arg_ref in arg_field_references:
+                    assert isinstance(arg_ref, peh.ContextualFieldReference)
+                    field_label = arg_ref.field_label
+                    if field_label in context:
+                        retrieved_context = context[field_label]
+                        if len(retrieved_context) == 1:
+                            new_dataset_label = next(iter(retrieved_context))
+                        else:
+                            new_dataset_label = this_dataset
+                        new_field_label = retrieved_context[new_dataset_label]
+                        arg_ref.dataset_label = new_dataset_label
+                        arg_ref.field_label = new_field_label
+
+            subject_field_references = expression.validation_subject_contextual_field_references
+            if subject_field_references is not None:
+                for subject_field_ref in subject_field_references:
+                    assert isinstance(subject_field_ref, peh.ContextualFieldReference)
+                    field_label = subject_field_ref.field_label
+                    if field_label in context:
+                        retrieved_context = context[field_label]
+                        if len(retrieved_context) == 1:
+                            new_dataset_label = next(iter(retrieved_context))
+                        else:
+                            new_dataset_label = this_dataset
+                        new_field_label = retrieved_context[new_dataset_label]
+                        subject_field_ref.dataset_label = new_dataset_label
+                        subject_field_ref.field_label = new_field_label
+
+    def apply_context(
+        self,
+        context: dict[str, dict[str, str]],
+        cache: CacheContainer,
+        this_dataset: str,  # temporary fix
+    ):
+        """
+        ObservableProperties require context for:
+        - CalculationDesigns
+        - ValidationDesigns
+        """
+        for schema_element in self.elements.values():
+            observable_property_id = schema_element.observable_property_id
+            observable_property = cache.get(observable_property_id, "ObservableProperty")
+            assert isinstance(observable_property, peh.ObservableProperty)
+            validation_designs = observable_property.validation_designs
+            if validation_designs is not None:
+                for validation_design in validation_designs:
+                    assert isinstance(validation_design, peh.ValidationDesign)
+                    expression = validation_design.validation_expression
+                    assert isinstance(expression, peh.ValidationExpression)
+                    self.apply_context_to_expression(expression, context, this_dataset=this_dataset)
+
+            # CALCULATION DESIGN EXCLUDED FOR NOW
+            # calculation_designs = observable_property.calculation_designs
+            # if calculation_designs is not None:
+            #    for calculation_design in calculation_designs:
+            #        pass
+
+    #### RESTRUCTURE DATASETSCHEMA ####
+
     def subset(self, element_group: Sequence[str]) -> DatasetSchema:
         elements = {}
         foreign_keys = {}
@@ -201,6 +285,8 @@ class DatasetSchema:
     def __len__(self):
         return len(self.elements)
 
+    #### CONSTRUCT DATASETSCHEMA ####
+
     @classmethod
     def from_peh_data_layout_elements(
         cls, data_layout_elements: list[peh.DataLayoutElement], cache_view: CacheContainerView
@@ -245,6 +331,8 @@ class DatasetSchema:
             foreign_keys=processed_foreign_keys,
             primary_keys=processed_primary_keys,
         )
+
+    #### EXTRACT INFO FROM SCHEMA ####
 
     def detect_join(
         self,
@@ -307,6 +395,10 @@ class DatasetSchema:
 
 @dataclass(kw_only=True)
 class Resource:
+    """
+    Parent class for Dataset and DatasetSeries
+    """
+
     label: str
     identifier: str = field(default_factory=lambda: str(uuid.uuid4()))
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -342,6 +434,8 @@ class Dataset(Resource, Generic[T_DataType]):
     def get_type_annotations(self) -> dict[str, ObservablePropertyValueType]:
         return self.schema.get_type_annotations()
 
+    #### CONSTRUCT DATASET ####
+
     @classmethod
     def from_peh_datalayout_section(
         cls,
@@ -371,6 +465,8 @@ class Dataset(Resource, Generic[T_DataType]):
 
         return ret
 
+    #### EXTRACT INFO FROM DATASET ####
+
     @property
     def non_empty(self):
         return self.metadata.get("non_empty_dataset_elements", None)
@@ -386,6 +482,13 @@ class Dataset(Resource, Generic[T_DataType]):
 
     def get_primary_keys(self) -> set[str] | None:
         return self.schema.primary_keys
+
+    def resolve_join(self, other: Dataset) -> list[JoinSpec] | None:
+        schema = self.schema
+        assert schema is not None
+        return schema.detect_join(dataset_label=self.label, other_schema=other.schema, other_dataset_label=other.label)
+
+    #### RESTRUCTURE DATASET ####
 
     def subset(
         self,
@@ -431,11 +534,6 @@ class Dataset(Resource, Generic[T_DataType]):
 
         return True
 
-    def resolve_join(self, other: Dataset) -> list[JoinSpec] | None:
-        schema = self.schema
-        assert schema is not None
-        return schema.detect_join(dataset_label=self.label, other_schema=other.schema, other_dataset_label=other.label)
-
 
 @dataclass(kw_only=True)
 class DatasetSeries(Resource, Generic[T_DataType]):
@@ -446,8 +544,19 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         "context": DCAT_CONTEXT,
     }
 
+    #### CONSTRUCT DATASETSERIES ####
+    def apply_context(self, cache: CacheContainer):
+        # THIS METHOD MODIFIES THE CACHE !!!
+        context = self.get_contextual_field_reference_index()
+        for dataset_label in self:
+            dataset = self.get(dataset_label)
+            assert dataset is not None
+            dataset.schema.apply_context(context, cache, this_dataset=self.label)
+
     @classmethod
-    def from_peh_datalayout(cls, data_layout: peh.DataLayout, cache_view: CacheContainerView) -> DatasetSeries:
+    def from_peh_datalayout(
+        cls, data_layout: peh.DataLayout, cache_view: CacheContainerView, apply_context: bool = True
+    ) -> DatasetSeries:
         parts = dict()
         label = data_layout.ui_label
         assert label is not None
@@ -466,13 +575,8 @@ class DatasetSeries(Resource, Generic[T_DataType]):
             dataset.part_of = ret
         _ = ret.add_metadata("described_by", data_layout.id)
 
-        return ret
-
-    def get_type_annotations(self) -> dict[str, dict[str, ObservablePropertyValueType]]:
-        ret: dict[str, dict[str, ObservablePropertyValueType]] = dict()
-        for dataset in self.parts.values():
-            label = dataset.label
-            ret[label] = dataset.get_type_annotations()
+        if apply_context:
+            ret.apply_context(cache=cache_view._container)
 
         return ret
 
@@ -490,6 +594,8 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         dataset.metadata["non_empty_dataset_elements"] = non_empty_dataset_elements
 
         return True
+
+    #### RESTRUCTURE DATASETSERIES ####
 
     def subset_dataset(
         self,
@@ -611,6 +717,16 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         for dataset_label in to_remove:
             self.parts.pop(dataset_label)
 
+    #### EXTRACT INFO FROM DATASETSERIES ####
+
+    def get_type_annotations(self) -> dict[str, dict[str, ObservablePropertyValueType]]:
+        ret: dict[str, dict[str, ObservablePropertyValueType]] = dict()
+        for dataset in self.parts.values():
+            label = dataset.label
+            ret[label] = dataset.get_type_annotations()
+
+        return ret
+
     def resolve_join(self, left_dataset_label: str, right_dataset_label: str) -> list[JoinSpec] | None:
         left = self.get(left_dataset_label)
         assert left is not None
@@ -638,6 +754,22 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         # dataset_fields = adapter.get_element_labels(dataset[dataset_label])
 
         return ret
+
+    def get_contextual_field_reference_index(self) -> dict[str, dict[str, str]]:
+        """
+        ObservablePropertyId -> dataset_label, field_label
+        We currently assume that each observable_property only occurs once in the DatasetSeries
+        """
+        field_ref_dict = defaultdict(dict)
+        for dataset_label in self:
+            dataset = self.get(dataset_label)
+            assert dataset is not None
+            for observable_property_id, element_label in dataset.schema._elements_by_observable_property.items():
+                field_ref_dict[observable_property_id][dataset_label] = element_label
+
+        return field_ref_dict
+
+    #### CORE FUNCTIONALITY ####
 
     @property
     def data_import_config(self) -> str | None:
