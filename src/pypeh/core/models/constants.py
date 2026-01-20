@@ -65,3 +65,13 @@ class ObservablePropertyValueType(str, Enum):
     DECIMAL = "decimal"
     DATE = "date"
     DATETIME = "datetime"
+
+
+class FileFormatEnum(str, Enum):
+    """
+    Enum representing supported file formats.
+    """
+
+    CSV = "csv"
+    XLSX = "xlsx"
+    XLS = "xls"
