@@ -43,7 +43,7 @@ class TestDatasetValidation:
 
         assert isinstance(report_to_check, ValidationErrorReport)
         assert report_to_check.total_errors == 1
-        assert report_to_check.groups[-1].errors[-1].type == "check_categorical"
+        assert report_to_check.groups[-1].errors[-1].type == "check categorical"
         errors = report_to_check.groups[-1].errors
         locations = errors[-1].locations
         assert locations is not None
