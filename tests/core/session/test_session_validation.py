@@ -5,7 +5,6 @@ from peh_model.peh import DataImportConfig, DataImportSectionMapping, DataImport
 from pypeh import Session
 from pypeh.core.models.internal_data_layout import Dataset, DatasetSeries
 from pypeh.core.models.settings import LocalFileConfig
-from pypeh.core.models.constants import FileFormatEnum
 
 from tests.test_utils.dirutils import get_absolute_path
 
@@ -70,8 +69,8 @@ class TestSessionValidation:
             ),
         )
         result = session.load_tabular_dataset_series(
-            source="validation_test_03_data.xlsx",
-            file_format=FileFormatEnum.XLSX,
+            source="validation_test_03_data.test",
+            file_format="xlsx",
             data_import_config=data_import_config,
             connection_label="local_file",
         )

@@ -16,7 +16,6 @@ from pypeh.core.models.settings import (
     ValidatedImportConfig,
     DEFAULT_CONNECTION_LABEL,
 )
-from pypeh.core.models.constants import FileFormatEnum
 from pypeh.core.models.typing import T_NamedThingLike, T_DataType
 from pypeh.core.models.validation_errors import (
     ValidationErrorReport,
@@ -219,7 +218,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         self,
         source: str,
         data_import_config: peh.DataImportConfig,
-        file_format: FileFormatEnum | None = None,
+        file_format: str | None = None,
         connection_label: str | None = None,
     ) -> DatasetSeries[DataFrame]:
         cache_view = CacheContainerView(self.cache)
@@ -241,10 +240,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
             connection_label = DEFAULT_CONNECTION_LABEL
 
         with self.connection_manager.get_connection(connection_label=connection_label) as connection:
-            format = None
-            if file_format:
-                format = file_format.value
-            data_dict = connection.load(source, format=format, validation_layout=data_layout, data_schema=data_schema)
+            data_dict = connection.load(
+                source, format=file_format, validation_layout=data_layout, data_schema=data_schema
+            )
         assert isinstance(data_dict, dict)
         import_adapter = self.get_adapter("data_import")
         for raw_dataset_label, raw_dataset in data_dict.items():
