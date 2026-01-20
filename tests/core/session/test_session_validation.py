@@ -69,7 +69,10 @@ class TestSessionValidation:
             ),
         )
         result = session.load_tabular_dataset_series(
-            source="validation_test_03_data.xlsx", data_import_config=data_import_config, connection_label="local_file"
+            source="validation_test_03_data.test",
+            file_format="xlsx",
+            data_import_config=data_import_config,
+            connection_label="local_file",
         )
 
         assert isinstance(result, DatasetSeries)
