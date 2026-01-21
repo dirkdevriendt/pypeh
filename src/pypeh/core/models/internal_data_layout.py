@@ -121,6 +121,9 @@ class DatasetSchema:
     def get_observable_property_ids(self) -> list[str]:
         return [element.observable_property_id for element in self.elements.values()]
 
+    def get_element_labels(self) -> list[str]:
+        return list(self.elements.keys())
+
     # TODO: move method, this is probably not the right location
     def apply_context_to_expression(
         self,
@@ -470,6 +473,9 @@ class Dataset(Resource, Generic[T_DataType]):
     @property
     def non_empty(self):
         return self.metadata.get("non_empty_dataset_elements", None)
+
+    def get_element_labels(self) -> list[str]:
+        return self.schema.get_element_labels()
 
     def get_schema_element_by_label(self, element_label: str) -> DatasetSchemaElement | None:
         return self.schema.get_element_by_label(element_label)
