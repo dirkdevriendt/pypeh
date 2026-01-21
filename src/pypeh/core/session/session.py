@@ -17,6 +17,7 @@ from pypeh.core.models.settings import (
     DEFAULT_CONNECTION_LABEL,
 )
 from pypeh.core.models.typing import T_NamedThingLike, T_DataType
+from pypeh.core.models.validation_dto import ValidationConfig
 from pypeh.core.models.validation_errors import (
     ValidationErrorReport,
     ValidationErrorReportCollection,
@@ -346,3 +347,36 @@ class Session(Generic[T_AdapterType, T_DataType]):
         assert len(validation_result_dict) > 0, f"DatasetSeries with label {dataset_series.label} contains no data"
 
         return validation_result_dict
+
+    def build_validation_config(
+        self,
+        data_layout: peh.DataLayout,
+        sections_to_validate: list[str] | None = None,
+    ) -> dict[str, ValidationConfig]:
+        ret: dict[str, ValidationConfig] = {}
+        cache_view = CacheContainerView(self.cache)
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            data_layout=data_layout,
+            cache_view=cache_view,
+            apply_context=True,
+        )
+        validation_interface = ValidationInterface()
+
+        iterator = dataset_series
+        if sections_to_validate is not None:
+            iterator = sections_to_validate
+
+        for dataset_label in iterator:
+            dataset = dataset_series[dataset_label]
+            assert dataset is not None
+            dataset.metadata["non_empty_dataset_elements"] = (
+                dataset.get_element_labels()
+            )  # temporary fix, non_empty needs to be removed
+            config = validation_interface.build_validation_config(
+                dataset=dataset,
+                dataset_series=dataset_series,
+                cache_view=cache_view,
+            )
+            ret[dataset_label] = config
+
+        return ret

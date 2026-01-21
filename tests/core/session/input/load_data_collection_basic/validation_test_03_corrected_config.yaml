@@ -18,14 +18,14 @@ observations:
     observation_result_type: measurement
     observable_entity_type: sample
     identifying_observable_property_id_list:
-    - id_sample
+    - peh:id_sample
     optional_observable_property_id_list:
-    - samplingyear
-    - samplingmonth
-    - samplingday
-    - samplinghour
-    - samplingminutes
-    - matrix
+    - peh:samplingyear
+    - peh:samplingmonth
+    - peh:samplingday
+    - peh:samplinghour
+    - peh:samplingminutes
+    - peh:matrix
 - id: peh:VALIDATION_TEST_SAMPLE_TIMEPOINT
   name: VALIDATION_TEST_SAMPLE_TIMEPOINT
   ui_label: SAMPLETIMEPOINT_BSS
@@ -34,11 +34,11 @@ observations:
     observation_result_type: measurement
     observable_entity_type: sample
     identifying_observable_property_id_list:
-    - id_sample
+    - peh:id_sample
     optional_observable_property_id_list:
-    - chol
-    - chol_lod
-    - chol_loq
+    - peh:chol
+    - peh:chol_lod
+    - peh:chol_loq
 layouts:
 - id: peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA
   name: CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA
@@ -50,42 +50,42 @@ layouts:
     observable_entity_type: sample
     elements:
     - label: id_sample
-      observable_property: id_sample
+      observable_property: peh:id_sample
       is_observable_entity_key: true
       foreign_key_link:
         section: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS
         label: id_sample
     - label: samplingyear
-      observable_property: samplingyear
+      observable_property: peh:samplingyear
     - label: samplingmonth
-      observable_property: samplingmonth
+      observable_property: peh:samplingmonth
     - label: samplingday
-      observable_property: samplingday
+      observable_property: peh:samplingday
     - label: samplinghour
-      observable_property: samplinghour
+      observable_property: peh:samplinghour
     - label: samplingminutes
-      observable_property: samplingminutes
+      observable_property: peh:samplingminutes
     - label: matrix
-      observable_property: matrix
+      observable_property: peh:matrix
   - id: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS
     ui_label: SAMPLETIMEPOINT_BSS
     section_type: data_table
     observable_entity_type: sample
     elements:
     - label: id_sample
-      observable_property: id_sample
+      observable_property: peh:id_sample
       is_observable_entity_key: true
       foreign_key_link:
         section: SAMPLE_METADATA_SECTION_SAMPLE
         label: id_sample
     - label: chol
-      observable_property: chol
+      observable_property: peh:chol
     - label: chol_lod
-      observable_property: chol_lod
+      observable_property: peh:chol_lod
     - label: chol_loq
-      observable_property: chol_loq
+      observable_property: peh:chol_loq
 observable_properties:
-- id: id_sample
+- id: peh:id_sample
   unique_name: id_sample
   name: id_sample
   ui_label: id_sample
@@ -98,7 +98,7 @@ observable_properties:
   default_observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
-- id: samplingyear
+- id: peh:samplingyear
   unique_name: samplingyear
   name: samplingyear
   description: year of sample collection
@@ -112,7 +112,7 @@ observable_properties:
   default_observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
-- id: samplingmonth
+- id: peh:samplingmonth
   unique_name: samplingmonth
   name: samplingmonth
   description: month of sample collection (1 is the first month of the year)
@@ -151,7 +151,7 @@ observable_properties:
   default_observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
-- id: samplingday
+- id: peh:samplingday
   unique_name: samplingday
   name: samplingday
   description: day of sample collection (1 is the first day of the month)
@@ -165,7 +165,7 @@ observable_properties:
   default_observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
-- id: samplinghour
+- id: peh:samplinghour
   unique_name: samplinghour
   name: samplinghour
   description: Hour of sampling
@@ -179,7 +179,7 @@ observable_properties:
   default_observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
-- id: samplingminutes
+- id: peh:samplingminutes
   unique_name: samplingminutes
   name: samplingminutes
   description: Minutes of sampling
@@ -193,7 +193,7 @@ observable_properties:
   default_observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
-- id: chol
+- id: peh:chol
   unique_name: chol
   name: chol
   description: Cholesterol in sample
@@ -224,7 +224,7 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - field_label: peh:matrix
         validation_command: is_in
         validation_arg_values:
         - BWB
@@ -243,7 +243,7 @@ observable_properties:
         - VAMS
       validation_arg_expressions:
       - validation_subject_contextual_field_references:
-        - field_label: chol
+        - field_label: peh:chol
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '50'
@@ -253,21 +253,21 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: matrix
+        - field_label: peh:matrix
         validation_command: is_in
         validation_arg_values:
         - BM
         - BMG
       validation_arg_expressions:
       - validation_subject_contextual_field_references:
-        - field_label: chol
+        - field_label: peh:chol
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '5'
     conditional: "IF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BM,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,BMG,DBS,VAMS)\
       \  THEN chol IS not empty; \n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
       \  THEN chol [50,250]; \n\nIF matrix IS (BM,BMG)  THEN chol [5,100]"
-- id: chol_lod
+- id: peh:chol_lod
   unique_name: chol_lod
   name: chol_lod
   description: lod associated with the cholesterol measurement of the sample
@@ -289,7 +289,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: chol_lod
-- id: chol_loq
+- id: peh:chol_loq
   unique_name: chol_loq
   name: chol_loq
   description: loq associated with the cholesterol measurement of the sample
@@ -311,7 +311,7 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
   short_name: chol_loq
-- id: matrix
+- id: peh:matrix
   unique_name: matrix
   name: matrix
   ui_label: matrix

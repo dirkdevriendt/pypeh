@@ -1,11 +1,12 @@
 import pytest
 
-from peh_model.peh import DataImportConfig, DataImportSectionMapping, DataImportSectionMappingLink
+from peh_model.peh import DataImportConfig, DataImportSectionMapping, DataImportSectionMappingLink, DataLayout
 
 from pypeh import Session
 from pypeh.core.models.internal_data_layout import Dataset, DatasetSeries
 from pypeh.core.models.settings import LocalFileConfig
 
+from pypeh.core.models.validation_dto import ValidationConfig
 from tests.test_utils.dirutils import get_absolute_path
 
 
@@ -184,3 +185,28 @@ class TestSessionValidation:
         )
         assert isinstance(data, dict)
         assert len(data) == 1
+
+
+@pytest.mark.core
+class TestBuildConfigs:
+    def test_build_validation_config(self):
+        session = Session(
+            connection_config=[
+                LocalFileConfig(
+                    label="local_file",
+                    config_dict={
+                        "root_folder": get_absolute_path("./input/load_data_collection_basic"),
+                    },
+                ),
+            ],
+            default_connection="local_file",
+            load_from_default_connection="",
+        )
+        data_layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        data_layout = session.load_resource(data_layout_id, "DataLayout")
+        assert isinstance(data_layout, DataLayout)
+        config_dict = session.build_validation_config(
+            data_layout=data_layout,
+        )
+        for config in config_dict.values():
+            assert isinstance(config, ValidationConfig)
