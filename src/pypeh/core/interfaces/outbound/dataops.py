@@ -430,3 +430,24 @@ class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
         entity_id_list: list[str] | None = None,
     ) -> T_DataType:
         raise NotImplementedError
+
+
+class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
+    @abstractmethod
+    def _summarize(
+        self, df: T_DataType, group_cols: list[str], value_col: str, stat_builders: list, **kwargs
+    ) -> T_DataType:
+        raise NotImplementedError
+
+    @classmethod
+    def get_default_adapter_class(cls):
+        try:
+            adapter_module = importlib.import_module(
+                "pypeh.adapters.outbound.aggregation.polars_adapter.dataframe_adapter"
+            )
+
+            adapter_class = getattr(adapter_module, "DataFrameAggregationAdapter")
+        except Exception as e:
+            logger.error("Exception encountered while attempting to import a Polars-based DataFrameAggregationAdapter")
+            raise e
+        return adapter_class
