@@ -9,14 +9,14 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Union
     from pydantic import BaseModel
-    from peh_model.peh import YAMLRoot, DataLayout
+    from peh_model.peh import YAMLRoot
 
 logger = logging.getLogger(__name__)
 
 
 class PersistenceInterface:
     @abstractmethod
-    def load(self, source: str, validation_layout: DataLayout | None = None, **kwargs):
+    def load(self, source: str, **kwargs):
         raise NotImplementedError
 
     @abstractmethod

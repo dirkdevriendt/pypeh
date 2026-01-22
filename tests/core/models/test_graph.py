@@ -1,9 +1,11 @@
 import pytest
+import peh_model.peh as peh
 
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
 from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.models.graph import Graph, Node
+from pypeh.core.interfaces.outbound.dataops import DataEnrichmentInterface
 from tests.test_utils.dirutils import get_absolute_path
 
 
@@ -111,19 +113,48 @@ class TestEnrichmentInterfaceCore:
 
         return CacheContainerView(container)
 
+    def make_contextual_field_reference_map(self, observations: list[peh.Observation]):
+        ret = {}
+        for observation in observations:
+            observation_design = observation.observation_design
+            assert isinstance(observation_design, peh.ObservationDesign)
+            for property_list_label in [
+                "identifying_observable_property_id_list",
+                "required_observable_property_id_list",
+                "optional_observable_property_id_list",
+            ]:
+                observable_property_id_list = getattr(observation_design, property_list_label)
+                if observable_property_id_list is not None:
+                    for observable_property_id in observable_property_id_list:
+                        ret[observable_property_id] = (observation.id, observable_property_id)
+
+        return ret
+
     def test_building_dependency_graph(self):
+        interface = DataEnrichmentInterface()
         container = self.container("./input/dependency_graph/Enrichment_01_SINGLE_SOURCE")
         observations = list(container.get_all("Observation"))
-        g = Graph.from_observations(observations, container)
+        contextual_field_reference_map = self.make_contextual_field_reference_map(observations)  # type: ignore
+        g = interface.build_dependency_graph(
+            observations,  # type: ignore
+            contextual_field_reference_map=contextual_field_reference_map,
+            cache_view=container,
+        )
 
         # Simple check to see if the dependency graph is built
         assert isinstance(g, Graph)
 
     def test_topological_sort_single_source(self):
+        interface = DataEnrichmentInterface()
         src_path = "./input/dependency_graph/Enrichment_01_SINGLE_SOURCE"
         container = self.container(src_path)
         observations = list(container.get_all("Observation"))
-        g = Graph.from_observations(observations, container)
+        contextual_field_reference_map = self.make_contextual_field_reference_map(observations)  # type: ignore
+        g = interface.build_dependency_graph(
+            observations,  # type: ignore
+            contextual_field_reference_map=contextual_field_reference_map,
+            cache_view=container,
+        )
         sorted_nodes = g.topological_sort()
         # Simple check to see if the sorted variables list is correct
         assert isinstance(g, Graph)
@@ -137,10 +168,16 @@ class TestEnrichmentInterfaceCore:
         ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "Todaysdate"))
 
     def test_topological_sort_linked_source(self):
+        interface = DataEnrichmentInterface()
         src_path = "./input/dependency_graph/Enrichment_02_LINKED_SOURCE"
         container = self.container(src_path)
         observations = list(container.get_all("Observation"))
-        g = Graph.from_observations(observations, container)
+        contextual_field_reference_map = self.make_contextual_field_reference_map(observations)  # type: ignore
+        g = interface.build_dependency_graph(
+            observations,  # type: ignore
+            contextual_field_reference_map=contextual_field_reference_map,
+            cache_view=container,
+        )
         sorted_nodes = g.topological_sort()
         # Simple check to see if the sorted variables list is correct
         assert isinstance(g, Graph)
@@ -154,10 +191,16 @@ class TestEnrichmentInterfaceCore:
         ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_HOUSEHOLD_INGESTED", "Todaysdate"))
 
     def test_topological_sort_multi_steps(self):
+        interface = DataEnrichmentInterface()
         src_path = "./input/dependency_graph/Enrichment_03_MULTI_STEP"
         container = self.container(src_path)
         observations = list(container.get_all("Observation"))
-        g = Graph.from_observations(observations, container)
+        contextual_field_reference_map = self.make_contextual_field_reference_map(observations)  # type: ignore
+        g = interface.build_dependency_graph(
+            observations,  # type: ignore
+            contextual_field_reference_map=contextual_field_reference_map,
+            cache_view=container,
+        )
         sorted_nodes = g.topological_sort()
         # Simple check to see if the sorted variables list is correct
         assert isinstance(g, Graph)
@@ -165,7 +208,7 @@ class TestEnrichmentInterfaceCore:
         assert len(sorted_nodes) == len(g.nodes)
         assert sorted_nodes.index(
             Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "N1Birthdate"))
+        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:N1Birthdate"))
         assert sorted_nodes.index(
             Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
         ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate"))

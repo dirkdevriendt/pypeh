@@ -14,14 +14,14 @@ import logging
 from abc import abstractmethod
 from collections import defaultdict
 from peh_model import peh
-from typing import TYPE_CHECKING, Generic, cast, List
+from typing import TYPE_CHECKING, Callable, Generic, cast, List
 
 from pypeh.core.cache.containers import CacheContainerView
 from pypeh.core.models.constants import ObservablePropertyValueType
 from pypeh.core.models.internal_data_layout import Dataset, DatasetSchemaElement, DatasetSeries
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.settings import FileSystemSettings
-from pypeh.core.models import validation_dto
+from pypeh.core.models import graph, validation_dto
 from pypeh.core.session.connections import ConnectionManager
 
 if TYPE_CHECKING:
@@ -350,10 +350,6 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
 
 
 class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
-    @abstractmethod
-    def _enrich_data(self, data: dict[str, Sequence] | T_DataType, config: dict) -> T_DataType:
-        raise NotImplementedError
-
     @classmethod
     def get_default_adapter_class(cls):
         try:
@@ -365,13 +361,194 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
         return adapter_class
 
     @abstractmethod
-    def apply_joins(self, dataset, datasets, join_specs, node): ...
+    def apply_joins(self, datasets, join_specs, node): ...
 
     @abstractmethod
     def apply_map(self, dataset, map_fn, field_label, output_dtype, base_fields, **kwargs): ...
 
     @abstractmethod
     def map_type(self, peh_value_type: str): ...
+
+    def build_callable(self, delayed_node: graph.Delayed) -> Callable:
+        map_fn = delayed_node.map_fn
+        arg_sources = delayed_node.arg_sources
+        join_specs = delayed_node.join_specs
+        output_dtype = self.map_type(delayed_node.output_dtype)
+
+        def _apply(datasets: dict, *, node: graph.Node, base_fields: dict):
+            """
+            datasets: dict of dataset_label → dataset object (lazy or eager)
+            parent_results: mapping from parent Node → computed result for this node
+            """
+            ds = datasets[node.dataset_label]
+            # Apply all joins
+            if join_specs:
+                ds = self.apply_joins(
+                    datasets=datasets,
+                    join_specs=join_specs,
+                    node=node,
+                )
+
+            # Build column expressions for the map function
+            kwargs = {}
+            for arg_name, parent_node in arg_sources.items():
+                col_name = parent_node.field_label
+                kwargs[arg_name] = self.select_field(ds, col_name)
+
+            # Apply the map
+            base_fields_subset = base_fields.get(node.dataset_label, None)
+            assert base_fields_subset is not None
+            out = self.apply_map(ds, map_fn, node.field_label, output_dtype, base_fields_subset, **kwargs)
+            base_fields_subset.append(node.field_label)
+
+            return out
+
+        return _apply
+
+    def compile_dependency_graph(self, dependency_graph: graph.Graph) -> graph.ExecutionPlan:
+        sorted_nodes = dependency_graph.topological_sort()
+        steps: list[graph.ExecutionStep] = []
+
+        for node in sorted_nodes:
+            delayed = dependency_graph.delayed_fns.get(node)
+            if delayed is None:
+                continue
+
+            compute_fn = self.build_callable(delayed)
+            steps.append(graph.ExecutionStep(node=node, compute=compute_fn))
+
+        ret = graph.ExecutionPlan(steps)
+        dependency_graph.execution_plan = ret
+
+        return ret
+
+    def compute_with_dependency_graph(self, dependency_graph: graph.Graph, datasets: dict[str, Dataset]):
+        if dependency_graph.execution_plan is None:
+            raise AssertionError("A dependency graph needs to be compiled first to set up an execution plan")
+
+        raw_datasets = {label: dataset.data for label, dataset in datasets.items()}
+        base_fields = {label: dataset.get_element_labels() for label, dataset in datasets.items()}
+
+        dependency_graph.execution_plan.run(raw_datasets, base_fields)
+        self.collect(datasets)
+        for dataset_label in datasets:
+            datasets[dataset_label].data = raw_datasets[dataset_label]
+
+    def build_dependency_graph(
+        self,
+        observations: list[peh.Observation],
+        contextual_field_reference_map: dict[str, tuple[str, str] | None],
+        cache_view: CacheContainerView,
+        join_spec_mapping: dict | None = None,
+    ) -> graph.Graph:
+        dependency_graph = graph.Graph()
+        nested_entity_paths = [
+            ["observation_design", "identifying_observable_property_id_list"],
+            ["observation_design", "required_observable_property_id_list"],
+            ["observation_design", "optional_observable_property_id_list"],
+        ]
+        # the source_observations also need to be added to the dependency graph!!!!!
+        for observation in observations:
+            observation_id = observation.id
+            for path in nested_entity_paths:
+                for observable_property in cache_view.walk_entity(
+                    entity_id=observation_id, nested_entity_path=path, entity_type="Observation"
+                ):
+                    assert isinstance(observable_property, peh.ObservableProperty)
+                    target_contextual_field_ref = contextual_field_reference_map.get(observable_property.id)
+                    assert (
+                        target_contextual_field_ref is not None
+                    ), f"Observable property with id {observable_property.id} is non unique."
+                    target_dataset_label, target_field_label = target_contextual_field_ref
+                    calculation_designs = observable_property.calculation_designs
+                    if calculation_designs:
+                        # EXTRA INFO FROM CALCULATION DESIGN AND UPDATE DEPENDENCY GRAPH
+                        child = graph.Node(dataset_label=target_dataset_label, field_label=target_field_label)
+                        if len(calculation_designs) > 1:
+                            raise NotImplementedError(
+                                "No current implementation for multiple calculation designs linked to a single observable property"
+                            )
+                        calculation_design = calculation_designs[0]
+                        assert isinstance(calculation_design, peh.CalculationDesign)
+                        calculation_implementation = calculation_design.calculation_implementation
+                        assert isinstance(calculation_implementation, peh.CalculationImplementation)
+                        output_dtype = observable_property.value_type
+                        assert output_dtype is not None
+                        function_name = calculation_implementation.function_name
+                        assert isinstance(function_name, str)
+
+                        dependency_graph.add_calculation_target(
+                            child, function_name=function_name, result_dtype=output_dtype
+                        )
+                        function_kwargs = calculation_implementation.function_kwargs
+                        assert function_kwargs is not None
+                        for function_kwarg in function_kwargs:
+                            assert isinstance(function_kwarg, peh.CalculationKeywordArgument)
+                            source_field_ref = function_kwarg.contextual_field_reference
+                            assert isinstance(source_field_ref, peh.ContextualFieldReference)
+                            source_dataset_label = source_field_ref.dataset_label
+                            assert source_dataset_label is not None
+                            source_field_label = source_field_ref.field_label
+                            assert source_field_label is not None
+                            parent = graph.Node(dataset_label=source_dataset_label, field_label=source_field_label)
+                            map_name = function_kwarg.mapping_name
+                            assert map_name is not None
+                            join_spec = None
+                            if join_spec_mapping is not None:
+                                join_spec = join_spec_mapping.get(
+                                    frozenset([target_dataset_label, source_dataset_label]), None
+                                )
+                                if join_spec is not None:
+                                    assert len(join_spec) == 1, "Complex JoinSpecs are not supported yet."
+                            dependency_graph.add_calculation_source(
+                                parent,
+                                child,
+                                map_name,
+                                join_spec=join_spec,
+                            )
+
+        return dependency_graph
+
+    def enrich(
+        self,
+        source_dataset_series: DatasetSeries,
+        target_observations: list[peh.Observation],
+        target_derived_from: list[peh.Observation],
+        cache_view: CacheContainerView,
+    ) -> DatasetSeries:
+        # ADD TARGET OBSERVATION TO SOURCE_DATASET_SERIES
+        for source_obs, target_observation in zip(target_derived_from, target_observations):
+            source_dataset = source_dataset_series.get_dataset_by_observation(source_obs.id, rebuild_index=True)
+            assert source_dataset is not None
+            source_dataset_label = source_dataset.label
+            source_dataset_series.add_observation(
+                source_dataset_label,
+                target_observation,
+                cache_view,
+            )
+        join_spec_mapping = source_dataset_series.resolve_all_joins()
+        # BUILD DEPENDENCY GRAPH
+        all_observations = []
+        for nested_observations in source_dataset_series.observations.values():
+            for observation_id in nested_observations:
+                observation = cache_view.get(observation_id, "Observation")
+                assert observation is not None
+                all_observations.append(observation)
+
+        dependency_graph = self.build_dependency_graph(
+            observations=all_observations,
+            contextual_field_reference_map=source_dataset_series.get_contextual_field_reference_index(),
+            join_spec_mapping=join_spec_mapping,
+            cache_view=cache_view,
+        )
+        # EXECUTE THE DEFINED COMPUTATIONS
+        self.compile_dependency_graph(dependency_graph=dependency_graph)
+        self.compute_with_dependency_graph(
+            dependency_graph=dependency_graph,
+            datasets=source_dataset_series.parts,
+        )
+        # RETURN THE UPDATED SOURCE_DATASET_SERIES
+        return source_dataset_series
 
 
 class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):

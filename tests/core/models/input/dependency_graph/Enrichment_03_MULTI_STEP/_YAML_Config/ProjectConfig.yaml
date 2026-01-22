@@ -54,6 +54,5 @@ observations:
     optional_observable_property_id_list:
     - peh:Todaysdate
     - peh:agemonths
-    - peh:N2Birthweight
   observation_result_id_list:
   - peh:ENRICHMENT_RESULT_20251001_01

@@ -18,14 +18,6 @@ logger = logging.getLogger(__name__)
 class DataFrameEnrichmentAdapter(DataFrameAdapter, DataEnrichmentInterface[pl.DataFrame]):
     data_format = pl.DataFrame
 
-    def _enrich_data(
-        self, data: pl.DataFrame, enrichment_config: dict
-    ) -> pl.DataFrame: ...  # Implementation of data enrichment logic
-
-    def _get_function_from_name(self, function_name: str):
-        # Placeholder for actual function retrieval logic
-        pass
-
     def select_field(self, dataset: pl.LazyFrame, field_label: str):
         return pl.col(field_label)
 
@@ -48,15 +40,28 @@ class DataFrameEnrichmentAdapter(DataFrameAdapter, DataEnrichmentInterface[pl.Da
 
     def apply_map(self, ds: pl.LazyFrame, map_fn, new_field_name: str, output_dtype, base_fields: list[str], **kwargs):
         struct_expr = pl.struct(list(kwargs.values()))
-        ds2 = ds.with_columns(
-            struct_expr.map_batches(
-                lambda s: map_fn(
-                    **{arg_name: s.struct.field(expr.meta.output_name()) for arg_name, expr in kwargs.items()}
-                ),
-                return_dtype=output_dtype,
-            ).alias(new_field_name)
-        )
-        return ds2.select([*base_fields, new_field_name])
+        aliased_exprs = {arg_name: expr.alias(arg_name) for arg_name, expr in kwargs.items()}
+        struct_expr = pl.struct(list(aliased_exprs.values()))
+        mapped = struct_expr.map_batches(
+            lambda s: map_fn(**{name: s.struct.field(name) for name in aliased_exprs}),
+            return_dtype=output_dtype,
+        ).alias(new_field_name)
+
+        ds2 = ds.with_columns(mapped)
+        existing = set(ds2.columns)
+        safe_fields = [f for f in base_fields if f in existing]
+
+        if new_field_name not in safe_fields:
+            safe_fields.append(new_field_name)
+
+        seen = set()
+        unique_fields = []
+        for f in safe_fields:
+            if f not in seen:
+                seen.add(f)
+                unique_fields.append(f)
+
+        return ds2.select(unique_fields)
 
     def collect(self, datasets: dict[str, pl.LazyFrame]):
         for dataset in datasets.values():

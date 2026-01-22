@@ -1,13 +1,14 @@
+from re import L, U
 import pytest
 import abc
 
 from datetime import date
 from typing import Protocol, Any, Generic
-from peh_model.peh import DataLayout
+from peh_model.peh import DataLayout, Observation, ObservationDesign, DataImportConfig
 
 from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
 from pypeh.core.cache.utils import load_entities_from_tree
-from pypeh.core.interfaces.outbound.dataops import T_DataType, ValidationInterface
+from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface, T_DataType, ValidationInterface
 from pypeh.core.models.internal_data_layout import (
     Dataset,
     DatasetSchema,
@@ -25,7 +26,7 @@ from pypeh.core.models.validation_dto import (
     ValidationConfig,
 )
 from pypeh.core.models.settings import LocalFileSettings
-from pypeh.core.models.graph import Graph
+from pypeh.core.models.graph import ExecutionPlan, Graph
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
 from tests.test_utils.dirutils import get_absolute_path
 
@@ -42,6 +43,14 @@ class DataOpsProtocol(Protocol, Generic[T_DataType]):
     def import_data_layout(self, source, config) -> Any: ...
 
     def build_validation_config(self, dataset, dataset_series, cache_view) -> ValidationConfig: ...
+
+    def build_dependency_graph(self, observations, contextual_field_reference_map, join_spec_mapping, cache_view): ...
+
+    def compile_dependency_graph(self, dependency_graph) -> ExecutionPlan: ...
+
+    def compute_with_dependency_graph(self, dependency_graph, datasets): ...
+
+    def enrich(self, source_dataset_series, target_observations, target_derived_from, cache_view): ...
 
 
 class TestValidation(abc.ABC):
@@ -549,6 +558,41 @@ class TestDatasetSeriesMods(abc.ABC):
         raise NotImplementedError
 
     @pytest.fixture(scope="function")
+    def observations(self, raw_data) -> dict[str, list[Observation]]:
+        ret = {
+            "urine_lab": [
+                Observation(
+                    id="peh:urine_lab_this",
+                    ui_label="urine_lab_this",
+                    observation_design=ObservationDesign(
+                        identifying_observable_property_id_list=["id_subject"],
+                        required_observable_property_id_list=["matrix", "crt"],
+                    ),
+                ),
+                Observation(
+                    id="peh:urine_lab_other",
+                    ui_label="urine_lab_this",
+                    observation_design=ObservationDesign(
+                        identifying_observable_property_id_list=["id_subject"],
+                        required_observable_property_id_list=["crt_lod", "crt_loq", "sg"],
+                    ),
+                ),
+            ],
+            "analyticalinfo": [
+                Observation(
+                    id="peh:analytical_info_obs",
+                    ui_label="analytical_info_obs",
+                    observation_design=ObservationDesign(
+                        identifying_observable_property_id_list=["id_subject"],
+                        required_observable_property_id_list=["biomarkercode", "matrix", "labinstitution"],
+                    ),
+                )
+            ],
+        }
+
+        return ret
+
+    @pytest.fixture(scope="function")
     def dataset_series(self, raw_data) -> DatasetSeries:
         # Schema for urine_lab
         urine_lab_schema = DatasetSchema(
@@ -626,10 +670,18 @@ class TestDatasetSeriesMods(abc.ABC):
 
         # --- DATASET INSTANCES ------------------------------------------------------
 
-        urine_lab_dataset = Dataset(label="urine_lab", schema=urine_lab_schema, data=raw_data["urine_lab"])
+        urine_lab_dataset = Dataset(
+            label="urine_lab",
+            schema=urine_lab_schema,
+            data=raw_data["urine_lab"],
+            observations=set(["peh:urine_lab_this", "peh:urine_lab_other"]),
+        )
 
         analyticalinfo_dataset = Dataset(
-            label="analyticalinfo", schema=analyticalinfo_schema, data=raw_data["analyticalinfo"]
+            label="analyticalinfo",
+            schema=analyticalinfo_schema,
+            data=raw_data["analyticalinfo"],
+            observations=set(["peh:analyticalinfo_obs"]),
         )
 
         # --- DATASET SERIES ---------------------------------------------------------
@@ -647,31 +699,30 @@ class TestDatasetSeriesMods(abc.ABC):
 
         return series
 
-    def test_subset_dataset(self, dataset_series):
-        element_groups = {
-            "urine_lab_part_one": ["id_subject", "matrix", "crt"],
-            "urine_lab_part_two": ["id_subject", "crt_lod", "crt_loq", "sg"],
-        }
-        expected_labels = [*element_groups.keys(), "analyticalinfo"]
+    def test_subset_dataset(self, dataset_series, observations):
+        urine_this, urine_other = observations["urine_lab"]
         num_primary_keys_urine_lab = len(dataset_series["urine_lab"].schema.primary_keys)
-        _ = dataset_series.subset_dataset("urine_lab", element_groups, dataops_adapter=self.get_adapter())
-        assert len(dataset_series.parts) == 3
-        labels = set(dataset_series.parts)
-        assert labels == set(expected_labels)
+        ret = dataset_series.subset_dataset(
+            dataset_label="urine_lab",
+            new_dataset_series_label="urine_split",
+            observation_groups={"this": [urine_this], "other": [urine_other]},
+            dataops_adapter=self.get_adapter(),
+        )
+        assert len(ret.parts) == 2
+        labels = set(ret.parts)
+        dataset_labels = set(["this", "other"])
+        dataset_schema_size = {"this": 3, "other": 4}
+        assert labels == dataset_labels
+
         # check schema
-        for dataset_label in ["urine_lab_part_one", "urine_lab_part_two", "analyticalinfo"]:
-            dataset = dataset_series.get(dataset_label)
+        for dataset_label in dataset_labels:
+            dataset = ret.get(dataset_label)
             schema = dataset.schema
             assert schema is not None
-            if dataset_label in element_groups:
-                assert len(schema) == len(element_groups[dataset_label])
-                assert len(schema.primary_keys) == num_primary_keys_urine_lab
+            assert len(schema) == dataset_schema_size[dataset_label]
+            assert len(schema.primary_keys) == num_primary_keys_urine_lab
 
-            if dataset_label == "analyticalinfo":
-                num_elements = 4
-            else:
-                num_elements = len(element_groups[dataset_label])
-            self.verify_dataset_subset(dataset, num_elements=num_elements)
+            self.verify_dataset_subset(dataset, num_elements=dataset_schema_size[dataset_label])
 
     def test_relabel_dataset(self, dataset_series):
         element_mapping = {
@@ -718,7 +769,14 @@ class TestEnrichment(abc.ABC):
     def raw_data(self):
         raise NotImplementedError
 
-    def raw_dataset_series(self) -> DatasetSeries:
+    def raw_dataset_series(self, data_import_config_id: str, cache_view: CacheContainerView) -> DatasetSeries:
+        data_import_config = cache_view.get(data_import_config_id, "DataImportConfig")
+        assert isinstance(data_import_config, DataImportConfig)
+        return DatasetSeries.from_peh_data_import_config(
+            data_import_config=data_import_config,
+            cache_view=cache_view,
+        )
+
         return DatasetSeries(
             label="raw_dataset_series",
             parts={
@@ -726,9 +784,9 @@ class TestEnrichment(abc.ABC):
                     label="peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
                     schema=DatasetSchema(
                         elements={
-                            "peh:id_subject": DatasetSchemaElement(
+                            "peh:id_subject_00": DatasetSchemaElement(
                                 label="peh:id_subject",
-                                observable_property_id="peh:id_subject",
+                                observable_property_id="peh:id_subject_00",
                                 data_type=ObservablePropertyValueType.STRING,
                             ),
                             "peh:current_year": DatasetSchemaElement(
@@ -756,16 +814,17 @@ class TestEnrichment(abc.ABC):
                                 observable_property_id="peh:N1Birthweight",
                                 data_type=ObservablePropertyValueType.INTEGER,
                             ),
-                        }
+                        },
                     ),
+                    observations={"peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED"},
                 ),
                 "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED": Dataset(
                     label="peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
                     schema=DatasetSchema(
                         elements={
-                            "peh:id_subject": DatasetSchemaElement(
+                            "peh:id_subject_01": DatasetSchemaElement(
                                 label="peh:id_subject",
-                                observable_property_id="peh:id_subject",
+                                observable_property_id="peh:id_subject_01",
                                 data_type=ObservablePropertyValueType.STRING,
                             ),
                             "peh:agemonths": DatasetSchemaElement(
@@ -782,35 +841,73 @@ class TestEnrichment(abc.ABC):
                         primary_keys=set(["peh:id_subject"]),
                         foreign_keys={
                             "peh:id_subject": ForeignKey(
-                                element_label="peh:id_subject",
+                                element_label="peh:id_subject_01",
                                 reference=ElementReference(
                                     dataset_label="peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
-                                    element_label="peh:id_subject",
+                                    element_label="peh:id_subject_00",
                                 ),
                             )
                         },
                     ),
+                    observations={"peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED"},
                 ),
             },
         )
 
-    @pytest.fixture(scope="function")
-    def simple_graph(self):
-        dataset_series = self.raw_dataset_series()
-        join_spec_mapping = dataset_series.resolve_all_joins()
+    def test_build_simple_graph(self):
+        data_import_config_id = "peh:ENRICHMENT_TEST_IMPORT_CONFIG"
         src_path = "./input/ProcessingExamples/Enrichment_03_MULTI_STEP"
         cache_view = self.container(src_path)
-        observations = list(cache_view.get_all("Observation"))
-        return Graph.from_observations(observations, cache_view, join_spec_mapping=join_spec_mapping)
-
-    def test_dependency_graph_compilation(self, simple_graph):
-        dataset_series = self.raw_dataset_series()
+        dataset_series = self.raw_dataset_series(data_import_config_id=data_import_config_id, cache_view=cache_view)
         adapter = self.get_adapter()
+
+        observations_dict = dataset_series.observations
+        observations = []
+        for observation_set in observations_dict.values():
+            temp = [cache_view.get(obs_id, "Observation") for obs_id in observation_set]
+            observations.extend(temp)
+        join_spec_mapping = dataset_series.resolve_all_joins()
+        contextual_field_reference_map = dataset_series.get_contextual_field_reference_index()
+        dependency_graph = adapter.build_dependency_graph(
+            observations=observations,
+            contextual_field_reference_map=contextual_field_reference_map,
+            join_spec_mapping=join_spec_mapping,
+            cache_view=cache_view,
+        )
+        assert isinstance(dependency_graph, Graph)
+        ret = adapter.compile_dependency_graph(dependency_graph=dependency_graph)
+        assert isinstance(ret, ExecutionPlan)
+
+    def test_dependency_graph_compilation(self):
+        data_import_config_id = "peh:ENRICHMENT_TEST_IMPORT_CONFIG"
+        src_path = "./input/ProcessingExamples/Enrichment_03_MULTI_STEP"
+        cache_view = self.container(src_path)
+        dataset_series = self.raw_dataset_series(data_import_config_id=data_import_config_id, cache_view=cache_view)
+        adapter = self.get_adapter()
+        assert isinstance(adapter, OutDataOpsInterface)
         datasets = self.raw_data()
-        execution_plan = simple_graph.compile(adapter=adapter)
-        assert len(execution_plan) == 2
-        simple_graph.compute(datasets=datasets, adapter=adapter)
-        assert dataset_series.matches(datasets, adapter)
+        for dataset_label, dataset in datasets.items():
+            dataset_series.add_data(dataset_label=dataset_label, data=dataset)
+        _ = adapter.enrich(
+            source_dataset_series=dataset_series,
+            target_observations=[cache_view.get("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "Observation")],
+            target_derived_from=[
+                cache_view.get("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE", "Observation")
+            ],
+            cache_view=cache_view,
+        )
+
+        enriched_data = {}
+        for dataset_label in dataset_series:
+            dataset = dataset_series[dataset_label]
+            assert dataset is not None
+            raw_data = dataset.data
+            enriched_data[dataset_label] = raw_data
+            dataset_element_labels = dataset.get_element_labels()
+            for element_label in dataset_element_labels:
+                values = adapter.get_element_values(raw_data, element_label=element_label, as_list=True)
+                assert len(values) > 0
+        assert dataset_series.matches_schema(enriched_data, adapter)
 
 
 @pytest.mark.dataframe
@@ -900,30 +997,30 @@ class TestDataFrameEnrichment(TestEnrichment):
 
         df_ingested = pl.DataFrame(
             {
-                "peh:id_subject": [1, 2, 3, 4, 5],
-                "peh:current_year": [2025, 2025, 2025, 2025, 2025],
-                "peh:current_month": [12, 12, 12, 12, 12],
-                "peh:current_day": [11, 11, 11, 11, 11],
-                "peh:N1Birthdate": [
+                "id_subject": [1, 2, 3, 4, 5],
+                "current_year": [2025, 2025, 2025, 2025, 2025],
+                "current_month": [12, 12, 12, 12, 12],
+                "current_day": [11, 11, 11, 11, 11],
+                "N1Birthdate": [
                     date(1990, 5, 21),
                     date(1985, 7, 14),
                     date(2000, 1, 3),
                     date(1995, 9, 30),
                     date(1988, 3, 12),
                 ],
-                "peh:N2Birthweight": [3.2, 2.8, 3.5, 4.0, 3.0],
             }
         )
 
         df_enriched = pl.DataFrame(
             {
-                "peh:id_subject": [1, 2, 3, 4, 5],
+                "id_subject": [1, 2, 3, 4, 5],
+                "N2Birthweight": [3.2, 2.8, 3.5, 4.0, 3.0],
             }
         )
 
         return {
-            "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED": df_ingested,
-            "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED": df_enriched,
+            "SUBJECTUNIQUE": df_ingested,
+            "ENRICH_BASE": df_enriched,
         }
 
 

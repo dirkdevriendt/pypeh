@@ -23,7 +23,7 @@ from pypeh.core.models.validation_errors import (
     ValidationErrorReportCollection,
 )
 from pypeh.core.models.internal_data_layout import DatasetSeries, Dataset
-from pypeh.core.interfaces.outbound.dataops import ValidationInterface, DataImportInterface
+from pypeh.core.interfaces.outbound.dataops import DataEnrichmentInterface, ValidationInterface, DataImportInterface
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.session.connections import ConnectionManager
 from pypeh.core.utils.resolve_identifiers import is_url
@@ -143,6 +143,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
             case "data_import":
                 adapter = ValidationInterface.get_default_adapter_class()
                 self._adapter_mapping[interface_functionality] = adapter
+            case "enrichment":
+                adapter = DataEnrichmentInterface.get_default_adapter_class()
+                self._adapter_mapping[interface_functionality] = adapter
             case _:
                 raise NotImplementedError()
 
@@ -224,14 +227,11 @@ class Session(Generic[T_AdapterType, T_DataType]):
     ) -> DatasetSeries[DataFrame]:
         cache_view = CacheContainerView(self.cache)
         assert isinstance(data_import_config, peh.DataImportConfig)
-        data_layout_id = data_import_config.layout
-        assert data_layout_id is not None
-        data_layout = self.get_resource(data_layout_id, "DataLayout")
-        assert isinstance(data_layout, peh.DataLayout)
-        dataset_series = DatasetSeries.from_peh_datalayout(data_layout, cache_view=cache_view)
-        dataset_series.add_metadata("data_import_config_id", data_import_config.id)
+
+        dataset_series = DatasetSeries.from_peh_data_import_config(data_import_config, cache_view=cache_view)
         data_schema = dataset_series.get_type_annotations()
 
+        # Add data to DatasetSeries
         # TODO: fix host calls with unified ConnectionManager
         if is_url(source):
             raise NotImplementedError
@@ -241,9 +241,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
             connection_label = DEFAULT_CONNECTION_LABEL
 
         with self.connection_manager.get_connection(connection_label=connection_label) as connection:
-            data_dict = connection.load(
-                source, format=file_format, validation_layout=data_layout, data_schema=data_schema
-            )
+            data_dict = connection.load(source, format=file_format, data_schema=data_schema)
         assert isinstance(data_dict, dict)
         import_adapter = self.get_adapter("data_import")
         for raw_dataset_label, raw_dataset in data_dict.items():
@@ -380,3 +378,24 @@ class Session(Generic[T_AdapterType, T_DataType]):
             ret[dataset_label] = config
 
         return ret
+
+    def enrich(
+        self,
+        source_dataset_series: DatasetSeries,
+        target_observations: list[peh.Observation],
+        target_derived_from: list[peh.Observation],
+        target_dataset_labels: list[str] | None = None,
+    ) -> DatasetSeries:
+        num_targets = len(target_observations)
+        assert num_targets == len(target_derived_from)
+        if target_dataset_labels is not None:
+            assert num_targets == len(target_dataset_labels)
+
+        adapter = self.get_adapter("enrichment")
+        assert isinstance(adapter, DataEnrichmentInterface)
+        return adapter.enrich(
+            source_dataset_series=source_dataset_series,
+            target_observations=target_observations,
+            target_derived_from=target_derived_from,
+            cache_view=CacheContainerView(self.cache),
+        )

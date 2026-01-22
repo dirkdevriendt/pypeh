@@ -10,10 +10,8 @@ from polars.datatypes import DataType, DataTypeClass
 
 from pypeh.core.models.constants import ObservablePropertyValueType
 from pypeh.adapters.outbound.persistence.serializations import IOAdapter
-from pypeh.adapters.outbound.persistence.serializations import is_consistent_with_layout, get_layout_inconsistencies
 
 if TYPE_CHECKING:
-    from peh_model.peh import DataLayout
     from typing import Mapping
 
 
@@ -128,7 +126,6 @@ class ExcelIOImpl(IOAdapter):
     def load(
         self,
         source: Union[str, Path, IO[str], IO[bytes]],
-        validation_layout: DataLayout | None = None,
         data_schema: dict[str, dict[str, str]] | None = None,
         **kwargs,
     ) -> dict[str, pl.DataFrame]:
@@ -151,20 +148,7 @@ class ExcelIOImpl(IOAdapter):
                 result = self._load(source, **options)
             assert isinstance(result, dict)
 
-            # check against validation_layout
-            ## might be overkill if type info was provided
-            if validation_layout is None:
-                logger.info("No validation layout")
-                return result
-            elif is_consistent_with_layout(result, validation_layout):
-                return result
-            else:
-                section_labels = list(result.keys())
-                inconsistencies = get_layout_inconsistencies(section_labels, validation_layout)
-                logger.info("Sheet names inconsistent with layout")
-                raise Exception(
-                    f"Sheet name(s) {', '.join(inconsistencies)} do not correspond with provided data layout"
-                )
+            return result
 
         except Exception as e:
             logger.error(f"Error in ExcelIOImpl: {e}")
