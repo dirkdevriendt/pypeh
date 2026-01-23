@@ -79,6 +79,52 @@ def merge_dependencies(
 
 
 class ValidationExpression(BaseModel):
+    """
+    A nested structure of logic expressions that can be evaluated as a truth value.
+
+    When not just one of arg_expressions, arg_values or arg_columns is provided, their return values
+    should be flattened into an extended list and used as one list argument in the expression.
+    Note: at the generic level, there is no requirement to have any arguments since validations
+    could be imagined to not require arguments at all (for example "is_empty" or "is_not_null")
+
+    Attributes
+    ----------
+    subject : list[str] | None = None
+        The labels referring to the columns in a dataset that the validation expression will evaluate
+        the validity of.
+        If no subject is provided and the validation expression is part of a column
+        validation design, then the subject is assumed to be that column.
+        A dataset level validation design without subject means no invalid column can be
+        identified and the entire dataset should be flagged as invalid
+    conditional_expression : ValidationExpression | None = None
+        A logic expression that, if provided, determines whether the (rest of the) validation check
+        should be performed. Similar to an IF [conditional_expression] THEN [...] construct
+    command : str
+        An "operator" that determines how the expression parts should be combined and/or interpreted
+        If no [command] is provided, conjunction of the arguments or nested statements is assumed.
+        The [command] determines the interpretation of the arguments or nested statements.
+    arg_expressions : list[ValidationExpression] | None = None
+        A list of expressions to be evaluated with their evaluation results being added as command
+        arguments
+    arg_columns : list[str] | None = None
+        A list of in-dataset column labels that the values will be extracted from. These values are
+        added as command arguments (if multiple value lists are obtained, they should be combined into
+        one flattened list of arguments)
+    arg_values : list[Any] | None = None
+        A list of "hard-coded" arguments
+    dependent_contextual_field_references : dict[str, set[str]] | None = None
+        An argument that enriches the validation expression with information on the dependency context
+        for the columns / fields
+
+    Methods
+    -------
+    from_peh
+        Class method that instantiates a new ValidationExpression object from a peh.ValidationExpression
+        object and some additional contextual information. The peh.ValidationExpression is defined in a
+        multi-dataset structure, while the validation_dto.ValidationExpression defines dependent fields
+        and this function provides the necessary conversion
+    """
+
     conditional_expression: ValidationExpression | None = None
     arg_expressions: list[ValidationExpression] | None = None
     command: str
