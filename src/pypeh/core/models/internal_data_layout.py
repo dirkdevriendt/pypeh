@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from collections import defaultdict
 import itertools
 import logging
 import uuid
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from peh_model import peh
 from typing import TYPE_CHECKING, Generic, Sequence
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerView
-from pypeh.core.models.proxy import TypedLazyProxy
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.constants import ObservablePropertyValueType
 
@@ -80,8 +79,8 @@ class ForeignKey:
 
 @dataclass
 class DatasetSchema:
-    elements: dict[str, DatasetSchemaElement]
-    primary_keys: set[str] | None = None
+    elements: dict[str, DatasetSchemaElement] = field(default_factory=dict)
+    primary_keys: set[str] = field(default_factory=set)
     foreign_keys: dict[str, ForeignKey] = field(default_factory=dict)
 
     __metadata__ = {
@@ -123,6 +122,27 @@ class DatasetSchema:
 
     def get_element_labels(self) -> list[str]:
         return list(self.elements.keys())
+
+    def add_observable_property(
+        self,
+        observable_property_id: str,
+        data_type: ObservablePropertyValueType,
+        element_label: str | None = None,
+        is_primary_key: bool = False,
+    ):
+        if element_label is None:
+            element_label = observable_property_id
+        assert isinstance(data_type, ObservablePropertyValueType)
+        new_element = DatasetSchemaElement(
+            label=element_label,
+            observable_property_id=observable_property_id,
+            data_type=data_type,
+        )
+        self.elements[element_label] = new_element
+        self._type[element_label] = data_type
+        self._elements_by_observable_property[observable_property_id] = element_label
+        if is_primary_key:
+            self.primary_keys.add(element_label)
 
     # TODO: move method, this is probably not the right location
     def apply_context_to_expression(
@@ -210,6 +230,7 @@ class DatasetSchema:
     def subset(self, element_group: Sequence[str]) -> DatasetSchema:
         elements = {}
         foreign_keys = {}
+        primary_keys = set()
 
         for element_label in element_group:
             element = self.get_element_by_label(element_label)
@@ -217,11 +238,14 @@ class DatasetSchema:
             elements[element_label] = element
             if element_label in self.foreign_keys:
                 foreign_keys[element_label] = self.foreign_keys[element_label]
+            if self.primary_keys is not None:
+                if element_label in self.primary_keys:
+                    primary_keys.add(element_label)
             elements[element_label] = element
 
         return DatasetSchema(
             elements=elements,
-            primary_keys=self.primary_keys,
+            primary_keys=primary_keys,
             foreign_keys=foreign_keys,
         )
 
@@ -283,7 +307,8 @@ class DatasetSchema:
         self._elements_by_observable_property = elements_by_observable_property
         self._type = all_type_info
         self.foreign_keys = foreign_keys
-        self.primary_keys = primary_keys
+        if primary_keys is not None:
+            self.primary_keys = primary_keys
 
     def __len__(self):
         return len(self.elements)
@@ -311,8 +336,8 @@ class DatasetSchema:
                 foreign_key_element_label = foreign_key.label
                 assert foreign_key_element_label is not None
                 section = cache_view.get(section_id, "DataLayoutSection")
-                assert section is not None
-                assert section.ui_label is not None
+                assert section is not None, f"section with id {section_id} cannot be found"
+                assert section.ui_label is not None, f"ui_label is None for section {section.id}"
                 foreign_key_object = ForeignKey(
                     element_label=element_label,
                     reference=ElementReference(
@@ -425,9 +450,10 @@ class Resource:
 
 @dataclass(kw_only=True)
 class Dataset(Resource, Generic[T_DataType]):
-    schema: DatasetSchema
+    schema: DatasetSchema = field(default_factory=DatasetSchema)
     data: T_DataType | None = field(default=None)
     part_of: DatasetSeries | None = field(default=None)
+    observations: set[str] = field(default_factory=set)
 
     __metadata__ = {
         "id": "dcat:dataset",
@@ -498,17 +524,36 @@ class Dataset(Resource, Generic[T_DataType]):
 
     def subset(
         self,
-        element_groups: dict[str, list[str]],
+        new_dataset_series_label: str,
+        observation_groups: dict[str, list[peh.Observation]],
         dataops_adapter: OutDataOpsInterface,
-        metadata: dict[str, dict] | None = None,
-    ) -> bool:
-        dataset_series: DatasetSeries = self.part_of  # type: ignore[attr-defined] ## can't figure out the type checker issue
-        if dataset_series is not None:
-            _ = dataset_series.parts.pop(self.label)
+    ) -> DatasetSeries:
+        # TODO: schemas for all new datasets need to be properly relabeled
+        ret = DatasetSeries(label=new_dataset_series_label, parts={})
 
-        for dataset_label, element_group in element_groups.items():
+        for dataset_label, observation_group in observation_groups.items():
+            observable_properties = set()
+            observation_ids: set[str] = set()
+            for observation in observation_group:
+                assert observation.id in self.observations
+                observation_ids.add(observation.id)
+                observation_design = observation.observation_design
+                assert observation_design is not None
+                for observable_property in getattr(observation_design, "identifying_observable_property_id_list", []):
+                    observable_properties.add(observable_property)
+                for observable_property in getattr(observation_design, "required_observable_property_id_list", []):
+                    observable_properties.add(observable_property)
+                for observable_property in getattr(observation_design, "optional_observable_property_id_list", []):
+                    observable_properties.add(observable_property)
+
+            element_group = []
+            for observable_property_id in observable_properties:
+                element = self.schema.get_element_by_observable_property_id(observable_property_id)
+                assert element is not None
+                element_group.append(element.label)
+            assert len(element_group) > 0
+
             # split data
-            # TODO: allow subsetting based on identifying_observable_properties
             data_subset = dataops_adapter.subset(
                 data=self.data,
                 element_group=element_group,
@@ -520,14 +565,12 @@ class Dataset(Resource, Generic[T_DataType]):
                 schema=schema_subset,
                 label=dataset_label,
                 data=data_subset,
-                part_of=dataset_series,
+                observations=observation_ids,
+                part_of=ret,
             )
-            if dataset_series is not None:
-                dataset_series[dataset_label] = new_dataset
-            if metadata is not None:
-                new_dataset.metadata.update(metadata.get(dataset_label, {}))
+            ret.parts[dataset_label] = new_dataset
 
-        return True
+        return ret
 
     def relabel(self, element_mapping: dict[str, str], dataops_adapter: OutDataOpsInterface) -> bool:
         # uniqueness check
@@ -540,20 +583,91 @@ class Dataset(Resource, Generic[T_DataType]):
 
         return True
 
+    def add_observable_property(
+        self,
+        observable_property_id: str,
+        data_type: ObservablePropertyValueType,
+        element_label: str | None = None,
+        is_primary_key: bool = False,
+    ):
+        return self.schema.add_observable_property(
+            observable_property_id,
+            data_type,
+            element_label,
+            is_primary_key,
+        )
+
+    def add_observable_property_from_cache(
+        self,
+        observable_property_id: str,
+        cache_view: CacheContainerView,
+        is_primary_key: bool,
+    ):
+        if observable_property_id in self.schema._elements_by_observable_property:
+            # TODO: we assume observable_property_ids are unique within a dataset
+            return
+        observable_property = cache_view.get(observable_property_id, "ObservableProperty")
+        assert observable_property is not None
+        label = observable_property.ui_label
+        assert label is not None
+        data_type = ObservablePropertyValueType(getattr(observable_property, "value_type", "string"))
+        self.add_observable_property(
+            observable_property_id=observable_property_id,
+            data_type=data_type,
+            element_label=observable_property.ui_label,
+            is_primary_key=is_primary_key,
+        )
+
+    def add_observation_to_index(self, observation_id: str):
+        self.observations.add(observation_id)
+        if self.part_of:
+            self.part_of._register_observation(observation_id, self.label)
+
+    def remove_observation_from_index(self, observation_id: str):
+        self.observations.remove(observation_id)
+        if self.part_of:
+            self.part_of._unregister_observation(observation_id)
+
+    def add_data(self, data: T_DataType, non_empty_dataset_elements: list[str] | None = None, overwrite: bool = True):
+        # TODO: add datachecks against schema
+        if not overwrite:
+            if self.data is not None:
+                raise NotImplementedError()
+
+        if len(self.schema) == 0:
+            return False
+
+        if non_empty_dataset_elements is None:
+            non_empty_dataset_elements = self.get_element_labels()
+
+        self.data = data
+        self.metadata["non_empty_dataset_elements"] = non_empty_dataset_elements
+
 
 @dataclass(kw_only=True)
 class DatasetSeries(Resource, Generic[T_DataType]):
-    parts: dict[str, Dataset[T_DataType]]
+    parts: dict[str, Dataset[T_DataType]] = field(default_factory=dict)
+    _obs_index: dict[str, str] = field(default_factory=dict)
 
     __metadata__ = {
         "id": "dcat:datasetSeries",
         "context": DCAT_CONTEXT,
     }
 
+    def build_observation_index(self):
+        idx = {obs: dataset.label for dataset in self.parts.values() for obs in dataset.observations}
+        self._obs_index = idx
+
+    def _register_observation(self, observation_id: str, dataset_label: str):
+        self._obs_index[observation_id] = dataset_label
+
+    def _unregister_observation(self, observation_id: str):
+        self._obs_index.pop(observation_id, None)
+
     #### CONSTRUCT DATASETSERIES ####
     def apply_context(self, cache: CacheContainer):
         # THIS METHOD MODIFIES THE CACHE !!!
-        context = self.get_contextual_field_reference_index()
+        context = self._get_validation_index()
         for dataset_label in self:
             dataset = self.get(dataset_label)
             assert dataset is not None
@@ -564,8 +678,6 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         cls, data_layout: peh.DataLayout, cache_view: CacheContainerView, apply_context: bool = True
     ) -> DatasetSeries:
         parts = dict()
-        label = data_layout.ui_label
-        assert label is not None
         sections = getattr(data_layout, "sections")
         if sections is None:
             raise ValueError("No sections found in DataLayout")
@@ -576,6 +688,9 @@ class DatasetSeries(Resource, Generic[T_DataType]):
                 cache_view,
             )
 
+        label = data_layout.ui_label
+        if label is None:
+            label = str(uuid.uuid4())
         ret = cls(label=label, parts=parts)
         for dataset in ret.parts.values():
             dataset.part_of = ret
@@ -586,37 +701,142 @@ class DatasetSeries(Resource, Generic[T_DataType]):
 
         return ret
 
+    @classmethod
+    def from_peh_data_import_config(
+        cls,
+        data_import_config: peh.DataImportConfig,
+        cache_view: CacheContainerView,
+        apply_context: bool = True,
+    ) -> DatasetSeries:
+        data_layout_id = data_import_config.layout
+        assert data_layout_id is not None
+        data_layout = cache_view.get(data_layout_id, "DataLayout")
+        assert isinstance(data_layout, peh.DataLayout)
+        ret = cls.from_peh_datalayout(data_layout, cache_view, apply_context=apply_context)
+
+        # add Observation links
+        section_mapping = data_import_config.section_mapping
+        assert isinstance(section_mapping, peh.DataImportSectionMapping)
+        section_mapping_links = section_mapping.section_mapping_links
+        assert isinstance(section_mapping_links, list)
+        for link in section_mapping_links:
+            assert isinstance(link, peh.DataImportSectionMappingLink)
+            section_id = link.section
+            assert isinstance(section_id, str)
+            layout_section = cache_view.get(section_id, "DataLayoutSection")
+            assert isinstance(layout_section, peh.DataLayoutSection)
+            dataset_label = layout_section.ui_label
+            assert dataset_label is not None
+            observation_ids = link.observation_id_list
+            assert isinstance(observation_ids, list)
+            assert observation_ids is not None
+            dataset = ret[dataset_label]
+            assert dataset is not None, f"Could not find dataset with label {dataset_label}"
+            num_observations = len(observation_ids)
+            dataset.observations = set(observation_ids)
+            assert num_observations == len(dataset.observations)
+
+        # add DataImportConfigId metadata
+        ret.add_metadata("data_import_config_id", data_import_config.id)
+
+        return ret
+
+    def register_dataset(self, dataset: Dataset):
+        dataset.part_of = self
+        self.parts[dataset.label] = dataset
+
     def add_data(
-        self, dataset_label: str, data: T_DataType, non_empty_dataset_elements: list[str] | None = None
+        self,
+        dataset_label: str,
+        data: T_DataType,
+        non_empty_dataset_elements: list[str] | None = None,
+        overwrite: bool = True,
     ) -> bool:
         dataset = self.parts.get(dataset_label, None)
         assert dataset is not None
-        assert dataset.data is None
-        observable_property_ids = dataset.get_observable_property_ids()
-
-        if len(observable_property_ids) == 0:
-            return False
-        dataset.data = data
-        dataset.metadata["non_empty_dataset_elements"] = non_empty_dataset_elements
+        dataset.add_data(data=data, non_empty_dataset_elements=non_empty_dataset_elements, overwrite=overwrite)
 
         return True
+
+    def add_observable_property(
+        self,
+        dataset_label: str,  # TODO: this should become an observation_id
+        observable_property_id: str,
+        data_type: ObservablePropertyValueType,
+        element_label: str | None = None,
+        is_primary_key: bool = False,
+    ):
+        dataset = self[dataset_label]
+        assert dataset is not None
+        return dataset.add_observable_property(
+            observable_property_id,
+            data_type,
+            element_label,
+            is_primary_key,
+        )
+
+    def add_empty_dataset(self, dataset_label: str) -> Dataset:
+        dataset = Dataset(label=dataset_label)
+        self.register_dataset(dataset)
+
+        return dataset
+
+    def add_observation(
+        self,
+        dataset_label: str,
+        observation: peh.Observation,
+        cache_view: CacheContainerView,
+        data: T_DataType | None = None,
+    ):
+        if dataset_label not in self.parts:
+            dataset = self.add_empty_dataset(dataset_label)
+        else:
+            dataset = self[dataset_label]
+        assert dataset is not None
+        observation_design = observation.observation_design
+        assert isinstance(observation_design, peh.ObservationDesign)
+        identifying_observable_properties = observation_design.identifying_observable_property_id_list
+        assert identifying_observable_properties is not None
+        for observable_property_id in identifying_observable_properties:
+            dataset.add_observable_property_from_cache(
+                observable_property_id=observable_property_id,
+                cache_view=cache_view,
+                is_primary_key=True,
+            )
+
+        required_observable_properties = observation_design.required_observable_property_id_list
+        assert required_observable_properties is not None
+        optional_observable_properties = observation_design.optional_observable_property_id_list
+        assert optional_observable_properties is not None
+        for observable_property_id_list in (required_observable_properties, optional_observable_properties):
+            for observable_property_id in observable_property_id_list:
+                dataset.add_observable_property_from_cache(
+                    observable_property_id=observable_property_id,
+                    cache_view=cache_view,
+                    is_primary_key=False,
+                )
+        dataset.add_observation_to_index(observation.id)
+
+        if data is not None:
+            # TODO: this is still incomplete
+            dataset.add_data(data=data)
 
     #### RESTRUCTURE DATASETSERIES ####
 
     def subset_dataset(
         self,
         dataset_label: str,
-        element_groups: dict[str, list[str]],
+        new_dataset_series_label: str,
+        observation_groups: dict[str, list[peh.Observation]],
         dataops_adapter: OutDataOpsInterface,
-        metadata: dict[str, dict[str, str]] | None = None,
-    ) -> bool:
+    ) -> DatasetSeries:
         """
-        Element_groups: Contains the new `Dataset.label` as key, and the list[DatasetSchemaElement.label] to be included in the new `Dataset`
+        observation_groups: Contains the new `Dataset.label` as key, and the list[ObservationId] to be included in the new `Dataset`
         """
 
         dataset = self.get(dataset_label)
         assert dataset is not None
-        return dataset.subset(element_groups, dataops_adapter=dataops_adapter, metadata=metadata)
+        return dataset.subset(new_dataset_series_label, observation_groups, dataops_adapter=dataops_adapter)
 
     def relabel_dataset(
         self, dataset_label: str, element_mapping: dict[str, str], dataops_adapter: OutDataOpsInterface
@@ -624,104 +844,6 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         dataset = self.get(dataset_label)
         assert dataset is not None
         return dataset.relabel(element_mapping, dataops_adapter=dataops_adapter)
-
-    # TEMP: a better API to tackle casting the schema from one underlying object to
-    # another will crystallize when other use cases pop up.
-    def _cast_from_data_import_config(
-        self,
-        data_import_config: peh.DataImportConfig,
-        dataops_adapter: OutDataOpsInterface,
-        cache_view: CacheContainerView,
-    ):
-        """
-        This method transforms a DatasetSeries from a DataLayout view on the data to an
-        Observation view on the data. The transformation is done in place.
-
-        :param data_import_config: Description
-        :type data_import_config: peh.DataImportConfig
-        :param dataops_adapter: DataImportAdapter with `subset()` and `relabel()` functionality
-        :type dataops_adapter: OutDataOpsInterface
-        :param cache_view: Immutable view on the cache associated with a session.
-        :type cache_view: CacheContainerView
-        """
-
-        described_by = self.metadata.get("described_by", None)
-        data_layout = data_import_config.layout
-        if described_by is not None:
-            assert (
-                data_import_config.layout == described_by
-            ), f"`DatasetSeries` {self.identifier} described by `DataLayout`{described_by} and not by provided `DataLayout` {data_layout}"
-
-        layout_section_mapping = data_import_config.section_mapping
-        section_mapping_links = getattr(layout_section_mapping, "section_mapping_links")
-        assert section_mapping_links is not None
-        visited = set()
-
-        for section_mapping_link in section_mapping_links:
-            section = cache_view.get(section_mapping_link.section, "DataLayoutSection")
-            assert section is not None
-            section_label = getattr(section, "ui_label", None)
-            assert section_label is not None, f"section_label for {section_mapping_link.section} is None"
-            dataset = self.get(section_label)
-            assert dataset is not None, f"section_label {section_label} not found in `DatasetSeries`"
-            observable_property_ids = set(dataset.get_observable_property_ids())
-            new_observable_property_ids = set()
-            element_label_mapping = {}
-            element_groups = defaultdict(list)
-            all_metadata = defaultdict(dict)
-
-            for observation_id in section_mapping_link.observation_id_list:
-                assert isinstance(observation_id, str)
-                observation = cache_view.get(observation_id, "Observation")
-                assert observation is not None, f"observation with id {observation_id} is None"
-                observation_design = observation.observation_design
-                if isinstance(observation_design, str):
-                    raise NotImplementedError  # TODO: get from cache
-                elif isinstance(observation_design, TypedLazyProxy):
-                    raise NotImplementedError
-                else:
-                    assert isinstance(
-                        observation_design, peh.ObservationDesign
-                    ), "observation_design for observation {observation.id} has wrong type"
-
-                assert isinstance(observation_design.identifying_observable_property_id_list, list)
-                assert isinstance(observation_design.required_observable_property_id_list, list)
-                assert isinstance(observation_design.optional_observable_property_id_list, list)
-
-                for observable_property_id in itertools.chain(
-                    observation_design.identifying_observable_property_id_list,
-                    observation_design.required_observable_property_id_list,
-                    observation_design.optional_observable_property_id_list,
-                ):
-                    element = dataset.get_schema_element_by_observable_property_id(observable_property_id)
-                    assert element is not None
-                    new_observable_property_ids.add(observable_property_id)
-                    element_label_mapping[element.label] = observable_property_id
-                    element_groups[observation_id].append(element.label)
-                all_metadata[observation_id]["described_by"] = observation_id
-                visited.add(observation_id)
-
-            assert (
-                new_observable_property_ids <= observable_property_ids
-            ), f"The following `ObservableProperty`s could not be found in `DataLayoutSection` {section.id}: {','.join(obs for obs in (new_observable_property_ids - observable_property_ids))}"
-            _ = self.subset_dataset(
-                dataset_label=section_label,
-                element_groups=element_groups,
-                dataops_adapter=dataops_adapter,
-                metadata=all_metadata,
-            )
-
-        for observation_id in section_mapping_link.observation_id_list:
-            _ = self.relabel_dataset(
-                dataset_label=observation_id,
-                element_mapping=element_label_mapping,
-                dataops_adapter=dataops_adapter,
-            )
-
-        # This removes data without a mapping from DataLayout to Observation
-        to_remove = set(self.parts) - visited
-        for dataset_label in to_remove:
-            self.parts.pop(dataset_label)
 
     #### EXTRACT INFO FROM DATASETSERIES ####
 
@@ -747,22 +869,22 @@ class DatasetSeries(Resource, Generic[T_DataType]):
             ret[key] = self.resolve_join(*combo)
         return ret
 
-    def matches(self, dataset: dict[str, T_DataType], adapter) -> bool:
+    def matches_schema(self, raw_data_dict: dict[str, T_DataType], adapter: OutDataOpsInterface) -> bool:
         ret = True
         for dataset_label in self.parts:
-            if dataset_label not in dataset:
+            if dataset_label not in raw_data_dict:
                 return False
-
-        # TODO finish comparison
-        # this_dataset = self.get(dataset_label)
-        # assert this_dataset is not None
-        # type_annotations = this_dataset.get_type_annotations()
-        # dataset_fields = adapter.get_element_labels(dataset[dataset_label])
+            dataset = self[dataset_label]
+            assert dataset is not None
+            raw_data = raw_data_dict[dataset_label]
+            raw_data_labels = set(adapter.get_element_labels(raw_data))
+            ret = set(dataset.get_element_labels()) == raw_data_labels
 
         return ret
 
-    def get_contextual_field_reference_index(self) -> dict[str, dict[str, str]]:
+    def _get_validation_index(self) -> dict[str, dict[str, str]]:
         """
+        # TEMPORARY SOLUTION !!!!
         ObservablePropertyId -> dataset_label, field_label
         We currently assume that each observable_property only occurs once in the DatasetSeries
         """
@@ -775,11 +897,42 @@ class DatasetSeries(Resource, Generic[T_DataType]):
 
         return field_ref_dict
 
+    def get_contextual_field_reference_index(self) -> dict[str, tuple[str, str] | None]:
+        field_ref_dict = {}
+        for dataset_label in self:
+            dataset = self.get(dataset_label)
+            assert dataset is not None
+            for observable_property_id, element_label in dataset.schema._elements_by_observable_property.items():
+                if observable_property_id in field_ref_dict:
+                    field_ref_dict[observable_property_id] = None
+                else:
+                    field_ref_dict[observable_property_id] = (dataset_label, element_label)
+
+        return field_ref_dict
+
+    def get_dataset_by_observation(self, observation_id: str, rebuild_index: bool = False) -> Dataset | None:
+        if rebuild_index:
+            self.build_observation_index()
+        dataset_label = self._obs_index.get(observation_id, None)
+        if dataset_label is None:
+            return
+        return self[dataset_label]
+
     #### CORE FUNCTIONALITY ####
 
     @property
     def data_import_config(self) -> str | None:
         return self.metadata.get("data_import_config", None)
+
+    @property
+    def observations(self) -> dict[str, set[str]]:
+        ret = {}
+        for dataset_label in self:
+            dataset = self[dataset_label]
+            assert dataset is not None
+            ret[dataset_label] = dataset.observations
+
+        return ret
 
     def __len__(self):
         return len(self.parts)

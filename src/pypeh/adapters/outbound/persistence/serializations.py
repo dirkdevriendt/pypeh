@@ -15,11 +15,11 @@ from typing import TYPE_CHECKING, Union, Any, IO, get_type_hints, cast
 
 from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
 from pypeh.core.utils.linkml_schema import get_schema_view
-from peh_model.peh import EntityList, YAMLRoot, DataLayout
+from peh_model.peh import EntityList, YAMLRoot
 from pypeh.core.models.typing import T_Dataclass, IOLike
 
 if TYPE_CHECKING:
-    from typing import Callable, Type, Sequence
+    from typing import Callable, Type
 
 logger = logging.getLogger(__name__)
 
@@ -78,27 +78,6 @@ def validate_pydantic(
     Validate data against a dataclass using Pydantic's TypeAdapter.
     """
     return target_class.model_validate(data)
-
-
-def is_consistent_with_layout(data: dict, layout: DataLayout) -> bool:
-    """
-    Validate newly loaded data against a PEH DataLayout.
-    """
-    if layout.sections is not None:
-        layout_section_names = {section.ui_label for section in layout.sections}  # type: ignore
-    ## FIXME: linkml dataclasses are making the typer behave weirdly
-    return layout_section_names.issuperset(set(data.keys()))
-
-
-def get_layout_inconsistencies(sheet_labels: Sequence[str], layout: DataLayout) -> list[str]:
-    inconsistencies = []
-    if layout.sections is not None:
-        layout_section_names = {section.ui_label for section in layout.sections}  # type: ignore
-        for sheet_label in sheet_labels:
-            if sheet_label not in layout_section_names:
-                inconsistencies.append(sheet_label)
-
-    return inconsistencies
 
 
 class IOAdapter(PersistenceInterface):
@@ -342,16 +321,14 @@ class ExcelIO(IOAdapter):
             raise
         return ExcelIOImpl().load_section(source, section_name=section_name, **kwargs)
 
-    def load(
-        self, source: Union[str, Path, IO[str], IO[bytes]], validation_layout: DataLayout | None = None, **kwargs
-    ) -> dict:
+    def load(self, source: Union[str, Path, IO[str], IO[bytes]], **kwargs) -> dict:
         try:
             from pypeh.adapters.outbound.persistence.dataframe import ExcelIOImpl
         except ImportError:
             message = "The ExcelIO class requires the 'dataframe_adapter' module. Please install it."
             logging.error(message)
             raise
-        return ExcelIOImpl().load(source, validation_layout=validation_layout, **kwargs)
+        return ExcelIOImpl().load(source, **kwargs)
 
     def dump(self, source: str, **kwargs):
         pass

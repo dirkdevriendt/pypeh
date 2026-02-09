@@ -1,17 +1,18 @@
 import importlib
-import peh_model.peh as peh
 
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Callable
 
-from pypeh.core.cache.containers import CacheContainerView
 from pypeh.core.models.internal_data_layout import JoinSpec
-from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface
 
 
 @dataclass(frozen=True, order=True)
 class Node:
+    """
+    A frozen variant of peh.ContextualFieldReference.
+    """
+
     dataset_label: str
     field_label: str
 
@@ -19,7 +20,7 @@ class Node:
 class Delayed:
     def __init__(self, map_fn: Callable, output_dtype):
         self.map_fn = map_fn
-        self.arg_sources = {}
+        self.arg_sources = {}  # refers to kwarg represented by the parent
         self.join_specs: list[list[JoinSpec]] = []
         self.output_dtype = output_dtype
 
@@ -31,45 +32,6 @@ class Delayed:
     @property
     def parents(self) -> list[Node]:
         return list(self.arg_sources.values())
-
-    def build_callable(self, adapter):
-        """
-        adapter: an object implementing adapter.apply_map(...) and adapter.apply_join(...)
-        """
-        map_fn = self.map_fn
-        arg_sources = self.arg_sources
-        join_specs = self.join_specs
-        output_dtype = adapter.map_type(self.output_dtype)
-
-        def _apply(datasets: dict, *, node: Node, base_fields: dict):
-            """
-            datasets: dict of dataset_label → dataset object (lazy or eager)
-            parent_results: mapping from parent Node → computed result for this node
-            """
-            ds = datasets[node.dataset_label]
-            # Apply all joins
-            if join_specs:
-                ds = adapter.apply_joins(
-                    datasets=datasets,
-                    join_specs=join_specs,
-                    node=node,
-                )
-
-            # Build column expressions for the map function
-            kwargs = {}
-            for arg_name, parent_node in arg_sources.items():
-                col_name = parent_node.field_label
-                kwargs[arg_name] = adapter.select_field(ds, col_name)
-
-            # Apply the map
-            base_fields_subset = base_fields.get(node.dataset_label, None)
-            assert base_fields_subset is not None
-            out = adapter.apply_map(ds, map_fn, node.field_label, output_dtype, base_fields_subset, **kwargs)
-            base_fields_subset.append(node.field_label)
-
-            return out
-
-        return _apply
 
 
 @dataclass
@@ -118,7 +80,7 @@ class Graph:
     def add_edge(
         self, parent: Node, child: Node, map_name: str | None = None, join_spec: list[JoinSpec] | None = None
     ) -> None:
-        # TODO: improve map name, referes to kwarg represented by the parent
+        # TODO: improve map name, refers to kwarg represented by the parent
         self._add_node(parent)
         self._add_node(child)
         if map_name is not None:
@@ -179,35 +141,6 @@ class Graph:
 
         return sorted_nodes
 
-    def compile(self, adapter: OutDataOpsInterface) -> ExecutionPlan:
-        sorted_nodes = self.topological_sort()
-        steps: list[ExecutionStep] = []
-
-        for node in sorted_nodes:
-            delayed = self.delayed_fns.get(node)
-            if delayed is None:
-                continue
-
-            compute_fn = delayed.build_callable(adapter)
-            steps.append(ExecutionStep(node=node, compute=compute_fn))
-
-        ret = ExecutionPlan(steps)
-        self.execution_plan = ret
-
-        return ret
-
-    def compute(self, datasets: dict, adapter: OutDataOpsInterface):
-        """
-        datasets are updated in place
-        """
-        if self.execution_plan is None:
-            raise AssertionError("The graph needs to be compiled first to set up an execution plan: `Graph.compile()`")
-
-        base_fields = {label: adapter.get_element_labels(ds) for label, ds in datasets.items()}
-
-        self.execution_plan.run(datasets, base_fields)
-        adapter.collect(datasets)
-
     @staticmethod
     def _extract_callable(path: str) -> Callable:
         assert "." in path, "Could not split path into module and func_name"
@@ -215,61 +148,23 @@ class Graph:
         module = importlib.import_module(module_name)
         return getattr(module, func_name)
 
-    @classmethod
-    def from_observations(
-        cls, observations: list[peh.Observation], cache_view: CacheContainerView, join_spec_mapping: dict | None = None
-    ) -> "Graph":
-        g = cls()
+    def add_calculation_target(
+        self,
+        target: Node,
+        function_name: str,
+        result_dtype: str,
+    ):
+        child = target
+        map_fn = self._extract_callable(function_name)
+        self.add_node(child, node_fn=map_fn, output_dtype=result_dtype)
 
-        nested_entity_paths = [
-            ["observation_design", "identifying_observable_property_id_list"],
-            ["observation_design", "required_observable_property_id_list"],
-            ["observation_design", "optional_observable_property_id_list"],
-        ]
-
-        for observation in observations:
-            observation_id = observation.id
-            for path in nested_entity_paths:
-                for observable_property in cache_view.walk_entity(
-                    entity_id=observation_id, nested_entity_path=path, entity_type="Observation"
-                ):
-                    assert isinstance(observable_property, peh.ObservableProperty)
-                    calculation_designs = observable_property.calculation_designs
-                    if calculation_designs:
-                        child = Node(dataset_label=observation_id, field_label=observable_property.id)
-                        if len(calculation_designs) > 1:
-                            raise NotImplementedError(
-                                "No current implementation for multiple calculation designs linked to a single observable property"
-                            )
-
-                        calculation_design = calculation_designs[0]
-                        assert isinstance(calculation_design, peh.CalculationDesign)
-                        calculation_implementation = calculation_design.calculation_implementation
-                        assert isinstance(calculation_implementation, peh.CalculationImplementation)
-                        # EXTRACT FUNCTION NAME
-                        function_name = calculation_implementation.function_name
-                        assert isinstance(function_name, str)
-                        map_fn = cls._extract_callable(function_name)
-                        output_dtype = observable_property.value_type
-                        assert output_dtype is not None
-                        g.add_node(child, node_fn=map_fn, output_dtype=output_dtype)
-                        assert isinstance(calculation_implementation, peh.CalculationImplementation)
-                        function_kwargs = calculation_implementation.function_kwargs
-                        assert function_kwargs is not None
-                        # MAKE PARENTS FOR ALL KWARGS
-                        for function_kwarg in function_kwargs:
-                            assert isinstance(function_kwarg, peh.CalculationKeywordArgument)
-                            field_ref = function_kwarg.contextual_field_reference
-                            assert isinstance(field_ref, peh.ContextualFieldReference)
-                            dataset_label = field_ref.dataset_label
-                            assert dataset_label is not None
-                            field_label = field_ref.field_label
-                            assert field_label is not None
-                            parent = Node(dataset_label=dataset_label, field_label=field_label)
-                            map_name = function_kwarg.mapping_name
-                            join_spec = None
-                            if join_spec_mapping is not None:
-                                join_spec = join_spec_mapping.get(frozenset([observation_id, dataset_label]), None)
-                            g.add_edge(parent, child, map_name=map_name, join_spec=join_spec)
-
-        return g
+    def add_calculation_source(
+        self,
+        source: Node,
+        target: Node,
+        source_mapping_name: str,
+        join_spec: list[JoinSpec] | None = None,
+    ):
+        child = target
+        parent = source
+        self.add_edge(parent, child, map_name=source_mapping_name, join_spec=join_spec)

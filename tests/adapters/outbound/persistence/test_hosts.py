@@ -6,7 +6,6 @@ from peh_model.peh import EntityList
 
 from pypeh.adapters.outbound.persistence.hosts import (
     FileIO,
-    DirectoryIO,
     LocalStorageProvider,
     S3StorageProvider,
 )
