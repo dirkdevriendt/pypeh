@@ -13,7 +13,6 @@ from pypeh.core.cache.containers import CacheContainer, CacheContainerView
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.constants import ObservablePropertyValueType
 
-
 if TYPE_CHECKING:
     from typing import Any
     from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface
@@ -629,19 +628,32 @@ class Dataset(Resource, Generic[T_DataType]):
             self.part_of._unregister_observation(observation_id)
 
     def add_data(self, data: T_DataType, non_empty_dataset_elements: list[str] | None = None, overwrite: bool = True):
-        # TODO: add datachecks against schema
         if not overwrite:
             if self.data is not None:
                 raise NotImplementedError()
 
-        if len(self.schema) == 0:
-            return False
+        if len(self.schema) > 0:
+            assert non_empty_dataset_elements is not None
 
-        if non_empty_dataset_elements is None:
-            non_empty_dataset_elements = self.get_element_labels()
+            schema_check_result = self.contained_in_schema(non_empty_dataset_elements)
+            assert schema_check_result
 
-        self.data = data
-        self.metadata["non_empty_dataset_elements"] = non_empty_dataset_elements
+            self.metadata["non_empty_dataset_elements"] = non_empty_dataset_elements
+            self.data = data
+
+    #### VERIFY DATASET ####
+
+    def contained_in_schema(self, element_labels: list[str] | None = None) -> bool:
+        """
+        Check if the columns from a set of data can be found amongst the labels defined in the dataset schema
+        """
+        raw_data_labels = set(element_labels)
+        schema_labels = set(self.get_element_labels())
+        label_diff = raw_data_labels.difference(schema_labels)
+        assert (
+            len(label_diff) == 0
+        ), f"Data Schema Error: Element labels {label_diff} are not defined in the dataset schema"
+        return True
 
 
 @dataclass(kw_only=True)
@@ -751,12 +763,10 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         data: T_DataType,
         non_empty_dataset_elements: list[str] | None = None,
         overwrite: bool = True,
-    ) -> bool:
+    ):
         dataset = self.parts.get(dataset_label, None)
         assert dataset is not None
         dataset.add_data(data=data, non_empty_dataset_elements=non_empty_dataset_elements, overwrite=overwrite)
-
-        return True
 
     def add_observable_property(
         self,
