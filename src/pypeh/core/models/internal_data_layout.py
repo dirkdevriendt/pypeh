@@ -495,10 +495,6 @@ class Dataset(Resource, Generic[T_DataType]):
 
     #### EXTRACT INFO FROM DATASET ####
 
-    @property
-    def non_empty(self):
-        return self.metadata.get("non_empty_dataset_elements", None)
-
     def get_element_labels(self) -> list[str]:
         return self.schema.get_element_labels()
 
@@ -627,32 +623,57 @@ class Dataset(Resource, Generic[T_DataType]):
         if self.part_of:
             self.part_of._unregister_observation(observation_id)
 
-    def add_data(self, data: T_DataType, non_empty_dataset_elements: list[str] | None = None, overwrite: bool = True):
+    def add_data(
+        self,
+        data: T_DataType,
+        data_labels: list[str] | None = None,
+        overwrite: bool = True,
+        allow_incomplete: bool = False,
+    ):
         if not overwrite:
             if self.data is not None:
                 raise NotImplementedError()
 
+        if data_labels is None:
+            data_labels = self.get_element_labels()
+
         if len(self.schema) > 0:
-            assert non_empty_dataset_elements is not None
+            assert data_labels is not None
 
-            schema_check_result = self.contained_in_schema(non_empty_dataset_elements)
-            assert schema_check_result
+            if allow_incomplete:
+                assert self.contained_in_schema(data_labels)
+            else:
+                assert self.matches_schema(data_labels)
 
-            self.metadata["non_empty_dataset_elements"] = non_empty_dataset_elements
             self.data = data
 
     #### VERIFY DATASET ####
 
-    def contained_in_schema(self, element_labels: list[str] | None = None) -> bool:
+    def contained_in_schema(self, element_labels: list[str]) -> bool:
         """
         Check if the columns from a set of data can be found amongst the labels defined in the dataset schema
         """
         raw_data_labels = set(element_labels)
         schema_labels = set(self.get_element_labels())
         label_diff = raw_data_labels.difference(schema_labels)
-        assert (
-            len(label_diff) == 0
-        ), f"Data Schema Error: Element labels {label_diff} are not defined in the dataset schema"
+        if len(label_diff) != 0:
+            raise AssertionError(f"Data Schema Error: label(s) {', '.join(label_diff)} not in schema")
+        return len(label_diff) == 0
+
+    def matches_schema(self, element_labels: list[str]) -> bool:
+        """
+        Check if the columns from a set of data match the labels defined in the dataset schema
+        """
+        raw_data_labels = set(element_labels)
+        schema_labels = set(self.get_element_labels())
+        error_str = []
+        undefined_diff = raw_data_labels.difference(schema_labels)
+        if len(undefined_diff) > 0:
+            error_str.append(f"label(s) {', '.join(undefined_diff)} are undefined")
+        missing_diff = schema_labels.difference(raw_data_labels)
+        if len(missing_diff) > 0:
+            error_str.append(f"labels {', '.join(missing_diff)} are missing")
+        assert raw_data_labels == schema_labels, f"Data Schema Error: {', '.join(error_str)}"
         return True
 
 
@@ -761,12 +782,18 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         self,
         dataset_label: str,
         data: T_DataType,
-        non_empty_dataset_elements: list[str] | None = None,
+        data_labels: list[str] | None = None,
         overwrite: bool = True,
+        allow_incomplete: bool = False,
     ):
         dataset = self.parts.get(dataset_label, None)
         assert dataset is not None
-        dataset.add_data(data=data, non_empty_dataset_elements=non_empty_dataset_elements, overwrite=overwrite)
+        dataset.add_data(
+            data=data,
+            data_labels=data_labels,
+            overwrite=overwrite,
+            allow_incomplete=allow_incomplete,
+        )
 
     def add_observable_property(
         self,

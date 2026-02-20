@@ -35,13 +35,13 @@ class DataOpsProtocol(Protocol, Generic[T_DataType]):
 
     def _validate(self, data, config) -> ValidationErrorReport: ...
 
-    def validate(self, dataset, dependent_dataset_series, cache_view) -> ValidationErrorReport: ...
+    def validate(self, dataset, dependent_dataset_series, cache_view, allow_incomplete) -> ValidationErrorReport: ...
 
     def import_data(self, source, config) -> Any: ...
 
     def import_data_layout(self, source, config) -> Any: ...
 
-    def build_validation_config(self, dataset, dataset_series, cache_view) -> ValidationConfig: ...
+    def build_validation_config(self, dataset, dataset_series, cache_view, allow_incomplete) -> ValidationConfig: ...
 
     def build_dependency_graph(self, observations, contextual_field_reference_map, join_spec_mapping, cache_view): ...
 
@@ -482,7 +482,6 @@ class TestValidation(abc.ABC):
         )
         dataset = dataset_series.get("SAMPLETIMEPOINT_BSS")
         assert dataset is not None
-        dataset.metadata["non_empty_dataset_elements"] = ["id_sample", "chol", "chol_lod", "chol_loq"]
         validation_config = adapter.build_validation_config(
             dataset=dataset,
             dataset_series=dataset_series,
@@ -886,9 +885,11 @@ class TestEnrichment(abc.ABC):
         assert isinstance(adapter, OutDataOpsInterface)
         datasets = self.raw_data()
         for dataset_label, dataset in datasets.items():
-            non_empty_dataset_elements = adapter.get_element_labels(dataset)
+            data_labels = adapter.get_element_labels(dataset)
             dataset_series.add_data(
-                dataset_label=dataset_label, data=dataset, non_empty_dataset_elements=non_empty_dataset_elements
+                dataset_label=dataset_label,
+                data=dataset,
+                data_labels=data_labels,
             )
         _ = adapter.enrich(
             source_dataset_series=dataset_series,
