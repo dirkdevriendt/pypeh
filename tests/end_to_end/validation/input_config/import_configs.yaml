@@ -1,0 +1,11 @@
+import_configs:
+- id: peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA
+  layout: peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA
+  section_mapping:
+    section_mapping_links:
+    - section: SAMPLE_METADATA_SECTION_SAMPLE
+      observation_id_list:
+      - peh:OBSERVATION_ADULTS_URINE_LAB
+    - section: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BS
+      observation_id_list:
+      - peh:OBSERVATION_ADULTS_URINE_LAB

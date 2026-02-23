@@ -1,0 +1,251 @@
+import pytest
+
+from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
+from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface, ValidationInterface
+from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.utils import load_entities_from_tree
+from pypeh.core.models.constants import ValidationErrorLevel
+from pypeh.core.models.internal_data_layout import DatasetSeries
+from pypeh.core.models.validation_dto import ValidationConfig
+
+from pypeh.core.models.validation_errors import ValidationErrorReport
+from tests.test_utils.dirutils import get_absolute_path
+
+
+@pytest.mark.end_to_end
+class TestBasicValidationConfig:
+    @pytest.fixture(scope="function")
+    def get_cache(self):
+        source = get_absolute_path("input_config")
+        container = CacheContainerFactory.new()
+        host = DirectoryIO()
+        roots = host.load(source, format="yaml")
+        for root in roots:
+            for entity in load_entities_from_tree(root):
+                container.add(entity)
+        return CacheContainerView(container)
+
+    def get_adapter(self) -> OutDataOpsInterface:
+        try:
+            from pypeh.adapters.outbound.validation.pandera_adapter import validation_adapter as dfops
+
+            return dfops.DataFrameValidationAdapter()  # type: ignore
+        except ImportError:
+            pytest.skip("Necessary modules not installed")
+
+    def test_config_from_dataset(self, get_cache):
+        dataops_adapter_class = ValidationInterface.get_default_adapter_class()
+        validation_adapter = dataops_adapter_class()
+        cache_view = get_cache
+        layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        layout = cache_view.get(layout_id, "DataLayoutLayout")
+        all_sections = set()
+        for section in layout.sections:
+            section_id = section.id
+            if section.id is not None:
+                all_sections.add(section_id)
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            layout,
+            cache_view=cache_view,
+        )
+        assert isinstance(dataset_series, DatasetSeries)
+        # add fake data
+
+        import polars as pl
+
+        fake_dataset_series = {
+            "SAMPLE": pl.DataFrame(
+                {
+                    "id_sample": ["SMP00123"],
+                    "matrix": ["plasma"],
+                }
+            ),
+            "SAMPLETIMEPOINT_BS": pl.DataFrame(
+                {
+                    "id_sample": [
+                        "SMP00123",
+                    ],
+                    "adults_u_crt": [
+                        1.87,
+                    ],
+                }
+            ),
+        }
+        for dataset_label, fake_dataset in fake_dataset_series.items():
+            data_labels = list(fake_dataset.columns)
+            dataset_series.add_data(
+                dataset_label,
+                fake_dataset,
+                data_labels=data_labels,
+            )
+
+        sample_dataset = dataset_series.parts.get("SAMPLE", None)
+        sample_config = validation_adapter.build_validation_config(
+            dataset=sample_dataset,
+            dataset_series=dataset_series,
+            cache_view=cache_view,
+            allow_incomplete=True,
+        )
+        assert isinstance(sample_config, ValidationConfig)
+        assert [c.unique_name for c in sample_config.columns] == ["id_sample", "matrix"]
+        assert sample_config.columns[1].validations[0].name == "check_categorical"
+        assert sample_config.columns[1].validations[0].expression.command == "is_in"
+
+        sample_tp_dataset = dataset_series.parts.get("SAMPLETIMEPOINT_BS", None)
+        sample_tp_config = validation_adapter.build_validation_config(
+            dataset=sample_tp_dataset,
+            dataset_series=dataset_series,
+            cache_view=cache_view,
+        )
+        assert isinstance(sample_tp_config, ValidationConfig)
+        assert [c.unique_name for c in sample_tp_config.columns] == ["id_sample", "adults_u_crt"]
+        assert sample_tp_config.columns[0].required
+        assert not sample_tp_config.columns[0].nullable
+        assert len(sample_tp_config.columns[1].validations) == 3
+        assert sample_tp_config.columns[1].validations[1].name == "min"
+        assert sample_tp_config.columns[1].validations[1].expression.command == "is_greater_than_or_equal_to"
+        assert sample_tp_config.columns[1].validations[2].name == "max"
+        assert sample_tp_config.columns[1].validations[2].expression.command == "is_less_than_or_equal_to"
+
+    def test_config_from_dataset_allow_incomplete(self, get_cache):
+        dataops_adapter_class = ValidationInterface.get_default_adapter_class()
+        validation_adapter = dataops_adapter_class()
+        cache_view = get_cache
+        layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        layout = cache_view.get(layout_id, "DataLayoutLayout")
+        all_sections = set()
+        for section in layout.sections:
+            section_id = section.id
+            if section.id is not None:
+                all_sections.add(section_id)
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            layout,
+            cache_view=cache_view,
+        )
+        assert isinstance(dataset_series, DatasetSeries)
+        # add fake data
+
+        import polars as pl
+
+        fake_dataset_series = {
+            "SAMPLE": pl.DataFrame(
+                {
+                    "id_sample": ["SMP00123"],
+                    "matrix": ["plasma"],
+                }
+            ),
+            "SAMPLETIMEPOINT_BS": pl.DataFrame(
+                {
+                    "id_sample": [
+                        "SMP00123",
+                    ],
+                    "adults_u_crt": [
+                        1.87,
+                    ],
+                }
+            ),
+        }
+        for dataset_label, fake_dataset in fake_dataset_series.items():
+            data_labels = list(fake_dataset.columns)
+            dataset_series.add_data(
+                dataset_label,
+                fake_dataset,
+                data_labels=data_labels,
+            )
+
+        sample_tp_dataset = dataset_series.parts.get("SAMPLETIMEPOINT_BS", None)
+        sample_tp_config = validation_adapter.build_validation_config(
+            dataset=sample_tp_dataset,
+            dataset_series=dataset_series,
+            cache_view=cache_view,
+            allow_incomplete=True,
+        )
+        assert isinstance(sample_tp_config, ValidationConfig)
+        assert [c.unique_name for c in sample_tp_config.columns] == ["id_sample", "adults_u_crt"]
+        assert not sample_tp_config.columns[0].required
+        assert sample_tp_config.columns[0].nullable
+
+    def test_config_from_dataset_with_empty_column(self, get_cache):
+        dataops_adapter_class = ValidationInterface.get_default_adapter_class()
+        validation_adapter = dataops_adapter_class()
+        cache_view = get_cache
+        layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        layout = cache_view.get(layout_id, "DataLayoutLayout")
+        all_sections = set()
+        for section in layout.sections:
+            section_id = section.id
+            if section.id is not None:
+                all_sections.add(section_id)
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            layout,
+            cache_view=cache_view,
+        )
+        assert isinstance(dataset_series, DatasetSeries)
+        # add fake data
+
+        import polars as pl
+
+        fake_dataset_series = {
+            "SAMPLE": pl.DataFrame(
+                {
+                    "id_sample": ["SMP00123"],
+                    "matrix": ["plasma"],
+                }
+            ),
+            "SAMPLETIMEPOINT_BS": pl.DataFrame(
+                {
+                    "id_sample": [
+                        "SMP00123",
+                    ],
+                    "adults_u_crt": [
+                        None,
+                    ],
+                }
+            ),
+        }
+        for dataset_label, fake_dataset in fake_dataset_series.items():
+            data_labels = list(fake_dataset.columns)
+            dataset_series.add_data(
+                dataset_label,
+                fake_dataset,
+                data_labels=data_labels,
+            )
+
+        sample_tp_dataset = dataset_series["SAMPLETIMEPOINT_BS"]
+
+        allow_incomplete = True
+        sample_tp_config_incomplete = validation_adapter.build_validation_config(
+            dataset=sample_tp_dataset,
+            dataset_series=dataset_series,
+            cache_view=cache_view,
+            allow_incomplete=allow_incomplete,
+        )
+        assert isinstance(sample_tp_config_incomplete, ValidationConfig)
+        assert [c.unique_name for c in sample_tp_config_incomplete.columns] == ["id_sample", "adults_u_crt"]
+        ret = validation_adapter.validate(
+            dataset=sample_tp_dataset,
+            dependent_dataset_series=dataset_series,
+            cache_view=cache_view,
+            allow_incomplete=allow_incomplete,
+        )
+        assert isinstance(ret, ValidationErrorReport)
+        assert ret.error_counts[ValidationErrorLevel.ERROR] == 0
+
+        allow_incomplete = False
+        sample_tp_config_complete = validation_adapter.build_validation_config(
+            dataset=sample_tp_dataset,
+            dataset_series=dataset_series,
+            cache_view=cache_view,
+            allow_incomplete=allow_incomplete,
+        )
+        assert isinstance(sample_tp_config_complete, ValidationConfig)
+        assert [c.unique_name for c in sample_tp_config_complete.columns] == ["id_sample", "adults_u_crt"]
+
+        ret = validation_adapter.validate(
+            dataset=sample_tp_dataset,
+            dependent_dataset_series=dataset_series,
+            cache_view=cache_view,
+            allow_incomplete=allow_incomplete,
+        )
+        assert isinstance(ret, ValidationErrorReport)
+        assert ret.error_counts[ValidationErrorLevel.ERROR] == 1

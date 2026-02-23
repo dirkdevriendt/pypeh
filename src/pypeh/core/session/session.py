@@ -23,7 +23,12 @@ from pypeh.core.models.validation_errors import (
     ValidationErrorReportCollection,
 )
 from pypeh.core.models.internal_data_layout import DatasetSeries, Dataset
-from pypeh.core.interfaces.outbound.dataops import DataEnrichmentInterface, ValidationInterface, DataImportInterface
+from pypeh.core.interfaces.outbound.dataops import (
+    OutDataOpsInterface,
+    DataEnrichmentInterface,
+    ValidationInterface,
+    DataImportInterface,
+)
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.session.connections import ConnectionManager
 from pypeh.core.utils.resolve_identifiers import is_url
@@ -143,6 +148,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
             case "data_import":
                 adapter = ValidationInterface.get_default_adapter_class()
                 self._adapter_mapping[interface_functionality] = adapter
+            case "dataops":
+                adapter = OutDataOpsInterface.get_default_adapter_class()
+                self._adapter_mapping[interface_functionality] = adapter
             case "enrichment":
                 adapter = DataEnrichmentInterface.get_default_adapter_class()
                 self._adapter_mapping[interface_functionality] = adapter
@@ -224,6 +232,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         data_import_config: peh.DataImportConfig,
         file_format: str | None = None,
         connection_label: str | None = None,
+        allow_incomplete: bool = False,
     ) -> DatasetSeries[DataFrame]:
         cache_view = CacheContainerView(self.cache)
         assert isinstance(data_import_config, peh.DataImportConfig)
@@ -246,9 +255,12 @@ class Session(Generic[T_AdapterType, T_DataType]):
         import_adapter = self.get_adapter("data_import")
         for raw_dataset_label, raw_dataset in data_dict.items():
             assert isinstance(import_adapter, DataImportInterface)
-            non_empty_dataset_elements = import_adapter.get_element_labels(raw_dataset)
+            data_labels = import_adapter.get_element_labels(raw_dataset)
             result = dataset_series.add_data(
-                dataset_label=raw_dataset_label, data=raw_dataset, non_empty_dataset_elements=non_empty_dataset_elements
+                dataset_label=raw_dataset_label,
+                data=raw_dataset,
+                data_labels=data_labels,
+                allow_incomplete=allow_incomplete,
             )
             if result is not None:
                 raise RuntimeError(f"{result.type}: {result.message}")
@@ -316,6 +328,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         self,
         data: Dataset[DataFrame],
         dependent_data: DatasetSeries[DataFrame] | None = None,
+        allow_incomplete: bool = False,
     ) -> ValidationErrorReport:
         assert data.data is not None, f"No data associated with {data.label}"
         cache_view = CacheContainerView(self.cache)
@@ -325,11 +338,13 @@ class Session(Generic[T_AdapterType, T_DataType]):
             dataset=data,
             dependent_dataset_series=dependent_data,
             cache_view=cache_view,
+            allow_incomplete=allow_incomplete,
         )
 
     def validate_tabular_dataset_series(
         self,
         dataset_series: DatasetSeries[DataFrame],
+        allow_incomplete: bool = False,
     ) -> ValidationErrorReportCollection:
         validation_result_dict = ValidationErrorReportCollection()
         for dataset_label in dataset_series:
@@ -337,7 +352,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
             assert dataset is not None
             if dataset.data is None:
                 continue
-            validation_result = self.validate_tabular_dataset(data=dataset, dependent_data=dataset_series)
+            validation_result = self.validate_tabular_dataset(
+                data=dataset, dependent_data=dataset_series, allow_incomplete=allow_incomplete
+            )
             assert isinstance(
                 validation_result, ValidationErrorReport
             ), "validation_result in `Session.validate_tabular_dataset_series` should be a`ValidationErrorReport`"
@@ -352,6 +369,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         self,
         data_layout: peh.DataLayout,
         sections_to_validate: list[str] | None = None,
+        allow_incomplete: bool = False,
     ) -> dict[str, ValidationConfig]:
         ret: dict[str, ValidationConfig] = {}
         cache_view = CacheContainerView(self.cache)
@@ -369,13 +387,11 @@ class Session(Generic[T_AdapterType, T_DataType]):
         for dataset_label in iterator:
             dataset = dataset_series[dataset_label]
             assert dataset is not None
-            dataset.metadata["non_empty_dataset_elements"] = (
-                dataset.get_element_labels()
-            )  # temporary fix, non_empty needs to be removed
             config = validation_interface.build_validation_config(
                 dataset=dataset,
                 dataset_series=dataset_series,
                 cache_view=cache_view,
+                allow_incomplete=allow_incomplete,
             )
             ret[dataset_label] = config
 

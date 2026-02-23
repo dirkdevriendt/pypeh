@@ -10,6 +10,20 @@ observations:
     - matrix
     - chol
 observable_properties:
+- id: id_sample
+  unique_name: id_sample
+  name: id_sample
+  ui_label: id_sample
+  value_type: integer
+  categorical: false
+  multivalued: false
+  default_unit: UNITLESS
+  default_required: true
+  default_zeroallowed: true
+  default_observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  short_name: id_sample
 - id: matrix
   unique_name: matrix
   name: matrix

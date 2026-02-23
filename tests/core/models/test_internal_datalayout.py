@@ -44,12 +44,8 @@ class TestInternalDataLayout:
         assert isinstance(dataset, Dataset)
         result_success = dataset.contained_in_schema(["id_sample", "adults_u_crt"])
         assert result_success
-        with pytest.raises(AssertionError) as assertion_error:
+        with pytest.raises(AssertionError, match=r".* my_imaginary_friend .*"):
             dataset.contained_in_schema(["id_sample", "adults_u_crt", "my_imaginary_friend"])
-        assert (
-            str(assertion_error.value)
-            == "Data Schema Error: Element labels {'my_imaginary_friend'} are not defined in the dataset schema"
-        )
 
     def test_dataset_series(self, get_cache):
         cache_view = get_cache
@@ -99,10 +95,7 @@ class TestInternalDataLayout:
 
         with pytest.raises(AssertionError) as assertion_error:
             dataset_series.add_data("SAMPLETIMEPOINT_BS", dataset_failure, list(dataset_failure.keys()))
-        assert (
-            str(assertion_error.value)
-            == "Data Schema Error: Element labels {'my_imaginary_friend'} are not defined in the dataset schema"
-        )
+        assert str(assertion_error.value) == "Data Schema Error: label(s) my_imaginary_friend are undefined"
 
         dataset_success = {
             "id_sample": [1, 2, 3],

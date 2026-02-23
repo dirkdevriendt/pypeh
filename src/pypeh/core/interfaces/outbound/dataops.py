@@ -41,6 +41,16 @@ class OutDataOpsInterface(Generic[T_DataType]):
         pass
     """
 
+    @classmethod
+    def get_default_adapter_class(cls):
+        try:
+            adapter_module = importlib.import_module("pypeh.adapters.outbound.dataops.dataframe_adapter")
+            adapter_class = getattr(adapter_module, "DataFrameAdapter")
+        except Exception as e:
+            logger.error("Exception encountered while attempting to import dataops DataFrameAdapter")
+            raise e
+        return adapter_class
+
     @abstractmethod
     def _join_data(
         self,
@@ -61,6 +71,14 @@ class OutDataOpsInterface(Generic[T_DataType]):
 
     @abstractmethod
     def get_element_values(self, data: T_DataType, element_label: str, as_list=True) -> set[str] | list[str]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def check_element_has_empty_values(self, data: T_DataType, element_label: str) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def check_element_has_only_empty_values(self, data: T_DataType, element_label: str) -> bool:
         raise NotImplementedError
 
     @abstractmethod
@@ -108,50 +126,72 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         type_annotations: dict[str, dict[str, ObservablePropertyValueType]],
         cache_view: CacheContainerView,
         dataset_label: str | None = None,
+        column_has_only_empty_values: bool = False,
+        allow_incomplete: bool = False,
     ) -> validation_dto.ColumnValidation:
+        # Set default validation check applicability flags
+        apply_required_check = True
+        apply_nullable_check = True
+        apply_property_validation = True
+        # Adapt the flags in accordance with the user request, project config and data
+        if allow_incomplete:
+            apply_required_check = False
+            if column_has_only_empty_values:
+                apply_nullable_check = False
+                # apply_property_validation = False
+
         validations = []
         observable_property_id = dataset_schema_element.observable_property_id
         observable_property = cache_view.get(observable_property_id, "ObservableProperty")
         assert isinstance(
             observable_property, peh.ObservableProperty
         ), f"ObservableProperty with id {observable_property_id} not found"
-        required = observable_property.default_required
-        nullable = not required
 
-        if validation_designs := getattr(observable_property, "validation_designs", None):
-            validations.extend(
-                [
-                    validation_dto.ValidationDesign.from_peh(
-                        vd, type_annotations=type_annotations, dataset_label=dataset_label
-                    )
-                    for vd in validation_designs
-                ]
-            )
-        if value_metadata := getattr(observable_property, "value_metadata", None):
-            validations.extend(
-                validation_dto.ValidationDesign.list_from_metadata(
-                    value_metadata, type_annotations=type_annotations, dataset_label=dataset_label
+        if apply_required_check:
+            required = observable_property.default_required
+        else:
+            required = False
+
+        if apply_nullable_check:
+            nullable = not required  # required and nullable are now checking the same thing
+        else:
+            nullable = True
+
+        if apply_property_validation:
+            if validation_designs := getattr(observable_property, "validation_designs", None):
+                validations.extend(
+                    [
+                        validation_dto.ValidationDesign.from_peh(
+                            vd, type_annotations=type_annotations, dataset_label=dataset_label
+                        )
+                        for vd in validation_designs
+                    ]
                 )
-            )
-        if getattr(observable_property, "categorical", None):
-            value_options = getattr(observable_property, "value_options", None)
-            assert (
-                value_options is not None
-            ), f"ObservableProperty {observable_property} lacks `value_options` for categorical type"
-            assert dataset_schema_element.data_type == ObservablePropertyValueType.STRING
-            validation_arg_values: list[str] = [str(vo.key) for vo in value_options]
-            expr = validation_dto.ValidationExpression(
-                command="is_in",
-                arg_values=validation_arg_values,
-                arg_columns=None,
-                subject=None,
-            )
-            validation = validation_dto.ValidationDesign(
-                name="check_categorical",
-                error_level=validation_dto.ValidationErrorLevel.ERROR,
-                expression=expr,
-            )
-            validations.append(validation)
+            if value_metadata := getattr(observable_property, "value_metadata", None):
+                validations.extend(
+                    validation_dto.ValidationDesign.list_from_metadata(
+                        value_metadata, type_annotations=type_annotations, dataset_label=dataset_label
+                    )
+                )
+            if getattr(observable_property, "categorical", None):
+                value_options = getattr(observable_property, "value_options", None)
+                assert (
+                    value_options is not None
+                ), f"ObservableProperty {observable_property} lacks `value_options` for categorical type"
+                assert dataset_schema_element.data_type == ObservablePropertyValueType.STRING
+                validation_arg_values: list[str] = [str(vo.key) for vo in value_options]
+                expr = validation_dto.ValidationExpression(
+                    command="is_in",
+                    arg_values=validation_arg_values,
+                    arg_columns=None,
+                    subject=None,
+                )
+                validation = validation_dto.ValidationDesign(
+                    name="check_categorical",
+                    error_level=validation_dto.ValidationErrorLevel.ERROR,
+                    expression=expr,
+                )
+                validations.append(validation)
 
         assert dataset_schema_element.data_type.value != "decimal"
         # transformation using context_magic
@@ -169,17 +209,28 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         dataset: Dataset,
         type_annotations: dict[str, dict[str, ObservablePropertyValueType]],
         cache_view: CacheContainerView,
+        allow_incomplete: bool = False,
     ) -> list[validation_dto.ColumnValidation]:
         column_validations: list[validation_dto.ColumnValidation] = []
-        non_empty_columns = dataset.non_empty
-        assert non_empty_columns is not None
-        for non_empty_column in non_empty_columns:
-            dataset_schema_element = dataset.get_schema_element_by_label(non_empty_column)
+        column_labels = dataset.get_element_labels()
+        assert column_labels is not None
+        for column_label in column_labels:
+            dataset_schema_element = dataset.get_schema_element_by_label(column_label)
             assert dataset_schema_element is not None
+            # Check whether the dataset has data in the column
+            if dataset.data is None:
+                column_has_only_empty_values = True
+            else:
+                column_has_only_empty_values = self.check_element_has_only_empty_values(
+                    data=dataset.data,
+                    element_label=column_label,
+                )
             column_validation = self.build_column_validation(
                 dataset_schema_element=dataset_schema_element,
                 cache_view=cache_view,
                 type_annotations=type_annotations,
+                column_has_only_empty_values=column_has_only_empty_values,
+                allow_incomplete=allow_incomplete,
             )
             column_validations.append(column_validation)
 
@@ -258,6 +309,7 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         dataset: Dataset,
         dataset_series: DatasetSeries | None = None,
         cache_view: CacheContainerView | None = None,
+        allow_incomplete: bool = False,
     ) -> validation_dto.ValidationConfig:
         column_validations = []
         dataset_validations = []
@@ -276,6 +328,7 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
             dataset=dataset,
             type_annotations=type_annotations,
             cache_view=cache_view,
+            allow_incomplete=allow_incomplete,
         )
         dependent_contextual_field_references = self.merge_contextual_field_reference_dependencies(column_validations)
         dataset_validations = self.build_dataset_level_validations(
@@ -297,6 +350,7 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         dataset: Dataset[T_DataType],
         dependent_dataset_series: DatasetSeries[T_DataType] | None = None,
         cache_view: CacheContainerView | None = None,
+        allow_incomplete: bool = False,
     ) -> ValidationErrorReport:
         assert dataset.data is not None
         assert cache_view is not None
@@ -304,9 +358,10 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         assert to_validate is not None
 
         validation_config = self.build_validation_config(
-            dataset,
-            dependent_dataset_series,
-            cache_view,
+            dataset=dataset,
+            dataset_series=dependent_dataset_series,
+            cache_view=cache_view,
+            allow_incomplete=allow_incomplete,
         )
         # check whether data requires join to perform validation (cross DataLayoutSection validation)
         join_required = False

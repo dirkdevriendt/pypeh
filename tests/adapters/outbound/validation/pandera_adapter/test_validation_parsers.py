@@ -354,7 +354,6 @@ class TestPehToDto:
             label="matrix_chol",
             schema=matrix_chol_schema,
         )
-        dataset.metadata["non_empty_dataset_elements"] = ["matrix", "chol"]
 
         check_command_cache_view = get_check_command_cache
         vc_check = adapter.build_validation_config(dataset=dataset, cache_view=check_command_cache_view)

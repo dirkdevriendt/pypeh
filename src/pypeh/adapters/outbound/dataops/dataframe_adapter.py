@@ -27,6 +27,12 @@ class DataFrameAdapter(OutDataOpsInterface[pl.DataFrame]):
             return data.get_column(element_label).to_list()
         return set(data.get_column(element_label))
 
+    def check_element_has_empty_values(self, data: pl.DataFrame, element_label: str) -> bool:
+        return data.select(pl.col(element_label).is_null().any()).item()
+
+    def check_element_has_only_empty_values(self, data: pl.DataFrame, element_label: str) -> bool:
+        return data.select(pl.col(element_label).is_null().all()).item()
+
     def subset(
         self,
         data: pl.DataFrame,
