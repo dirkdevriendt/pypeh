@@ -247,9 +247,11 @@ class Session(Generic[T_AdapterType, T_DataType]):
         for raw_dataset_label, raw_dataset in data_dict.items():
             assert isinstance(import_adapter, DataImportInterface)
             non_empty_dataset_elements = import_adapter.get_element_labels(raw_dataset)
-            _ = dataset_series.add_data(
+            result = dataset_series.add_data(
                 dataset_label=raw_dataset_label, data=raw_dataset, non_empty_dataset_elements=non_empty_dataset_elements
             )
+            if result is not None:
+                raise RuntimeError(f"{result.type}: {result.message}")
 
         return dataset_series
 

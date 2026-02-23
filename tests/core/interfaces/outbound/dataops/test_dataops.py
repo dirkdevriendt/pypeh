@@ -886,7 +886,10 @@ class TestEnrichment(abc.ABC):
         assert isinstance(adapter, OutDataOpsInterface)
         datasets = self.raw_data()
         for dataset_label, dataset in datasets.items():
-            dataset_series.add_data(dataset_label=dataset_label, data=dataset)
+            non_empty_dataset_elements = adapter.get_element_labels(dataset)
+            dataset_series.add_data(
+                dataset_label=dataset_label, data=dataset, non_empty_dataset_elements=non_empty_dataset_elements
+            )
         _ = adapter.enrich(
             source_dataset_series=dataset_series,
             target_observations=[cache_view.get("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "Observation")],

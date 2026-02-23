@@ -32,6 +32,25 @@ class TestInternalDataLayout:
 
         return CacheContainerView(container)
 
+    def test_dataset_contained_in_schema(self, get_cache):
+        cache_view = get_cache
+        layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        layout = get_cache.get(layout_id, "DataLayoutLayout")
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            layout,
+            cache_view=cache_view,
+        )
+        dataset = dataset_series.parts.get("SAMPLETIMEPOINT_BS")
+        assert isinstance(dataset, Dataset)
+        result_success = dataset.contained_in_schema(["id_sample", "adults_u_crt"])
+        assert result_success
+        with pytest.raises(AssertionError) as assertion_error:
+            dataset.contained_in_schema(["id_sample", "adults_u_crt", "my_imaginary_friend"])
+        assert (
+            str(assertion_error.value)
+            == "Data Schema Error: Element labels {'my_imaginary_friend'} are not defined in the dataset schema"
+        )
+
     def test_dataset_series(self, get_cache):
         cache_view = get_cache
         layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
@@ -61,6 +80,37 @@ class TestInternalDataLayout:
         for key, subschema in expected_schema.items():
             for subkey, value in subschema.items():
                 assert schema[key][subkey] == value
+
+    def test_dataset_series_add_data(self, get_cache):
+        cache_view = get_cache
+        layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        layout = get_cache.get(layout_id, "DataLayoutLayout")
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            layout,
+            cache_view=cache_view,
+        )
+        assert isinstance(dataset_series, DatasetSeries)
+
+        dataset_failure = {
+            "id_sample": [1, 2, 3],
+            "adults_u_crt": [0.132, 1.452, 24.51],
+            "my_imaginary_friend": [0.132, 1.452, 24.51],
+        }
+
+        with pytest.raises(AssertionError) as assertion_error:
+            dataset_series.add_data("SAMPLETIMEPOINT_BS", dataset_failure, list(dataset_failure.keys()))
+        assert (
+            str(assertion_error.value)
+            == "Data Schema Error: Element labels {'my_imaginary_friend'} are not defined in the dataset schema"
+        )
+
+        dataset_success = {
+            "id_sample": [1, 2, 3],
+            "adults_u_crt": [0.132, 1.452, 24.51],
+        }
+
+        result_success = dataset_series.add_data("SAMPLETIMEPOINT_BS", dataset_success, list(dataset_success.keys()))
+        assert result_success is None
 
     def test_apply_context(self, get_cache):
         cache_view = get_cache
