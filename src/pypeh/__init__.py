@@ -6,11 +6,13 @@ except ImportError:
 
 from pypeh.core.session.session import Session
 from pypeh.core.models.settings import LocalFileConfig, S3Config
+from pypeh.core.utils.namespaces import NamespaceManager
 
 __all__ = [
     "Session",
     "LocalFileConfig",
     "S3Config",
+    "NamespaceManager",
 ]
 
 try:
