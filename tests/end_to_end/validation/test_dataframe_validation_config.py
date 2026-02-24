@@ -16,7 +16,7 @@ from tests.test_utils.dirutils import get_absolute_path
 class TestBasicValidationConfig:
     @pytest.fixture(scope="function")
     def get_cache(self):
-        source = get_absolute_path("input_config")
+        source = get_absolute_path("input/validation_config")
         container = CacheContainerFactory.new()
         host = DirectoryIO()
         roots = host.load(source, format="yaml")
@@ -249,3 +249,79 @@ class TestBasicValidationConfig:
         )
         assert isinstance(ret, ValidationErrorReport)
         assert ret.error_counts[ValidationErrorLevel.ERROR] == 1
+
+    def test_allow_incomplete_with_mixed_column(self, get_cache):
+        dataops_adapter_class = ValidationInterface.get_default_adapter_class()
+        validation_adapter = dataops_adapter_class()
+        cache_view = get_cache
+        layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        layout = cache_view.get(layout_id, "DataLayoutLayout")
+        all_sections = set()
+        for section in layout.sections:
+            section_id = section.id
+            if section.id is not None:
+                all_sections.add(section_id)
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            layout,
+            cache_view=cache_view,
+        )
+        assert isinstance(dataset_series, DatasetSeries)
+        # add fake data
+
+        import polars as pl
+
+        fake_dataset_series = {
+            "SAMPLE": pl.DataFrame(
+                {
+                    "id_sample": [
+                        "SMP00123",
+                        "SMP00124",
+                    ],
+                    "matrix": ["UM", "UM"],
+                }
+            ),
+            "SAMPLETIMEPOINT_BS": pl.DataFrame(
+                {
+                    "id_sample": [
+                        "SMP00123",
+                        "SMP00124",
+                    ],
+                    "adults_u_crt": [
+                        None,
+                        -1.0,
+                    ],
+                }
+            ),
+        }
+        for dataset_label, fake_dataset in fake_dataset_series.items():
+            data_labels = list(fake_dataset.columns)
+            dataset_series.add_data(
+                dataset_label,
+                fake_dataset,
+                data_labels=data_labels,
+            )
+
+        sample_tp_dataset = dataset_series["SAMPLETIMEPOINT_BS"]
+
+        allow_incomplete = True
+        sample_tp_config_incomplete = validation_adapter.build_validation_config(
+            dataset=sample_tp_dataset,
+            dataset_series=dataset_series,
+            cache_view=cache_view,
+            allow_incomplete=allow_incomplete,
+        )
+        assert isinstance(sample_tp_config_incomplete, ValidationConfig)
+        assert [c.unique_name for c in sample_tp_config_incomplete.columns] == ["id_sample", "adults_u_crt"]
+        assert len(sample_tp_config_incomplete.columns) == 2
+        for column in sample_tp_config_incomplete.columns:
+            if column.unique_name == "adults_u_crt":
+                assert column.validations is not None
+                assert len(column.validations) == 3
+        ret = validation_adapter.validate(
+            dataset=sample_tp_dataset,
+            dependent_dataset_series=dataset_series,
+            cache_view=cache_view,
+            allow_incomplete=allow_incomplete,
+        )
+        assert isinstance(ret, ValidationErrorReport)
+        assert ret.error_counts[ValidationErrorLevel.ERROR] == 2

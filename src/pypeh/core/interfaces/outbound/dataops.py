@@ -138,7 +138,7 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
             apply_required_check = False
             if column_has_only_empty_values:
                 apply_nullable_check = False
-                # apply_property_validation = False
+                apply_property_validation = False
 
         validations = []
         observable_property_id = dataset_schema_element.observable_property_id
