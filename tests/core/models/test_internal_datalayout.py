@@ -129,6 +129,18 @@ class TestInternalDataLayout:
         assert contextual_field_reference.dataset_label == "SAMPLETIMEPOINT_BS"
         assert contextual_field_reference.field_label == "adults_u_crt"
 
+    def test_one_observation_to_many_datasets(self):
+        ds = DatasetSeries(label="test")
+        with pytest.raises(AssertionError, match=r".*obs_test.*"):
+            ds._register_observation(observation_id="obs_test", dataset_label="test")
+        d = Dataset(label="test-dataset")
+        d2 = Dataset(label="test-dataset-2")
+        ds.parts[d.label] = d
+        ds.parts[d2.label] = d2
+        ds._register_observation(observation_id="obs_test", dataset_label=d.label)
+        with pytest.raises(ValueError, match=r".*obs_test.*"):
+            ds._register_observation(observation_id="obs_test", dataset_label=d2.label)
+
 
 class TestJoinConditions:
     def test_left_to_right_join(self):

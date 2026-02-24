@@ -614,9 +614,9 @@ class Dataset(Resource, Generic[T_DataType]):
         )
 
     def add_observation_to_index(self, observation_id: str):
-        self.observations.add(observation_id)
         if self.part_of:
             self.part_of._register_observation(observation_id, self.label)
+        self.observations.add(observation_id)
 
     def remove_observation_from_index(self, observation_id: str):
         self.observations.remove(observation_id)
@@ -688,10 +688,21 @@ class DatasetSeries(Resource, Generic[T_DataType]):
     }
 
     def build_observation_index(self):
-        idx = {obs: dataset.label for dataset in self.parts.values() for obs in dataset.observations}
-        self._obs_index = idx
+        for dataset_label in self.parts:
+            dataset = self[dataset_label]
+            assert dataset is not None
+            for obs in dataset.observations:
+                self._register_observation(obs, dataset_label)
 
     def _register_observation(self, observation_id: str, dataset_label: str):
+        if observation_id in self._obs_index:
+            raise ValueError(
+                f"Observation with id {observation_id} is already registered for dataset with label {dataset_label}."
+                " A single observation cannot be split across multiple datasets"
+            )
+        assert (
+            dataset_label in self.parts
+        ), f"Failed to register observation with id {observation_id}. Could not find dataset with label {dataset_label}"
         self._obs_index[observation_id] = dataset_label
 
     def _unregister_observation(self, observation_id: str):
