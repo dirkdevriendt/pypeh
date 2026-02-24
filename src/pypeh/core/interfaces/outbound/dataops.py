@@ -180,6 +180,7 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
                 ), f"ObservableProperty {observable_property} lacks `value_options` for categorical type"
                 assert dataset_schema_element.data_type == ObservablePropertyValueType.STRING
                 validation_arg_values: list[str] = [str(vo.key) for vo in value_options]
+                # TODO: ADD CUSTOM CHECKS ON CATEGORICAL VARIABLES HERE
                 expr = validation_dto.ValidationExpression(
                     command="is_in",
                     arg_values=validation_arg_values,
@@ -190,6 +191,7 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
                     name="check_categorical",
                     error_level=validation_dto.ValidationErrorLevel.ERROR,
                     expression=expr,
+                    error_message=None,  # CUSTOM ERROR MESSAGE CANNOT BE PROVIDED OR SHOULD BE HARDCODED
                 )
                 validations.append(validation)
 
@@ -207,6 +209,7 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
                     name="check_trailing_spaces",
                     error_level=validation_dto.ValidationErrorLevel.ERROR,
                     expression=expr,
+                    error_message="Trailing/leading spaces were detected. Remove unnecessary white spaces.",
                 )
                 validations.append(validation)
 

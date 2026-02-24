@@ -87,10 +87,15 @@ def parse_validation_expression(expression: ValidationExpression) -> Mapping:
 
 
 def parse_validation_design(validation_design: ValidationDesign) -> Mapping:
-    return {
+    ret = {
         "name": validation_design.name,
         "error_level": validation_design.error_level.name.lower(),
-    } | dict(parse_validation_expression(validation_design.expression))
+    }
+    if validation_design.error_message is not None:
+        ret["error_msg"] = validation_design.error_message
+    ret |= dict(parse_validation_expression(validation_design.expression))
+
+    return ret
 
 
 def parse_columns(columns: Sequence[ColumnValidation]) -> List:

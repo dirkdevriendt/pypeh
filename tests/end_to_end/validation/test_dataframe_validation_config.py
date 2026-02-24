@@ -1,4 +1,5 @@
 import pytest
+import re
 
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
 from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface, ValidationInterface
@@ -324,4 +325,13 @@ class TestBasicValidationConfig:
             allow_incomplete=allow_incomplete,
         )
         assert isinstance(ret, ValidationErrorReport)
+        # CUSTOM ERROR MESSAGE WAS ADDED
+        # CHECK IF EACH VALIDATIONERROR HAS GOT A PROPER MESSAGE
+        patterns = [r"IF matrix IS\s*\([^)]*\)", r"^The column\(s\) under validation"]
+        compiled = [re.compile(p) for p in patterns]
+        groups = ret.groups
+        for group in groups:
+            for error in group.errors:
+                message = error.message
+                assert any(p.search(message) for p in compiled), f"Unexpected error message: {message}"
         assert ret.error_counts[ValidationErrorLevel.ERROR] == 2
