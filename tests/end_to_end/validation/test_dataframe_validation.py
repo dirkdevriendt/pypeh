@@ -54,6 +54,47 @@ class TestDatasetValidation:
         assert isinstance(identifying_property_values[0][0], int)
         assert identifying_property_values[0][0] == 31
 
+    def test_end_to_end_dataframe_validation_trailing_spaces(self, monkeypatch):
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
+        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input/test_01.1"))
+
+        session = Session()
+        session.load_persisted_cache(source="config")
+
+        data_import_config = session.cache.get(
+            "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataImportConfig"
+        )
+        assert isinstance(data_import_config, peh.DataImportConfig)
+
+        excel_path = "validation_test_01.1_data.xlsx"
+        dataset_series = session.load_tabular_dataset_series(
+            source=excel_path,
+            data_import_config=data_import_config,
+        )
+        assert isinstance(dataset_series, DatasetSeries)
+        dataset_label = "SAMPLE"
+        report_to_check = session.validate_tabular_dataset(
+            dataset_series.parts[dataset_label],
+            dependent_data=dataset_series,
+        )
+
+        assert isinstance(report_to_check, ValidationErrorReport)
+        assert report_to_check.total_errors == 3
+        assert report_to_check.groups[-1].errors[-1].type == "check trailing spaces"
+        assert report_to_check.groups[-1].errors[-2].type == "check categorical"
+        assert report_to_check.groups[-1].errors[-3].type == "check trailing spaces"
+        errors = report_to_check.groups[-1].errors
+        locations = errors[-1].locations
+        assert locations is not None
+        assert len(locations) == 1
+        assert isinstance(locations[-1], EntityLocation)
+        identifying_property_values = locations[-1].identifying_property_values
+        assert len(identifying_property_values) == 1
+        assert isinstance(identifying_property_values[0], tuple)
+        assert len(identifying_property_values[0]) == 1
+        assert isinstance(identifying_property_values[0][0], str)
+        assert identifying_property_values[0][0] == " a31"
+
 
 @pytest.mark.end_to_end
 class TestRoundTripDataset:

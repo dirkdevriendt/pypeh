@@ -103,3 +103,18 @@ def decimals_precision(
     return data.lazyframe.select(
         pl.col(data.key).cast(pl.String).str.split(".").list.get(1).str.len_chars().le(arg_values[0])
     )
+
+
+def trailing_spaces(
+    data: pa.PolarsData,
+    arg_values: Sequence[Any] | None = None,
+    arg_columns: Sequence[str] | None = None,
+    subject: Sequence[str] | None = None,
+) -> pl.LazyFrame:
+    return data.lazyframe.select(
+        (
+            (pl.col(data.key).cast(pl.String).str.starts_with(" ")).or_(
+                pl.col(data.key).cast(pl.String).str.ends_with(" ")
+            )
+        ).not_()
+    )
