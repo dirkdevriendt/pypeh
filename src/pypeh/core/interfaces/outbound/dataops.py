@@ -193,6 +193,23 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
                 )
                 validations.append(validation)
 
+            if dataset_schema_element.data_type in [
+                ObservablePropertyValueType.CATEGORICAL,
+                ObservablePropertyValueType.STRING,
+            ]:
+                expr = validation_dto.ValidationExpression(
+                    command="trailing_spaces",
+                    arg_values=None,
+                    arg_columns=None,
+                    subject=None,
+                )
+                validation = validation_dto.ValidationDesign(
+                    name="check_trailing_spaces",
+                    error_level=validation_dto.ValidationErrorLevel.ERROR,
+                    expression=expr,
+                )
+                validations.append(validation)
+
         assert dataset_schema_element.data_type.value != "decimal"
         # transformation using context_magic
         assert isinstance(required, bool)
