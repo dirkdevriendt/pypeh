@@ -14,14 +14,16 @@ import logging
 
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from peh_model.peh import NamedThing
+from dataclasses import fields
+from peh_model.peh import NamedThing, EntityList
 from typing import Dict, Type, TYPE_CHECKING, Set, TypeVar, Generic, Sequence
 
-from pypeh.core.cache.utils import get_entity_type
+from pypeh.core.cache.utils import get_entity_type, load_entities_from_tree
+from pypeh.core.models.peh_wrappers import get_from_entity_list_map
 from pypeh.core.models.proxy import TypedLazyProxy
 
 if TYPE_CHECKING:
-    from typing import Optional, Generator
+    from typing import Optional, Generator, Any
     from pypeh.core.models.typing import T_NamedThingLike
 
 logger = logging.getLogger(__name__)
@@ -34,6 +36,7 @@ class CacheContainer(ABC, Generic[T_Container]):
 
     def __init__(self):
         self._storage = T_Container
+        self._class_index: Dict[str, Set[str]] = defaultdict(set)
 
     @abstractmethod
     def add(self, entity: T_NamedThingLike) -> None:
@@ -93,6 +96,22 @@ class CacheContainer(ABC, Generic[T_Container]):
         else:
             return
 
+    def unpack_entity_list(self, entity_list: EntityList) -> bool:
+        for entity in load_entities_from_tree(entity_list):
+            _ = self.add(entity)
+
+        return True
+
+    def pack_entity_list(self) -> EntityList:
+        grouped = defaultdict(list)
+        for entity_type in self._class_index:
+            for entity in self.get_all(entity_type=entity_type):
+                entity_list_field = get_from_entity_list_map(entity_type)
+                if entity_list_field is not None:
+                    grouped[entity_list_field].append(entity)
+
+        return EntityList(**grouped)
+
 
 class CacheContainerView(Generic[T_Container]):
     """Immutable view of any CacheContainer that only exposes read operations."""
@@ -143,6 +162,9 @@ class CacheContainerView(Generic[T_Container]):
             nested_entity_path=nested_entity_path,
             entity_type=entity_type,
         )
+
+    def pack_entity_list(self) -> EntityList:
+        return self._container.pack_entity_list()
 
     def __len__(self) -> int:
         return len(self._container)

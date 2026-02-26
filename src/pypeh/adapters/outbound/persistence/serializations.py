@@ -7,19 +7,19 @@ import yaml
 
 from dataclasses import is_dataclass
 from linkml_runtime.loaders import YAMLLoader, JSONLoader, RDFLibLoader
-from linkml_runtime.dumpers import YAMLDumper
+from linkml_runtime.dumpers import YAMLDumper, RDFLibDumper
 from pydantic import TypeAdapter, BaseModel, ConfigDict
 from pathlib import Path
 from rdflib import Graph
 from typing import TYPE_CHECKING, Union, Any, IO, get_type_hints, cast
 
 from pypeh.core.interfaces.outbound.persistence import PersistenceInterface
-from pypeh.core.utils.linkml_schema import get_schema_view
+from pypeh.core.models.peh_wrappers import get_schema_view
 from peh_model.peh import EntityList, YAMLRoot
-from pypeh.core.models.typing import T_Dataclass, IOLike
+from pypeh.core.models.typing import T_Dataclass
 
 if TYPE_CHECKING:
-    from typing import Callable, Type
+    from typing import Type
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ class IOAdapter(PersistenceInterface):
     ) -> Any:
         raise NotImplementedError
 
-    def dump(self, destination: IOLike, entity: BaseModel) -> None:
+    def dump(self, source: EntityList, file_obj) -> None:
         raise NotImplementedError
 
 
@@ -276,8 +276,13 @@ class YamlIO(IOAdapter):
             logger.error(f"Error in YamlIO adapter: {e}")
             raise e
 
-    def dump(self, destination: str, entity: EntityList, fn: Callable = YAMLDumper().dump, **kwargs):
-        raise NotImplementedError
+    def dump(self, source: EntityList, file_obj: IO[str], **kwargs):
+        yaml_dumper = YAMLDumper()
+        serialized = yaml_dumper.dumps(
+            element=source,
+        )
+
+        file_obj.write(serialized)
 
 
 class CsvIO(IOAdapter):
@@ -296,9 +301,6 @@ class CsvIO(IOAdapter):
             logging.error(message)
             raise ImportError(message)
         return CsvIOImpl().load(source, **kwargs)
-
-    def dump(self, source: str, **kwargs):
-        pass
 
 
 class ExcelIO(IOAdapter):
@@ -330,13 +332,10 @@ class ExcelIO(IOAdapter):
             raise
         return ExcelIOImpl().load(source, **kwargs)
 
-    def dump(self, source: str, **kwargs):
-        pass
-
 
 class RdfIO(IOAdapter):
     read_mode: str = "r"
-    write_mode: str = "w"
+    write_mode: str = "wb"
 
     def _validate(self, graph: Graph, target_class: Type[Union[BaseModel, YAMLRoot]]):
         schema_view = get_schema_view()
@@ -357,29 +356,42 @@ class RdfIO(IOAdapter):
         g.parse(source, format=format)
         return g
 
+    def dump(self, source: EntityList, file_obj: IO[bytes], **kwargs):
+        file_format = kwargs.get("format", "turtle")
+        if file_format == "ttl":
+            file_format = "turtle"
+        rdf_dumper = RDFLibDumper()
+        schema_view = get_schema_view()
+
+        serialized = rdf_dumper.dumps(
+            element=source,
+            schemaview=schema_view,
+            fmt=file_format,
+        )
+        if isinstance(serialized, str):
+            serialized = serialized.encode("utf-8")
+        file_obj.write(serialized)
+
 
 class JsonldIO(RdfIO):
-    read_mode: str = "r"
-    write_mode: str = "w"
-
     def load(self, source: Union[str, bytes], **kwargs) -> Graph:
         return super().load(source, format="json-ld", **kwargs)
 
 
 class TrigIO(RdfIO):
-    read_mode: str = "r"
-    write_mode: str = "w"
-
     def load(self, source: Union[str, bytes], **kwargs) -> Graph:
         return super().load(source, format="trig", **kwargs)
 
+    def dump(self, source: EntityList, file_obj: IO[bytes], **kwargs):
+        return super().dump(source, file_obj=file_obj, format="trig", **kwargs)
+
 
 class TurtleIO(RdfIO):
-    read_mode: str = "r"
-    write_mode: str = "w"
-
     def load(self, source: Union[str, bytes], **kwargs) -> Graph:
         return super().load(source, format="ttl", **kwargs)
+
+    def dump(self, source: EntityList, file_obj: IO[bytes], **kwargs):
+        return super().dump(source, file_obj=file_obj, format="turtle", **kwargs)
 
 
 class IOAdapterFactory:
@@ -392,8 +404,9 @@ class IOAdapterFactory:
         "xls": ExcelIO,
         "rdf": RdfIO,
         "trig": TrigIO,
-        "jsonld": JsonldIO,
+        "json-ld": JsonldIO,
         "ttl": TurtleIO,
+        "turtle": TurtleIO,
     }
 
     @classmethod

@@ -3,14 +3,12 @@ import pytest
 from pypeh.core.interfaces.outbound.dataops import AggregationInterface
 
 
-@pytest.mark.dataframe
 @pytest.fixture(scope="module")
 def setup_adapter():
     """Get the default aggregation adapter class."""
     return AggregationInterface.get_default_adapter_class()
 
 
-@pytest.mark.dataframe
 @pytest.fixture
 def pl():
     """Import and return polars module."""
@@ -19,7 +17,6 @@ def pl():
     return pl
 
 
-@pytest.mark.dataframe
 @pytest.fixture
 def sample_dataframe(pl):
     """Create a sample dataframe for testing aggregation."""
@@ -33,7 +30,6 @@ def sample_dataframe(pl):
     )
 
 
-@pytest.mark.dataframe
 @pytest.fixture
 def dataframe_with_nulls(pl):
     """Create a dataframe with null values for testing."""
