@@ -11,6 +11,10 @@ dependencies = [
     "peh-model==0.3.2",
     "pydantic-settings",
     "fsspec",
+	# linkml-based constraints
+	"urllib3<2.1",
+	"charset_normalizer<4",
+	"chardet<6",
 ]
 
 [project.optional-dependencies]
