@@ -15,20 +15,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6.1.0
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Install build tools
         run: |
-          pip install hatch twine check-wheel-contents uv
+          pip install hatchling build twine check-wheel-contents uv
 
       - name: Build package using Hatch
         run: |
-          hatch build
+          python -m build
 
       - name: Check wheel contents
         run: |
