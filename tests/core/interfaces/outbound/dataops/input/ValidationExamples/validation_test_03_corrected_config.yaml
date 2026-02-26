@@ -247,6 +247,9 @@ observable_properties:
     conditional: "IF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BM,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,BMG,DBS,VAMS)\
       \  THEN chol IS not empty; \n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
       \  THEN chol [50,250]; \n\nIF matrix IS (BM,BMG)  THEN chol [5,100]"
+    validation_error_message_template: "IF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BM,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,BMG,DBS,VAMS)\
+      \  THEN chol IS not empty; \n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
+      \  THEN chol [50,250]; \n\nIF matrix IS (BM,BMG)  THEN chol [5,100]"
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:

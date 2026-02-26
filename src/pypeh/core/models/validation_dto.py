@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 
 from collections import defaultdict
@@ -200,6 +201,7 @@ class ValidationDesign(BaseModel):
     error_level: ValidationErrorLevel
     expression: ValidationExpression
     dependent_contextual_field_references: dict[str, set[str]] | None = None
+    error_message: str | None = None
 
     @classmethod
     def from_peh(
@@ -222,11 +224,17 @@ class ValidationDesign(BaseModel):
         dependent_contextual_field_references = merge_dependencies(
             dependent_contextual_field_references, expression.dependent_contextual_field_references
         )
+        error_message = getattr(validation_design, "validation_error_message_template")
+        if error_message is not None:
+            error_message = str(error_message)
+            error_message = re.sub(r"\s+", " ", error_message).strip()
+
         return cls(
             name=name,
             error_level=error_level,
             expression=expression,
             dependent_contextual_field_references=dependent_contextual_field_references,
+            error_message=error_message,
         )
 
     @classmethod

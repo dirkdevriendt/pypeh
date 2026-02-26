@@ -1,5 +1,6 @@
 import pytest
 import abc
+import re
 
 from datetime import date
 from typing import Protocol, Any, Generic
@@ -41,7 +42,11 @@ class DataOpsProtocol(Protocol, Generic[T_DataType]):
 
     def import_data_layout(self, source, config) -> Any: ...
 
-    def build_validation_config(self, dataset, dataset_series, cache_view, allow_incomplete) -> ValidationConfig: ...
+    def build_column_validation(self, dataset_schema_element, type_annotations, cache_view): ...
+
+    def build_validation_config(
+        self, dataset, dataset_series, cache_view, allow_incomplete=False
+    ) -> ValidationConfig: ...
 
     def build_dependency_graph(self, observations, contextual_field_reference_map, join_spec_mapping, cache_view): ...
 
@@ -488,6 +493,28 @@ class TestValidation(abc.ABC):
             cache_view=cache_view,
         )
         assert isinstance(validation_config, ValidationConfig)
+
+    def test_build_column_validation_with_custom_message(self):
+        adapter = self.get_adapter()
+        cache_view = self.get_container_validation_example_03()
+        data_layout = cache_view.get("peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataLayout")
+        assert isinstance(data_layout, DataLayout)
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            data_layout=data_layout, cache_view=cache_view, apply_context=True
+        )
+        type_annotations = dataset_series.get_type_annotations()
+        dataset = dataset_series.get("SAMPLETIMEPOINT_BSS")
+        assert dataset is not None
+        dataset_schema_element = dataset.get_schema_element_by_label("chol")
+        cv = adapter.build_column_validation(
+            dataset_schema_element=dataset_schema_element,
+            type_annotations=type_annotations,
+            cache_view=cache_view,
+        )
+        collect_messages = [vd.error_message for vd in cv.validations if vd.error_message]
+        pattern = r"IF matrix IS\s*\([^)]*\)"
+        found = any(re.search(pattern, msg) for msg in collect_messages)
+        assert found
 
 
 class TestDataImport(abc.ABC):
