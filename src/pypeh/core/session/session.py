@@ -7,6 +7,7 @@ import peh_model.peh as peh
 
 from typing import TYPE_CHECKING, TypeVar, Sequence, Generic
 
+from pypeh.adapters.outbound.persistence.serializations import IOAdapterFactory
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory, CacheContainerView
 from pypeh.core.models.proxy import TypedLazyProxy
 from pypeh.core.models.settings import (
@@ -29,7 +30,6 @@ from pypeh.core.interfaces.outbound.dataops import (
     ValidationInterface,
     DataImportInterface,
 )
-from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.session.connections import ConnectionManager
 from pypeh.core.utils.resolve_identifiers import is_url
 
@@ -189,19 +189,13 @@ class Session(Generic[T_AdapterType, T_DataType]):
         else:
             return adapter
 
-    def _root_to_cache(self, root: peh.EntityList) -> bool:
-        for entity in load_entities_from_tree(root):
-            _ = self.cache.add(entity)
-
-        return True
-
     def _source_to_cache(self, roots: list | peh.EntityList) -> bool:
         if isinstance(roots, list):
             for root in roots:
-                ret = self._root_to_cache(root)
+                ret = self.cache.unpack_entity_list(root)
                 assert ret
         else:
-            ret = self._root_to_cache(roots)
+            ret = self.cache.unpack_entity_list(roots)
 
         return True
 
@@ -225,6 +219,38 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
         ret = self._source_to_cache(roots)
         assert ret
+
+    def dump_cache(
+        self,
+        output_path: str,
+        file_format: str = "yaml",
+        connection_label: str | None = None,
+        cache: CacheContainer | CacheContainerView | None = None,
+    ):
+        supported_dump_formats = {"ttl", "turtle", "trig", "yaml"}  # TEMPORARY FIX
+        assert (
+            file_format in supported_dump_formats
+        ), f"Format {file_format} currently not supported for `Session.dump_cache`"
+
+        if cache is None:
+            to_serialize = self.cache
+        else:
+            to_serialize = cache
+
+        if isinstance(to_serialize, CacheContainer):
+            pass
+        elif isinstance(to_serialize, CacheContainerView):
+            to_serialize = to_serialize._container
+        else:
+            raise ValueError("cache argument does not match expected type")
+
+        if connection_label is None:
+            logger.info("Using DEFAULT_CONNECTION_LABEL in absence of connection_label")
+            connection_label = DEFAULT_CONNECTION_LABEL
+
+        root = to_serialize.pack_entity_list()
+        with self.connection_manager.get_connection(connection_label=connection_label) as connection:
+            _ = connection.dump(root, destination=output_path, format=file_format)
 
     def load_tabular_dataset_series(
         self,
@@ -315,14 +341,8 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
         return ret
 
-    def load_project(self, project_identifier: str, connection_label: str | None = None) -> T_NamedThingLike | None:
-        return self.load_resource(project_identifier, resource_type="Project", connection_label=connection_label)
-
     def dump_resource(self, resource_identifier: str, resource_type: str, version: str | None) -> bool:
         return True
-
-    def dump_project(self, project_identifier: str, version: str | None) -> bool:
-        return self.dump_resource(project_identifier, resource_type="Project", version=version)
 
     def validate_tabular_dataset(
         self,

@@ -7,9 +7,7 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from typing import Union
-    from pydantic import BaseModel
-    from peh_model.peh import YAMLRoot
+    from peh_model.peh import EntityList
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +18,7 @@ class PersistenceInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def dump(self, destination: str, entity: Union[str, BaseModel, YAMLRoot], **kwargs) -> None:
+    def dump(self, source: EntityList, destination: str, **kwargs) -> None:
         raise NotImplementedError
 
 

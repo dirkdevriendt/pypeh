@@ -1,8 +1,8 @@
 import pytest
 
-from peh_model.peh import ObservableProperty, Observation
+from peh_model.peh import ObservableProperty, Observation, EntityList
 
-from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory, CacheContainerView
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
 
@@ -57,3 +57,12 @@ class TestCache:
             assert isinstance(item, ObservableProperty)
             count += 1
         assert count == 7
+
+    def test_pack_cache(self, container):
+        assert isinstance(container, CacheContainer)
+        ret = container.pack_entity_list()
+        assert isinstance(ret, EntityList)
+        assert isinstance(ret.observations, list)
+        assert len(ret.observations) > 0
+        assert isinstance(ret.observable_properties, list)
+        assert len(ret.observable_properties) > 0

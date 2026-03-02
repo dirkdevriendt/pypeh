@@ -1,5 +1,8 @@
-import pytest
+import io
 import fsspec
+import linkml_runtime.loaders
+import pytest
+import rdflib
 
 from pypeh.adapters.outbound.persistence.serializations import (
     IOAdapterFactory,
@@ -13,6 +16,7 @@ from pypeh.adapters.outbound.persistence.serializations import (
 from pydantic import BaseModel
 from peh_model.peh import EntityList
 
+from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from tests.test_utils.dirutils import get_absolute_path
 
 
@@ -164,3 +168,62 @@ class TestXlsIO:
                 data_schema=typed_dict,
             )
         assert isinstance(result, dict)
+
+
+@pytest.mark.core
+class TestDump:
+    @pytest.fixture(scope="class")
+    def container(self) -> CacheContainer:
+        source = get_absolute_path("./input/config_basic/_Reference_YAML/observable_properties.yaml")
+        yaml_io = YamlIO()
+        entity_list = yaml_io.load(source)
+        assert isinstance(entity_list, EntityList)
+        cache = CacheContainerFactory.new()
+        cache.unpack_entity_list(entity_list=entity_list)
+        return cache
+
+    def test_dump_cache_yaml(self, container):
+        entity_list = container.pack_entity_list()
+        adapter = IOAdapterFactory.create(format="yaml")
+        buffer = io.StringIO()
+        loader = linkml_runtime.loaders.YAMLLoader()
+
+        adapter.dump(entity_list, buffer)
+        data = buffer.getvalue()
+        assert len(data) > 0
+        new_entity_list = loader.load_any(source=data, target_class=EntityList)
+        assert isinstance(entity_list, EntityList)
+        assert entity_list == new_entity_list
+
+    @pytest.mark.parametrize("format", ["trig", "turtle"])
+    def test_dump_cache_rdf(self, container, format):
+        entity_list = container.pack_entity_list()
+        adapter = IOAdapterFactory.create(format=format)
+        buffer = io.BytesIO()
+
+        adapter.dump(entity_list, buffer)
+        data = buffer.getvalue()
+        assert data, "RDF serialization is empty"
+        if format == "trig":
+            g = rdflib.Dataset()
+            g.parse(data=data, format="trig")
+            assert len(g) > 0
+        else:
+            g = rdflib.Graph()
+            g.parse(data=data, format=format)
+            ns = dict(g.namespaces())
+            assert "peh" in ns
+            assert "pehterms" in ns
+            OP = rdflib.URIRef(ns["pehterms"] + "ObservableProperty")
+            assert (None, rdflib.RDF.type, OP) in g, "No ObservableProperty instances found"
+            EL = rdflib.URIRef(ns["pehterms"] + "EntityList")
+            assert (None, rdflib.RDF.type, EL) in g, "No EntityList found"
+            observable_properties_pred = rdflib.URIRef(ns["pehterms"] + "observable_properties")
+            entity_lists = list(g.subjects(rdflib.RDF.type, EL))
+            assert entity_lists, "No EntityList subjects found"
+            for el in entity_lists:
+                props = list(g.objects(el, observable_properties_pred))
+                assert props, "EntityList has no observable_properties"
+                for p in props:
+                    label_pred = rdflib.URIRef(ns["skos"] + "prefLabel")
+                    assert (p, label_pred, None) in g, f"Observable property {p} has no prefLabel"

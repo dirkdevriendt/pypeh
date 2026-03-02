@@ -16,6 +16,7 @@ import urllib3
 from abc import abstractmethod
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
+from peh_model.peh import EntityList
 from requests.adapters import HTTPAdapter
 from typing import TYPE_CHECKING, Generic, Callable, Any, Optional, Dict
 from urllib3.util.retry import Retry
@@ -90,25 +91,25 @@ class FileIO(PersistenceInterface):
 
     def dump(
         self,
-        path: str,
-        entity: BaseModel,
+        source: EntityList,
+        destination: str,
         *,
-        format: Optional[str] = None,
+        format: str = "yaml",
         **kwargs,
     ) -> None:
         """
         Persist an entity to a file.
         """
         if format is None:
-            format = self.get_format(path)
+            format = self.get_format(destination)
 
         adapter = serializations.IOAdapterFactory.create(format)
 
         try:
-            with self.file_system.open(path, adapter.write_mode) as f:
-                adapter.dump(entity, f, **kwargs)  # type: ignore[fsspec]
+            with self.file_system.open(destination, adapter.write_mode) as f:
+                adapter.dump(source, f, **kwargs)  # type: ignore[fsspec]
         except Exception:
-            logger.exception(f"Failed to write file: {path}")
+            logger.exception(f"Failed to write file: {destination}")
             raise
 
 
@@ -226,11 +227,13 @@ class DirectoryIO(HostAdapter):
 
         raise ValueError(f"Path does not exist: {source!r} was resolved as {path}")
 
-    def dump(self, destination: Union[str, Any], entities: list[Any], **kwargs) -> None:
+    def dump(self, source: EntityList, destination: str, *, format: str = "yaml", **kwargs) -> None:
         """
         Persist entities to the filesystem.
         """
-        raise NotImplementedError
+        return FileIO(file_system=self.file_system).dump(
+            source=source, destination=destination, format=format, **kwargs
+        )
 
 
 class LocalStorageProvider(DirectoryIO):

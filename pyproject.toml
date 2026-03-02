@@ -7,7 +7,7 @@ requires-python = ">=3.10, <4.0.0"
 readme = "README.md"
 license = "MIT"
 dependencies = [
-    "linkml>=1.9.1",
+    "linkml-runtime>=1.9.1",
     "peh-model==0.3.2",
     "pydantic-settings",
     "fsspec",
