@@ -1058,3 +1058,118 @@ class TestDataFrameEnrichment(TestEnrichment):
 class TestUnknownDataOps(TestValidation):
     def get_adapter(self) -> DataOpsProtocol:
         raise NotImplementedError
+
+
+class TestAggregation(abc.ABC):
+    """Abstract base class for Aggregation adapters."""
+
+    __test__ = False
+
+    @abc.abstractmethod
+    def get_adapter(self) -> DataOpsProtocol:
+        """Return the adapter implementation to test."""
+        raise NotImplementedError
+
+    def container(self, path: str) -> CacheContainerView:
+        source = get_absolute_path(path)
+        container = CacheContainerFactory.new()
+        host = DirectoryIO()
+        roots = host.load(source, format="yaml", maxdepth=3)
+        for root in roots:
+            for entity in load_entities_from_tree(root):
+                container.add(entity)
+
+        return CacheContainerView(container)
+
+    def raw_data(self):
+        raise NotImplementedError
+
+    def raw_dataset_series(self, data_import_config_id: str, cache_view: CacheContainerView) -> DatasetSeries:
+        data_import_config = cache_view.get(data_import_config_id, "DataImportConfig")
+        assert isinstance(data_import_config, DataImportConfig)
+        return DatasetSeries.from_peh_data_import_config(
+            data_import_config=data_import_config,
+            cache_view=cache_view,
+        )
+
+    def test_summarize(self):
+        data_import_config_id = "peh:ENRICHMENT_TEST_IMPORT_CONFIG"
+        src_path = "./input/AggregationExamples/Aggregation"
+        cache_view = self.container(src_path)
+        dataset_series = self.raw_dataset_series(data_import_config_id=data_import_config_id, cache_view=cache_view)
+        adapter = self.get_adapter()
+        assert isinstance(adapter, OutDataOpsInterface)
+        datasets = self.raw_data()
+        for dataset_label, dataset in datasets.items():
+            data_labels = adapter.get_element_labels(dataset)
+            dataset_series.add_data(
+                dataset_label=dataset_label,
+                data=dataset,
+                data_labels=data_labels,
+            )
+        ret = adapter.summarize(
+            source_dataset_series=dataset_series,
+            target_observations=[cache_view.get("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "Observation")],
+            target_derived_from=[
+                cache_view.get("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE", "Observation")
+            ],
+            cache_view=cache_view,
+            stratifications=[["current_year", "current_month"]],
+        )
+
+        target_observation_name = "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED"
+        shape = (
+            2,
+            4,
+        )  # 2 rows for the two unique combinations of current_year and current_month, 4 columns for the stat builder result and the stratification columns
+
+        assert isinstance(ret, DatasetSeries)
+        assert ret.get_dataset_by_observation(target_observation_name).data.shape == shape
+        # function function_kwarg.mapping_name is used as column name for the result of the stat builder, so we check that it is present in the resulting dataset, along with the stratification columns
+        assert "day" in ret.get_dataset_by_observation(target_observation_name).data.columns
+        assert "stratification" in ret.get_dataset_by_observation(target_observation_name).data.columns
+        assert len(ret.parts) == 1
+
+
+@pytest.mark.dataframe
+class TestDataFrameAggregation(TestAggregation):
+    __test__ = True
+
+    def get_adapter(self) -> DataOpsProtocol:
+        try:
+            from pypeh.adapters.outbound.aggregation.polars_adapter import dataframe_adapter as dfops
+
+            return dfops.DataFrameAggregationAdapter()  # type: ignore
+        except ImportError:
+            pytest.skip("Necessary modules not installed")
+
+    def raw_data(self) -> dict:
+        import polars as pl
+
+        df_ingested = pl.DataFrame(
+            {
+                "id_subject": [1, 2, 3, 4, 5],
+                "current_year": [2024, 2024, 2025, 2025, 2025],
+                "current_month": [12, 12, 12, 12, 12],
+                "current_day": [5, 5, 11, 11, 11],
+                "N1Birthdate": [
+                    date(1990, 5, 21),
+                    date(1985, 7, 14),
+                    date(2000, 1, 3),
+                    date(1995, 9, 30),
+                    date(1988, 3, 12),
+                ],
+            }
+        )
+
+        df_enriched = pl.DataFrame(
+            {
+                "id_subject": [1, 2, 3, 4, 5],
+                "N2Birthweight": [3.2, 2.8, 3.5, 4.0, 3.0],
+            }
+        )
+
+        return {
+            "SUBJECTUNIQUE": df_ingested,
+            "ENRICH_BASE": df_enriched,
+        }

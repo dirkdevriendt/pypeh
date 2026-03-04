@@ -686,8 +686,19 @@ class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
 
 class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
     @abstractmethod
-    def _summarize(
+    def _calculate_for_stratum(
         self, df: T_DataType, group_cols: list[str], value_col: str, stat_builders: list, **kwargs
+    ) -> T_DataType:
+        raise NotImplementedError
+
+    @abstractmethod
+    def calculate_for_strata(
+        self,
+        df: T_DataType,
+        stratifications: list[list[str]] | None,
+        value_col: str,
+        stat_builders: list[str],
+        **kwargs,
     ) -> T_DataType:
         raise NotImplementedError
 
@@ -703,3 +714,92 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
             logger.error("Exception encountered while attempting to import a Polars-based DataFrameAggregationAdapter")
             raise e
         return adapter_class
+
+    def summarize(
+        self,
+        source_dataset_series: DatasetSeries,
+        target_observations: list[peh.Observation],
+        target_derived_from: list[peh.Observation],
+        stratifications: list[list[str]],
+        cache_view: CacheContainerView,
+    ) -> DatasetSeries:
+        nested_entity_paths = [
+            ["observation_design", "identifying_observable_property_id_list"],
+            ["observation_design", "required_observable_property_id_list"],
+            ["observation_design", "optional_observable_property_id_list"],
+        ]
+
+        # ADD TARGET OBSERVATION TO A NEW DATASET_SERIES
+        aggregated_dataset_series: DatasetSeries = DatasetSeries(label=f"{source_dataset_series.label}_aggregated")
+
+        for source_obs, target_observation, stratification in zip(
+            target_derived_from, target_observations, stratifications
+        ):
+            if label := source_obs.ui_label:
+                aggregated_dataset_series.add_observation(
+                    label,
+                    target_observation,
+                    cache_view,
+                )
+            else:
+                raise ValueError(
+                    f"Source observation {source_obs.id} lacks a `ui_label` which is required to add the target observation to the DatasetSeries"
+                )
+
+            for path in nested_entity_paths:
+                for observable_property in cache_view.walk_entity(
+                    entity_id=target_observation.id, nested_entity_path=path, entity_type="Observation"
+                ):
+                    assert isinstance(observable_property, peh.ObservableProperty)
+                    target_contextual_field_ref = aggregated_dataset_series.get_contextual_field_reference_index().get(
+                        observable_property.id
+                    )
+                    assert (
+                        target_contextual_field_ref is not None
+                    ), f"Observable property with id {observable_property.id} is non unique."
+                    calculation_designs = observable_property.calculation_designs
+
+                    if calculation_designs:
+                        # Node target_dataset_label, target_field_label
+                        if len(calculation_designs) > 1:
+                            raise NotImplementedError(
+                                "No current implementation for multiple calculation designs linked to a single observable property"
+                            )
+                        calculation_design = calculation_designs[0]
+                        assert isinstance(calculation_design, peh.CalculationDesign)
+                        calculation_implementation = calculation_design.calculation_implementation
+                        assert isinstance(calculation_implementation, peh.CalculationImplementation)
+                        output_dtype = ObservablePropertyValueType(getattr(observable_property, "value_type", "string"))
+                        assert output_dtype is not None
+
+                        function_name = calculation_implementation.function_name
+                        map_fn = self._extract_callable(function_name)
+
+                        if function_kwargs := calculation_implementation.function_kwargs:
+                            for function_kwarg in function_kwargs:
+                                source_field_ref = function_kwarg.contextual_field_reference
+                                source_dataset_label = source_field_ref.dataset_label
+                                source_field_label = source_field_ref.field_label
+                                map_name = function_kwarg.mapping_name
+
+                        source_dataset = source_dataset_series.get(source_dataset_label)
+                        source_data = source_dataset.data
+                        target_data = self._calculate_for_stratum(
+                            df=source_data.lazy(),
+                            group_cols=stratification,
+                            value_col=source_field_label,
+                            stat_builders=[map_fn],
+                            result_alias=map_name,
+                        )
+
+                        target_dataset = aggregated_dataset_series.get_dataset_by_observation(target_observation.id)
+                        target_dataset.add_data(target_data.collect())
+
+            return aggregated_dataset_series
+
+    @staticmethod
+    def _extract_callable(path: str) -> Callable:
+        assert "." in path, "Could not split path into module and func_name"
+        module_name, func_name = path.rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        return getattr(module, func_name)
