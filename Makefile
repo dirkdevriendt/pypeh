@@ -1,4 +1,4 @@
-.PHONY: test-core test-dataframe test-end_to_end test-end_to_end_consistency test-export test-rocrate test-s3 test-all format format-diff
+.PHONY: test-core test-dataframe test-end_to_end test-end_to_end_consistency test-export test-rocrate test-s3 test-compehndly test-all format format-diff
 
 test-core:
 	uv pip install -e ".[core, test-core]"
@@ -29,6 +29,10 @@ test-rocrate:
 test-s3:
 	uv pip install -e ".[s3-adapter, test-core]"
 	uv run pytest -s tests/adapters tests/core -m s3 -W ignore
+
+test-compehndly:
+	uv pip install -e ".[dataframe-adapter, test-core, test-compehndly]"
+	uv run pytest -s tests/end_to_end -m compehndly -W ignore
 
 test-all: test-core test-dataframe test-end_to_end test-end_to_end_consistency test-export test-s3
 

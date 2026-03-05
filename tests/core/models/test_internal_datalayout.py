@@ -149,8 +149,7 @@ class TestInternalDataLayout:
         ds.parts[d.label] = d
         ds.parts[d2.label] = d2
         ds._register_observation(observation_id="obs_test", dataset_label=d.label)
-        with pytest.raises(ValueError, match=r".*obs_test.*"):
-            ds._register_observation(observation_id="obs_test", dataset_label=d2.label)
+        assert len(ds._obs_index) == 1
 
 
 class TestJoinConditions:
@@ -260,12 +259,12 @@ class TestToTarget:
             elements={
                 "id_subject": DatasetSchemaElement(
                     label="id_subject",
-                    observable_property_id="id_subject",
+                    observable_property_id="peh:id_subject",
                     data_type=ObservablePropertyValueType.STRING,
                 ),
                 "matrix": DatasetSchemaElement(
                     label="matrix",
-                    observable_property_id="matrix",
+                    observable_property_id="peh:matrix",
                     data_type=ObservablePropertyValueType.STRING,
                 ),
             },
@@ -277,32 +276,32 @@ class TestToTarget:
             elements={
                 "id_subject": DatasetSchemaElement(
                     label="id_subject",
-                    observable_property_id="id_subject",
+                    observable_property_id="peh:id_subject",
                     data_type=ObservablePropertyValueType.STRING,
                 ),
                 "matrix": DatasetSchemaElement(
                     label="matrix",
-                    observable_property_id="matrix",
+                    observable_property_id="peh:matrix",
                     data_type=ObservablePropertyValueType.STRING,
                 ),
                 "crt": DatasetSchemaElement(
                     label="crt",
-                    observable_property_id="crt",
+                    observable_property_id="peh:crt",
                     data_type=ObservablePropertyValueType.FLOAT,
                 ),
                 "crt_lod": DatasetSchemaElement(
                     label="crt_lod",
-                    observable_property_id="crt_lod",
+                    observable_property_id="peh:crt_lod",
                     data_type=ObservablePropertyValueType.FLOAT,
                 ),
                 "crt_loq": DatasetSchemaElement(
                     label="crt_loq",
-                    observable_property_id="crt_loq",
+                    observable_property_id="peh:crt_loq",
                     data_type=ObservablePropertyValueType.FLOAT,
                 ),
                 "sg": DatasetSchemaElement(
                     label="sg",
-                    observable_property_id="sg",
+                    observable_property_id="peh:sg",
                     data_type=ObservablePropertyValueType.FLOAT,
                 ),
             },
@@ -315,22 +314,22 @@ class TestToTarget:
             elements={
                 "id_subject": DatasetSchemaElement(
                     label="id_subject",
-                    observable_property_id="id_subject",
+                    observable_property_id="peh:id_subject",
                     data_type=ObservablePropertyValueType.STRING,
                 ),
                 "biomarkercode": DatasetSchemaElement(
                     label="biomarkercode",
-                    observable_property_id="biomarkercode",
+                    observable_property_id="peh:biomarkercode",
                     data_type=ObservablePropertyValueType.STRING,
                 ),
                 "matrix": DatasetSchemaElement(
                     label="matrix",
-                    observable_property_id="matrix",
+                    observable_property_id="peh:matrix",
                     data_type=ObservablePropertyValueType.STRING,
                 ),
                 "labinstitution": DatasetSchemaElement(
                     label="labinstitution",
-                    observable_property_id="labinstitution",
+                    observable_property_id="peh:labinstitution",
                     data_type=ObservablePropertyValueType.STRING,
                 ),
             },
@@ -354,13 +353,6 @@ class TestToTarget:
             observations=set(["peh:urine_lab_this"]),
         )
 
-        # urine_lab_dataset = Dataset(
-        #     label="urine_lab",
-        #     schema=urine_lab_schema,
-        #     data=None,
-        #     observations=set(["peh:urine_lab_this", "peh:urine_lab_other"]),
-        # )
-
         analyticalinfo_dataset = Dataset(
             label="analyticalinfo",
             schema=analyticalinfo_schema,
@@ -380,7 +372,7 @@ class TestToTarget:
         # Make the reverse link (Dataset.part_of)
         partial_urine_lab_dataset.part_of = series
         analyticalinfo_dataset.part_of = series
-        series.build_observation_index()
+        series.build_indices()
 
         return series, urine_lab_schema
 
@@ -391,34 +383,34 @@ class TestToTarget:
                 id="peh:urine_lab_other",
                 ui_label="urine_lab_other",
                 observation_design=peh.ObservationDesign(
-                    identifying_observable_property_id_list=["id_subject"],
-                    required_observable_property_id_list=["crt", "crt_lod", "crt_loq", "sg"],
+                    identifying_observable_property_id_list=["peh:id_subject"],
+                    required_observable_property_id_list=["peh:crt", "peh:crt_lod", "peh:crt_loq", "peh:sg"],
                 ),
             ),
         ]
         observable_properties = [
             peh.ObservableProperty(
-                id="id_subject",
+                id="peh:id_subject",
                 ui_label="id_subject",
                 value_type="float",
             ),
             peh.ObservableProperty(
-                id="crt",
+                id="peh:crt",
                 ui_label="crt",
                 value_type="float",
             ),
             peh.ObservableProperty(
-                id="crt_lod",
+                id="peh:crt_lod",
                 ui_label="crt_lod",
                 value_type="float",
             ),
             peh.ObservableProperty(
-                id="crt_loq",
+                id="peh:crt_loq",
                 ui_label="crt_loq",
                 value_type="float",
             ),
             peh.ObservableProperty(
-                id="sg",
+                id="peh:sg",
                 ui_label="sg",
                 value_type="float",
             ),
@@ -435,10 +427,37 @@ class TestToTarget:
         assert isinstance(obs, peh.Observation)
         source_dataset_series, expected_schema = dataset_series_input
         assert isinstance(source_dataset_series, DatasetSeries)
+        labeled_observable_properties = {
+            obsprop.ui_label: obsprop for obsprop in cache_view.get_all("ObservableProperty")
+        }
         source_dataset_series.add_observation(
             dataset_label="partial_urine_lab",
             observation=obs,
-            cache_view=cache_view,
+            labeled_observable_properties=labeled_observable_properties,
         )
-
-        assert source_dataset_series["partial_urine_lab"].schema == expected_schema
+        partial_urine_data = source_dataset_series["partial_urine_lab"]
+        assert partial_urine_data is not None
+        assert partial_urine_data.schema == expected_schema
+        expected_observation_index = {
+            "peh:analyticalinfo_obs": {"analyticalinfo"},
+            "peh:urine_lab_this": {"partial_urine_lab"},
+            "peh:urine_lab_other": {"partial_urine_lab"},
+        }
+        expected_context_index = {
+            # analyticalinfo_obs
+            ("peh:analyticalinfo_obs", "peh:id_subject"): ("analyticalinfo", "id_subject"),
+            ("peh:analyticalinfo_obs", "peh:biomarkercode"): ("analyticalinfo", "biomarkercode"),
+            ("peh:analyticalinfo_obs", "peh:matrix"): ("analyticalinfo", "matrix"),
+            ("peh:analyticalinfo_obs", "peh:labinstitution"): ("analyticalinfo", "labinstitution"),
+            # partial_urine_lab (this)
+            ("peh:urine_lab_this", "peh:id_subject"): ("partial_urine_lab", "id_subject"),
+            ("peh:urine_lab_this", "peh:matrix"): ("partial_urine_lab", "matrix"),
+            # partial_urine_lab (other)
+            ("peh:urine_lab_other", "peh:id_subject"): ("partial_urine_lab", "id_subject"),
+            ("peh:urine_lab_other", "peh:crt"): ("partial_urine_lab", "crt"),
+            ("peh:urine_lab_other", "peh:crt_loq"): ("partial_urine_lab", "crt_loq"),
+            ("peh:urine_lab_other", "peh:sg"): ("partial_urine_lab", "sg"),
+            ("peh:urine_lab_other", "peh:crt_lod"): ("partial_urine_lab", "crt_lod"),
+        }
+        assert source_dataset_series._obs_index == expected_observation_index
+        assert dict(source_dataset_series._context_index) == expected_context_index

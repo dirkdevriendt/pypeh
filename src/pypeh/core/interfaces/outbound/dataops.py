@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Callable, Generic, cast, List
 
 from pypeh.core.cache.containers import CacheContainerView
 from pypeh.core.models.constants import ObservablePropertyValueType
-from pypeh.core.models.internal_data_layout import Dataset, DatasetSchemaElement, DatasetSeries
+from pypeh.core.models.internal_data_layout import Dataset, DatasetSchemaElement, DatasetSeries, ContextIndexProtocol
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.settings import FileSystemSettings
 from pypeh.core.models import graph, validation_dto
@@ -99,6 +99,35 @@ class OutDataOpsInterface(Generic[T_DataType]):
     @abstractmethod
     def type_mapper(self, peh_value_type: str | ObservablePropertyValueType):
         raise NotImplementedError
+
+    def extract_labeled_target_observable_properties(
+        self, observation: peh.Observation, cache_view: CacheContainerView
+    ) -> dict[str, peh.ObservableProperty]:
+        ret = {}
+
+        observation_design = observation.observation_design
+        assert observation_design is not None
+        for observable_property_list_label in [
+            "identifying_observable_property_id_list",
+            "required_observable_property_id_list",
+            "optional_observable_property_id_list",
+        ]:
+            observable_property_id_list = getattr(observation_design, observable_property_list_label, None)
+            assert observable_property_id_list is not None
+            for observable_property_id in observable_property_id_list:
+                observable_property = cache_view.get(observable_property_id, "ObservableProperty")
+                assert observable_property is not None
+                ret[observable_property.ui_label] = observable_property
+
+                # TODO: HOW TO DEFINE CALCULATION RESULT BASED ON CONTEXTUAL FIELD REF OF RESULT
+                # calculation_designs = observable_property.calculation_designs
+                # if calculation_designs is not None:
+                #    calculation_design = calculation_designs[0]
+                #    calculation_implementation = calculation_design.calculation_implementation
+                #    assert calculation_implementation is not None
+                #    calculation_results = calculation_implementation.calculation_results
+
+        return ret
 
 
 class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
@@ -512,7 +541,7 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
     def build_dependency_graph(
         self,
         observations: list[peh.Observation],
-        contextual_field_reference_map: dict[str, tuple[str, str] | None],
+        context_index: ContextIndexProtocol,
         cache_view: CacheContainerView,
         join_spec_mapping: dict | None = None,
     ) -> graph.Graph:
@@ -530,10 +559,7 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
                     entity_id=observation_id, nested_entity_path=path, entity_type="Observation"
                 ):
                     assert isinstance(observable_property, peh.ObservableProperty)
-                    target_contextual_field_ref = contextual_field_reference_map.get(observable_property.id)
-                    assert (
-                        target_contextual_field_ref is not None
-                    ), f"Observable property with id {observable_property.id} is non unique."
+                    target_contextual_field_ref = context_index.context_lookup(observation_id, observable_property.id)
                     target_dataset_label, target_field_label = target_contextual_field_ref
                     calculation_designs = observable_property.calculation_designs
                     if calculation_designs:
@@ -561,6 +587,7 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
                             assert isinstance(function_kwarg, peh.CalculationKeywordArgument)
                             source_field_ref = function_kwarg.contextual_field_reference
                             assert isinstance(source_field_ref, peh.ContextualFieldReference)
+                            # TODO: adapt this to observation-based logic !!!!!!!!!!!!!!!!
                             source_dataset_label = source_field_ref.dataset_label
                             assert source_dataset_label is not None
                             source_field_label = source_field_ref.field_label
@@ -593,13 +620,25 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
     ) -> DatasetSeries:
         # ADD TARGET OBSERVATION TO SOURCE_DATASET_SERIES
         for source_obs, target_observation in zip(target_derived_from, target_observations):
-            source_dataset = source_dataset_series.get_dataset_by_observation(source_obs.id, rebuild_index=True)
+            # TODO: ENSURE PREREQUISTE IS MET: DATASETSERIES SPLIT INTO OBSERVATIONS
+            gen = source_dataset_series.get_datasets_by_observation(source_obs.id)
+            source_dataset = next(gen)
+            try:
+                _ = next(gen)
+                raise AssertionError("Expected only one dataset, but generator yielded more")
+            except StopIteration:
+                pass
+
             assert source_dataset is not None
             source_dataset_label = source_dataset.label
+            # TODO: extract observable_property_labels: FIXME
+            labeled_observable_properties = self.extract_labeled_target_observable_properties(
+                target_observation, cache_view=cache_view
+            )
             source_dataset_series.add_observation(
                 source_dataset_label,
                 target_observation,
-                cache_view,
+                labeled_observable_properties=labeled_observable_properties,
             )
         join_spec_mapping = source_dataset_series.resolve_all_joins()
         # BUILD DEPENDENCY GRAPH
@@ -612,7 +651,7 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
 
         dependency_graph = self.build_dependency_graph(
             observations=all_observations,
-            contextual_field_reference_map=source_dataset_series.get_contextual_field_reference_index(),
+            context_index=source_dataset_series,
             join_spec_mapping=join_spec_mapping,
             cache_view=cache_view,
         )
@@ -735,11 +774,15 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
         for source_obs, target_observation, stratification in zip(
             target_derived_from, target_observations, stratifications
         ):
-            if label := source_obs.ui_label:
+            if label := target_observation.ui_label:
+                labeled_observable_properties = self.extract_labeled_target_observable_properties(
+                    target_observation,
+                    cache_view=cache_view,
+                )
                 aggregated_dataset_series.add_observation(
                     label,
                     target_observation,
-                    cache_view,
+                    labeled_observable_properties=labeled_observable_properties,
                 )
             else:
                 raise ValueError(
@@ -773,17 +816,23 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
                         assert output_dtype is not None
 
                         function_name = calculation_implementation.function_name
+                        assert function_name is not None
                         map_fn = self._extract_callable(function_name)
 
                         if function_kwargs := calculation_implementation.function_kwargs:
                             for function_kwarg in function_kwargs:
+                                assert isinstance(function_kwarg, peh.CalculationKeywordArgument)
                                 source_field_ref = function_kwarg.contextual_field_reference
+                                assert isinstance(source_field_ref, peh.ContextualFieldReference)
                                 source_dataset_label = source_field_ref.dataset_label
                                 source_field_label = source_field_ref.field_label
+                                assert source_field_label is not None
                                 map_name = function_kwarg.mapping_name
 
                         source_dataset = source_dataset_series.get(source_dataset_label)
+                        assert source_dataset is not None
                         source_data = source_dataset.data
+                        assert source_data is not None
                         target_data = self._calculate_for_stratum(
                             df=source_data.lazy(),
                             group_cols=stratification,
@@ -792,8 +841,14 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
                             result_alias=map_name,
                         )
 
-                        target_dataset = aggregated_dataset_series.get_dataset_by_observation(target_observation.id)
-                        target_dataset.add_data(target_data.collect())
+                        gen = aggregated_dataset_series.get_datasets_by_observation(target_observation.id)
+                        target_dataset = next(gen)
+                        try:
+                            _ = next(gen)
+                            raise AssertionError("Expected only one dataset, but generator yielded more")
+                        except StopIteration:
+                            pass
+                        target_dataset.add_data(target_data.collect())  # type: ignore
 
             return aggregated_dataset_series
 

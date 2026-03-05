@@ -48,13 +48,17 @@ class DataOpsProtocol(Protocol, Generic[T_DataType]):
         self, dataset, dataset_series, cache_view, allow_incomplete=False
     ) -> ValidationConfig: ...
 
-    def build_dependency_graph(self, observations, contextual_field_reference_map, join_spec_mapping, cache_view): ...
+    def build_dependency_graph(self, observations, context_index, cache_view, join_spec_mapping): ...
 
     def compile_dependency_graph(self, dependency_graph) -> ExecutionPlan: ...
 
     def compute_with_dependency_graph(self, dependency_graph, datasets): ...
 
     def enrich(self, source_dataset_series, target_observations, target_derived_from, cache_view): ...
+
+    def summarize(
+        self, source_dataset_series, target_observations, target_derived_from, stratifications, cache_view
+    ): ...
 
 
 class TestValidation(abc.ABC):
@@ -892,10 +896,9 @@ class TestEnrichment(abc.ABC):
             temp = [cache_view.get(obs_id, "Observation") for obs_id in observation_set]
             observations.extend(temp)
         join_spec_mapping = dataset_series.resolve_all_joins()
-        contextual_field_reference_map = dataset_series.get_contextual_field_reference_index()
         dependency_graph = adapter.build_dependency_graph(
             observations=observations,
-            contextual_field_reference_map=contextual_field_reference_map,
+            context_index=dataset_series,
             join_spec_mapping=join_spec_mapping,
             cache_view=cache_view,
         )
@@ -1107,27 +1110,31 @@ class TestAggregation(abc.ABC):
                 data=dataset,
                 data_labels=data_labels,
             )
+        target_observation = cache_view.get("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "Observation")
+        assert target_observation is not None
         ret = adapter.summarize(
             source_dataset_series=dataset_series,
-            target_observations=[cache_view.get("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "Observation")],
+            target_observations=[
+                target_observation,
+            ],
             target_derived_from=[
                 cache_view.get("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE", "Observation")
             ],
             cache_view=cache_view,
             stratifications=[["current_year", "current_month"]],
         )
-
-        target_observation_name = "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED"
         shape = (
             2,
             4,
         )  # 2 rows for the two unique combinations of current_year and current_month, 4 columns for the stat builder result and the stratification columns
 
         assert isinstance(ret, DatasetSeries)
-        assert ret.get_dataset_by_observation(target_observation_name).data.shape == shape
+        result_dataset = ret[target_observation.ui_label]
+        assert result_dataset is not None
+        assert result_dataset.data.shape == shape
         # function function_kwarg.mapping_name is used as column name for the result of the stat builder, so we check that it is present in the resulting dataset, along with the stratification columns
-        assert "day" in ret.get_dataset_by_observation(target_observation_name).data.columns
-        assert "stratification" in ret.get_dataset_by_observation(target_observation_name).data.columns
+        assert "day" in result_dataset.data.columns
+        assert "stratification" in result_dataset.data.columns
         assert len(ret.parts) == 1
 
 

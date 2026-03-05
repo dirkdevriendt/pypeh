@@ -46,6 +46,7 @@ layouts:
 observations:
 - id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
   name: ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
+  ui_label: ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
   observation_design:
     observation_result_type: measurement
     observable_entity_type: person
@@ -72,6 +73,7 @@ observations:
   - peh:ENRICHMENT_BASE_RESULT_20251001_01
 - id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED
   name: ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED
+  ui_label: ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED
   observation_design:
     observation_result_type: calculation
     observable_entity_type: person

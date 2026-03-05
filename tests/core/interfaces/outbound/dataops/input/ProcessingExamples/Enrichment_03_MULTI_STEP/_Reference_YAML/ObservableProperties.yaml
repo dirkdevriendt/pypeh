@@ -1,21 +1,6 @@
 observable_properties:
-- id: peh:id_subject_00
+- id: peh:id_subject
   unique_name: id_subject_00
-  ui_label: id_subject
-  name: id_subject
-  short_name: id_subject
-  description: Subject Identifier
-  value_type: string
-  categorical: false
-  multivalued: false
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: false
-  default_observation_result_type: measurement
-  relevant_observation_types:
-  - questionnaire
-- id: peh:id_subject_01
-  unique_name: id_subject_01
   ui_label: id_subject
   name: id_subject
   short_name: id_subject
