@@ -19,8 +19,6 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
-CSVW_CONTEXT = {"csvw": "http://www.w3.org/ns/csvw#"}
-DCAT_CONTEXT = {"dcat": "http://www.w3.org/ns/dcat#"}
 
 
 @dataclass
@@ -56,24 +54,14 @@ class DatasetSchemaElement:
 
 @dataclass
 class ElementReference:
-    dataset_label: str = field(metadata={"id": "resource", "context": CSVW_CONTEXT})
-    element_label: str = field(metadata={"id": "columnReference", "context": CSVW_CONTEXT})
-
-    __metadata__ = {
-        "id": "csvw:TableReference",
-        "context": CSVW_CONTEXT,
-    }
+    dataset_label: str
+    element_label: str
 
 
 @dataclass
 class ForeignKey:
-    element_label: str = field(metadata={"id": "columnReference", "context": CSVW_CONTEXT})
-    reference: ElementReference = field(metadata={"id": "reference", "context": CSVW_CONTEXT})
-
-    __metadata__ = {
-        "id": "csvw:ForeignKey",
-        "context": CSVW_CONTEXT,
-    }
+    element_label: str
+    reference: ElementReference
 
 
 @dataclass
@@ -81,11 +69,6 @@ class DatasetSchema:
     elements: dict[str, DatasetSchemaElement] = field(default_factory=dict)
     primary_keys: set[str] = field(default_factory=set)
     foreign_keys: dict[str, ForeignKey] = field(default_factory=dict)
-
-    __metadata__ = {
-        "id": "csvw:Schema",
-        "context": CSVW_CONTEXT,
-    }
 
     def __post_init__(self):
         self._type = self.get_type_annotations()
@@ -430,11 +413,6 @@ class Resource:
     identifier: str = field(default_factory=lambda: str(uuid.uuid4()))
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    __metadata__ = {
-        "id": "dcat:resource",
-        "context": DCAT_CONTEXT,
-    }
-
     def add_metadata(self, metadata_key: str, metadata_value: Any) -> bool:
         if metadata_key in self.metadata:
             raise KeyError(f"{metadata_key} key already used in metadata mapping")
@@ -453,11 +431,6 @@ class Dataset(Resource, Generic[T_DataType]):
     data: T_DataType | None = field(default=None)
     part_of: DatasetSeries | None = field(default=None)
     observations: set[str] = field(default_factory=set)
-
-    __metadata__ = {
-        "id": "dcat:dataset",
-        "context": DCAT_CONTEXT,
-    }
 
     def get_type_annotations(self) -> dict[str, ObservablePropertyValueType]:
         return self.schema.get_type_annotations()
@@ -681,11 +654,6 @@ class Dataset(Resource, Generic[T_DataType]):
 class DatasetSeries(Resource, Generic[T_DataType]):
     parts: dict[str, Dataset[T_DataType]] = field(default_factory=dict)
     _obs_index: dict[str, str] = field(default_factory=dict)
-
-    __metadata__ = {
-        "id": "dcat:datasetSeries",
-        "context": DCAT_CONTEXT,
-    }
 
     def build_observation_index(self):
         for dataset_label in self.parts:
