@@ -115,8 +115,8 @@ class ImportMap:
 
 class NamespaceManager:
     def __init__(self):
-        self.namespaces: Dict[str, str] = {}  # prefix -> base IRI
-        self.class_prefixes: Dict[Type, str] = {}  # dataclass → prefix
+        self.namespaces: Dict[str, str] = {}  # namespace_label -> base_iri
+        self.dataclass_namespace_map: Dict[Type, str] = {}  # dataclass → namespace_label
         self.suffix_strategy: Callable[[Any], str] = self.default_suffix()
 
     def bind(self, namespace_label: str, base_iri: str):
@@ -124,43 +124,51 @@ class NamespaceManager:
             base_iri += "/"
         self.namespaces[namespace_label] = base_iri
 
-    def register_class(self, cls: Type, prefix: str):
+    def register_class(self, cls: Type, namespace: str):
         if not is_dataclass(cls):
             raise TypeError(f"{cls} is not a dataclass")
-        self.class_prefixes[cls] = prefix
+        assert namespace in self.namespaces, f"Namespace {namespace} not bound to NameSpaceManger instance"
+        self.dataclass_namespace_map[cls] = namespace
 
     def default_suffix(self, length: int = 16):
-        def _hash_suffix(obj):
-            d = obj.__dict__
-            canonical = json.dumps(d, sort_keys=True, separators=(",", ":"))
+        def _hash_suffix(mapping):
+            canonical = json.dumps(mapping, sort_keys=True, separators=(",", ":"))
             h = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
             return h[:length]
 
         return _hash_suffix
 
-    def set_suffix_strategy(self, func: Callable[[Any], str]):
+    def set_suffix_strategy(self, func: Callable[[dict], str]):
         # signature of func should be def f(obj):
         self.suffix_strategy = func
 
-    def mint(self, obj, identifying_field: str = "id") -> str:
+    def mint(
+        self, resource_class: Type, resource_kwargs: dict, namespace: str | None = None, identifying_field: str = "id"
+    ) -> str:
         # minted IRI will be of form namespace/prefix/suffix
-        cls = obj.__class__
-        data = obj.__dict__.copy()
+        cls = resource_class
+        data = resource_kwargs
         data.pop(identifying_field, None)
 
-        if cls not in self.class_prefixes:
-            raise ValueError(f"No prefix registered for class {cls.__name__}")
+        if namespace is None:
+            if cls not in self.dataclass_namespace_map:
+                raise ValueError(f"No namespace registered for class {cls.__name__}")
+            else:
+                base = self.namespaces[self.dataclass_namespace_map[cls]]
+        else:
+            base = self.namespaces.get(namespace, None)
+            if base is None:
+                raise ValueError(f"No registered base iri for namespace {namespace}")
 
-        prefix = self.class_prefixes[cls]
+        suffix = self.suffix_strategy(resource_kwargs)
 
-        if prefix not in self.namespaces:
-            raise ValueError(f"No namespace bound for prefix '{prefix}'")
+        return f"{base}/{suffix}"
 
-        base = self.namespaces[prefix]
-        suffix = self.suffix_strategy(obj)
-
-        return f"{base}{prefix}/{suffix}"
-
-    def mint_and_set(self, obj, identifying_field: str = "id"):
-        iri = self.mint(obj, identifying_field=identifying_field)
+    def mint_and_set(self, obj, namespace: str | None = None, identifying_field: str = "id"):
+        iri = self.mint(
+            resource_class=obj.__class__,
+            resource_kwargs=obj.__dict__,
+            namespace=namespace,
+            identifying_field=identifying_field,
+        )
         setattr(obj, identifying_field, iri)
