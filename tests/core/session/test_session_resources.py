@@ -1,11 +1,12 @@
 import pytest
 import yaml
 
-from peh_model.peh import Observation
+from peh_model.peh import Observation, ObservableProperty
 
 from pypeh import Session
 from pypeh.core.models.settings import LocalFileConfig
 
+from pypeh.core.utils.namespaces import NamespaceManager
 from tests.test_utils.dirutils import get_absolute_path
 
 
@@ -53,3 +54,17 @@ class TestSessionDump:
         test_data = yaml.safe_load(data.decode("utf-8"))
         assert isinstance(test_data, dict)
         assert "observations" in test_data
+
+
+@pytest.mark.core
+class TestSessionMint:
+    def test_mint_and_cache(self, get_session):
+        session = get_session
+        assert isinstance(session, Session)
+        namespace_manager = NamespaceManager()
+        namespace_manager.bind("test", "www.example.com")
+        session.bind_namespace_manager(namespace_manager=namespace_manager)
+        ret = session.mint_and_cache(ObservableProperty, namespace="test", ui_label="test")
+        next_instance = next(session.cache.get_all("ObservableProperty"))
+        assert isinstance(next_instance, ObservableProperty)
+        assert next_instance.id == ret.id

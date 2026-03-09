@@ -7,7 +7,6 @@ import peh_model.peh as peh
 
 from typing import TYPE_CHECKING, TypeVar, Sequence, Generic
 
-from pypeh.adapters.outbound.persistence.serializations import IOAdapterFactory
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory, CacheContainerView
 from pypeh.core.models.proxy import TypedLazyProxy
 from pypeh.core.models.settings import (
@@ -31,6 +30,7 @@ from pypeh.core.interfaces.outbound.dataops import (
     DataImportInterface,
 )
 from pypeh.core.session.connections import ConnectionManager
+from pypeh.core.utils.namespaces import NamespaceManager
 from pypeh.core.utils.resolve_identifiers import is_url
 
 logger = logging.getLogger(__name__)
@@ -81,6 +81,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         self.cache: CacheContainer = CacheContainerFactory.new()
         if load_from_default_connection is not None:
             _ = self.load_persisted_cache(source=load_from_default_connection)
+        self._namespace_manager: NamespaceManager | None = None
 
     def _normalize_configs(
         self,
@@ -437,3 +438,24 @@ class Session(Generic[T_AdapterType, T_DataType]):
             target_derived_from=target_derived_from,
             cache_view=CacheContainerView(self.cache),
         )
+
+    def bind_namespace_manager(self, namespace_manager: NamespaceManager):
+        self._namespace_manager = namespace_manager
+
+    def mint_and_cache(
+        self,
+        resource_cls: type[T_NamedThingLike],
+        namespace: str | None = None,
+        identifiying_field: str = "id",
+        **resource_kwargs,
+    ):
+        data = dict(resource_kwargs)
+        assert self._namespace_manager is not None, "No NameSpaceManager is bound to Session"
+        identifier = self._namespace_manager.mint(
+            resource_class=resource_cls, resource_kwargs=data, namespace=namespace, identifying_field=identifiying_field
+        )
+        data[identifiying_field] = identifier
+        resource = resource_cls(**data)
+        assert isinstance(resource, peh.NamedThing)
+        self.cache.add(resource)
+        return resource
