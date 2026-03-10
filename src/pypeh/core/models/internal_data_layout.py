@@ -7,7 +7,7 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from peh_model import peh
-from typing import TYPE_CHECKING, Generic, Sequence
+from typing import TYPE_CHECKING, Callable, Generic, Sequence
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerView
 from pypeh.core.models.typing import T_DataType
@@ -413,6 +413,12 @@ class Resource:
     identifier: str = field(default_factory=lambda: str(uuid.uuid4()))
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    id_factory: Callable[[str], str] | None = field(default=None)
+
+    def __post_init__(self):
+        if self.id_factory is not None:
+            self.identifier = self.id_factory(self.label)
+
     def add_metadata(self, metadata_key: str, metadata_value: Any) -> bool:
         if metadata_key in self.metadata:
             raise KeyError(f"{metadata_key} key already used in metadata mapping")
@@ -687,7 +693,11 @@ class DatasetSeries(Resource, Generic[T_DataType]):
 
     @classmethod
     def from_peh_datalayout(
-        cls, data_layout: peh.DataLayout, cache_view: CacheContainerView, apply_context: bool = True
+        cls,
+        data_layout: peh.DataLayout,
+        cache_view: CacheContainerView,
+        apply_context: bool = True,
+        id_factory: Callable[[str], str] | None = None,
     ) -> DatasetSeries:
         parts = dict()
         sections = getattr(data_layout, "sections")
@@ -703,7 +713,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         label = data_layout.ui_label
         if label is None:
             label = str(uuid.uuid4())
-        ret = cls(label=label, parts=parts)
+        ret = cls(label=label, parts=parts, id_factory=id_factory)
         for dataset in ret.parts.values():
             dataset.part_of = ret
         _ = ret.add_metadata("described_by", data_layout.id)
@@ -719,12 +729,13 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         data_import_config: peh.DataImportConfig,
         cache_view: CacheContainerView,
         apply_context: bool = True,
+        id_factory: Callable[[str], str] | None = None,
     ) -> DatasetSeries:
         data_layout_id = data_import_config.layout
         assert data_layout_id is not None
         data_layout = cache_view.get(data_layout_id, "DataLayout")
         assert isinstance(data_layout, peh.DataLayout)
-        ret = cls.from_peh_datalayout(data_layout, cache_view, apply_context=apply_context)
+        ret = cls.from_peh_datalayout(data_layout, cache_view, apply_context=apply_context, id_factory=id_factory)
 
         # add Observation links
         section_mapping = data_import_config.section_mapping

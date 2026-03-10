@@ -81,7 +81,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         self.cache: CacheContainer = CacheContainerFactory.new()
         if load_from_default_connection is not None:
             _ = self.load_persisted_cache(source=load_from_default_connection)
-        self._namespace_manager: NamespaceManager | None = None
+        self.namespace_manager: NamespaceManager | None = None
 
     def _normalize_configs(
         self,
@@ -260,11 +260,22 @@ class Session(Generic[T_AdapterType, T_DataType]):
         file_format: str | None = None,
         connection_label: str | None = None,
         allow_incomplete: bool = False,
+        namespace_key: str | None = None,
     ) -> DatasetSeries[DataFrame]:
         cache_view = CacheContainerView(self.cache)
         assert isinstance(data_import_config, peh.DataImportConfig)
-
-        dataset_series = DatasetSeries.from_peh_data_import_config(data_import_config, cache_view=cache_view)
+        id_factory = None
+        if namespace_key is not None and self.namespace_manager is None:
+            raise ValueError("A namespace_key can only be provided when a NamespaceMananger is bound to the Session")
+        if self.namespace_manager is not None:
+            id_factory = self.namespace_manager.get_id_factory(
+                namespace_key, suffix_strategy=NamespaceManager.slugify_suffix()
+            )
+        dataset_series = DatasetSeries.from_peh_data_import_config(
+            data_import_config,
+            cache_view=cache_view,
+            id_factory=id_factory,
+        )
         data_schema = dataset_series.get_type_annotations()
 
         # Add data to DatasetSeries
@@ -440,19 +451,22 @@ class Session(Generic[T_AdapterType, T_DataType]):
         )
 
     def bind_namespace_manager(self, namespace_manager: NamespaceManager):
-        self._namespace_manager = namespace_manager
+        self.namespace_manager = namespace_manager
 
     def mint_and_cache(
         self,
         resource_cls: type[T_NamedThingLike],
-        namespace: str | None = None,
+        namespace_key: str | None = None,
         identifiying_field: str = "id",
         **resource_kwargs,
     ):
         data = dict(resource_kwargs)
-        assert self._namespace_manager is not None, "No NameSpaceManager is bound to Session"
-        identifier = self._namespace_manager.mint(
-            resource_class=resource_cls, resource_kwargs=data, namespace=namespace, identifying_field=identifiying_field
+        assert self.namespace_manager is not None, "No NameSpaceManager is bound to Session"
+        identifier = self.namespace_manager.mint(
+            resource_class=resource_cls,
+            resource_kwargs=data,
+            namespace_key=namespace_key,
+            identifying_field=identifiying_field,
         )
         data[identifiying_field] = identifier
         resource = resource_cls(**data)

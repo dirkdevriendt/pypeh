@@ -64,7 +64,7 @@ class TestSessionMint:
         namespace_manager = NamespaceManager()
         namespace_manager.bind("test", "www.example.com")
         session.bind_namespace_manager(namespace_manager=namespace_manager)
-        ret = session.mint_and_cache(ObservableProperty, namespace="test", ui_label="test")
+        ret = session.mint_and_cache(ObservableProperty, namespace_key="test", ui_label="test")
         next_instance = next(session.cache.get_all("ObservableProperty"))
         assert isinstance(next_instance, ObservableProperty)
         assert next_instance.id == ret.id
