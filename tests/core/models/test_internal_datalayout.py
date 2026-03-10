@@ -1,5 +1,6 @@
 import pytest
 import peh_model.peh as peh
+import uuid
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory, CacheContainerView
 from pypeh.core.models.internal_data_layout import (
@@ -32,6 +33,12 @@ class TestInternalDataLayout:
 
         return CacheContainerView(container)
 
+    def get_id_factory(self):
+        def _id_factory(resource: dict):
+            return f"https://w3id.org/{uuid.uuid4()}"
+
+        return _id_factory
+
     def test_dataset_contained_in_schema(self, get_cache):
         cache_view = get_cache
         layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
@@ -47,7 +54,8 @@ class TestInternalDataLayout:
         with pytest.raises(AssertionError, match=r".* my_imaginary_friend .*"):
             dataset.contained_in_schema(["id_sample", "adults_u_crt", "my_imaginary_friend"])
 
-    def test_dataset_series(self, get_cache):
+    @pytest.mark.parametrize("use_id_factory", [False, True])
+    def test_dataset_series(self, get_cache, use_id_factory):
         cache_view = get_cache
         layout_id = "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
         layout = get_cache.get(layout_id, "DataLayoutLayout")
@@ -56,10 +64,10 @@ class TestInternalDataLayout:
             section_id = section.id
             if section.id is not None:
                 all_sections.add(section_id)
-        dataset_series = DatasetSeries.from_peh_datalayout(
-            layout,
-            cache_view=cache_view,
-        )
+        id_factory = None
+        if use_id_factory:
+            id_factory = self.get_id_factory()
+        dataset_series = DatasetSeries.from_peh_datalayout(layout, cache_view=cache_view, id_factory=id_factory)
         assert isinstance(dataset_series, DatasetSeries)
         assert dataset_series.described_by == "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
         for dataset in dataset_series.parts.values():
@@ -76,6 +84,9 @@ class TestInternalDataLayout:
         for key, subschema in expected_schema.items():
             for subkey, value in subschema.items():
                 assert schema[key][subkey] == value
+
+        if use_id_factory:
+            assert dataset_series.identifier.startswith("https://")
 
     def test_dataset_series_add_data(self, get_cache):
         cache_view = get_cache

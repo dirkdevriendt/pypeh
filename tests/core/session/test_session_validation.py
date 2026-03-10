@@ -7,6 +7,7 @@ from pypeh.core.models.internal_data_layout import Dataset, DatasetSeries
 from pypeh.core.models.settings import LocalFileConfig
 
 from pypeh.core.models.validation_dto import ValidationConfig
+from pypeh.core.utils.namespaces import NamespaceManager
 from tests.test_utils.dirutils import get_absolute_path
 
 
@@ -38,7 +39,8 @@ class TestSessionValidation:
         with pytest.raises(Exception, match=r"Sheet name\(s\) Template do not correspond with provided data layout"):
             session.load_tabular_dataset_series(source=excel_path, data_import_config=data_import_config)
 
-    def test_load_dataset_series_from_layout(self):
+    @pytest.mark.parametrize("use_namespace_manager", [True, False])
+    def test_load_dataset_series_from_layout(self, use_namespace_manager):
         from polars import DataFrame
 
         session = Session(
@@ -69,6 +71,10 @@ class TestSessionValidation:
                 ]
             ),
         )
+        if use_namespace_manager:
+            base_uri = "https://example.org/"
+            namespace_manager = NamespaceManager(default_base_uri=base_uri)
+            session.bind_namespace_manager(namespace_manager=namespace_manager)
         result = session.load_tabular_dataset_series(
             source="validation_test_03_data.test",
             file_format="xlsx",
@@ -78,6 +84,8 @@ class TestSessionValidation:
 
         assert isinstance(result, DatasetSeries)
         assert result.described_by == data_import_config.layout
+        if use_namespace_manager:
+            assert result.identifier.startswith(base_uri)
 
         section_id = "SAMPLE_METADATA_SECTION_SAMPLE"
         section = session.cache.get(section_id, "DataLayoutSection")

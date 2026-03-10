@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import logging
+import re
+import secrets
 
 from dataclasses import is_dataclass
 from typing import Dict, Callable, Type, Any
@@ -114,23 +117,37 @@ class ImportMap:
 
 
 class NamespaceManager:
-    def __init__(self):
-        self.namespaces: Dict[str, str] = {}  # namespace_label -> base_iri
-        self.dataclass_namespace_map: Dict[Type, str] = {}  # dataclass → namespace_label
-        self.suffix_strategy: Callable[[Any], str] = self.default_suffix()
+    def __init__(self, default_base_uri: str | None = None):
+        self._default_base_uri = self._validate_and_normalize_base(default_base_uri)
+        self.namespaces: dict[str, str] = {}  # namespace_label -> base_uri
+        self.dataclass_namespace_map: dict[Type, str] = {}  # dataclass → namespace_label
+        self.suffix_strategy: Callable[[Any], str] = self.hash_suffix()
 
-    def bind(self, namespace_label: str, base_iri: str):
-        if not base_iri.endswith("/"):
-            base_iri += "/"
-        self.namespaces[namespace_label] = base_iri
+    @property
+    def default_base_uri(self):
+        return self._default_base_uri
+
+    @staticmethod
+    def _validate_and_normalize_base(uri: str | None) -> str | None:
+        if uri is None:
+            return None
+        uri = uri.strip()
+        if uri.endswith("/") or uri.endswith("#"):
+            return uri
+        raise ValueError('default_base_uri should end in "#" or "/"')
+
+    def bind(self, namespace_key: str, base_uri: str):
+        self.namespaces[namespace_key] = base_uri.rstrip("/") + "/"
 
     def register_class(self, cls: Type, namespace: str):
         if not is_dataclass(cls):
             raise TypeError(f"{cls} is not a dataclass")
-        assert namespace in self.namespaces, f"Namespace {namespace} not bound to NameSpaceManger instance"
+        if namespace not in self.namespaces:
+            raise ValueError(f"Namespace {namespace} not bound to NamespaceManager")
         self.dataclass_namespace_map[cls] = namespace
 
-    def default_suffix(self, length: int = 16):
+    @classmethod
+    def hash_suffix(cls, length: int = 16):
         def _hash_suffix(mapping):
             canonical = json.dumps(mapping, sort_keys=True, separators=(",", ":"))
             h = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -138,37 +155,74 @@ class NamespaceManager:
 
         return _hash_suffix
 
-    def set_suffix_strategy(self, func: Callable[[dict], str]):
-        # signature of func should be def f(obj):
-        self.suffix_strategy = func
+    @classmethod
+    def slugify_suffix(cls):
+        n_bytes = 10
+
+        def _slugify_suffix(text):
+            text = text.lower()
+            text = re.sub(r"[^a-z0-9]+", "-", text)
+            slug = text.strip("-")
+            token = secrets.token_bytes(n_bytes)
+            h = base64.urlsafe_b64encode(token).decode("ascii").rstrip("=")
+            return f"{slug}-{h}"
+
+        return _slugify_suffix
+
+    def _resolve_base(self, resource_class: Type | None = None, namespace_key: str | None = None) -> str | None:
+        # Explicit namespace overrides everything
+        if namespace_key is not None:
+            base = self.namespaces.get(namespace_key)
+            if base is None:
+                raise ValueError(f"No registered base URI for namespace {namespace_key}")
+            return base
+
+        # Class-specific namespace
+        if resource_class in self.dataclass_namespace_map:
+            ns = self.dataclass_namespace_map[resource_class]
+            return self.namespaces[ns]
+
+        # Default namespace
+        if self.default_base_uri is not None:
+            return self.default_base_uri
+
+        return None
 
     def mint(
-        self, resource_class: Type, resource_kwargs: dict, namespace: str | None = None, identifying_field: str = "id"
+        self,
+        resource_class: Type,
+        resource_kwargs: dict,
+        namespace_key: str | None = None,
+        identifying_field: str = "id",
     ) -> str:
-        # minted IRI will be of form namespace/prefix/suffix
-        cls = resource_class
-        data = resource_kwargs
-        data.pop(identifying_field, None)
+        data = {k: v for k, v in resource_kwargs.items() if k != identifying_field}
 
-        if namespace is None:
-            if cls not in self.dataclass_namespace_map:
-                raise ValueError(f"No namespace registered for class {cls.__name__}")
-            else:
-                base = self.namespaces[self.dataclass_namespace_map[cls]]
-        else:
-            base = self.namespaces.get(namespace, None)
-            if base is None:
-                raise ValueError(f"No registered base iri for namespace {namespace}")
+        base = self._resolve_base(resource_class, namespace_key)
+        if base is None:
+            raise ValueError("Could not resolve base URI")
+        suffix = self.suffix_strategy(data)
+        return f"{base}{suffix}"
 
-        suffix = self.suffix_strategy(resource_kwargs)
-
-        return f"{base}/{suffix}"
-
-    def mint_and_set(self, obj, namespace: str | None = None, identifying_field: str = "id"):
-        iri = self.mint(
+    def mint_and_set(self, obj, namespace_key: str | None = None, identifying_field: str = "id"):
+        uri = self.mint(
             resource_class=obj.__class__,
             resource_kwargs=obj.__dict__,
-            namespace=namespace,
+            namespace_key=namespace_key,
             identifying_field=identifying_field,
         )
-        setattr(obj, identifying_field, iri)
+        setattr(obj, identifying_field, uri)
+
+    def get_id_factory(
+        self, namespace_key: str | None = None, suffix_strategy: Callable[[Any], str] | None = None
+    ) -> Callable[[Any], str] | None:
+        base = self._resolve_base(resource_class=None, namespace_key=namespace_key)
+        if base is None:
+            return None
+        if suffix_strategy is None:
+            suffix_strategy = self.suffix_strategy
+
+        def _factory(resource_kwargs: dict):
+            suffix = suffix_strategy(resource_kwargs)
+            return f"{base}{suffix}"
+
+        return _factory
