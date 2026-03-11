@@ -118,3 +118,29 @@ def trailing_spaces(
             )
         ).not_()
     )
+
+
+def tukey_range_check_log(
+    data: pa.PolarsData,
+    arg_values: Sequence[Any] | None = None,
+    arg_columns: Sequence[str] | None = None,
+    subject: Sequence[str] | None = None,
+) -> pl.LazyFrame:
+    key = data.key
+    lf = data.lazyframe
+
+    stats_lf = lf.select(
+        pl.col(key).log().quantile(0.25).alias("p25"),
+        pl.col(key).log().quantile(0.75).alias("p75"),
+    )
+    stats_lf = (
+        stats_lf.with_columns((pl.col("p75") - pl.col("p25")).alias("iqr"))
+        .with_columns(
+            (pl.col("p25") - 3 * pl.col("iqr")).alias("lower"),
+            (pl.col("p75") + 3 * pl.col("iqr")).alias("upper"),
+        )
+        .select("lower", "upper")
+    )
+    joined = lf.join(stats_lf, how="cross")
+
+    return joined.select(pl.col(key).log().is_between(pl.col("lower"), pl.col("upper")))

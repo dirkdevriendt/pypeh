@@ -6,7 +6,7 @@ test-core:
 	uv run pytest -s tests/adapters tests/core -m session --disable-warnings
 
 test-dataframe:
-	uv pip install -e ".[dataframe-adapter, test-core]"
+	uv pip install -e ".[dataframe-adapter, test-core, test-dataframe]"
 	uv run pytest -s -vv tests/adapters tests/core/interfaces -m dataframe --disable-warnings
 	uv run pytest -s -vv tests/core -m dataframe --disable-warnings
 

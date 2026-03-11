@@ -27,6 +27,7 @@ s3-adapter = ["s3fs"]
 polars-adapter=["polars", "pyarrow", "fastexcel"]
 export-adapter=["xlsxwriter"]
 test-core = ["pytest>=8.2.0,<9"]
+test-dataframe=["numpy"]
 
 [dependency-groups]
 test-core = [
@@ -37,6 +38,7 @@ test-dataframe = [
 	"polars",
 	"pyarrow",
 	"fastexcel",
+	"numpy",
 ]
 test-export = [
     "xlsxwriter",
