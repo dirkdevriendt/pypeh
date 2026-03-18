@@ -103,6 +103,15 @@ class TestStatCount:
         assert result["n"][0] == 0
         assert result["missing_n"][0] == 0
 
+    @pytest.mark.parametrize("name", ["n", "missing_n", "missing_pct"])
+    def test_statistics_count_unit_fn(self, name, sample_dataframe, setup_adapter, pl):
+        """Test that count statistics can be called with unit function."""
+        adapter = setup_adapter()
+        exprs = adapter._get_stat_function_from_name(f"statistics_count_{name}")("value")
+        result = sample_dataframe.select(exprs)
+
+        assert name in result.columns
+
 
 @pytest.mark.dataframe
 class TestStatArithmetic:
@@ -180,6 +189,15 @@ class TestStatArithmetic:
 
         assert result["mean"][0] == pytest.approx(expected_mean)
 
+    @pytest.mark.parametrize("name", ["mean", "st", "sem", "mean_95_ci_lower", "mean_95_ci_upper"])
+    def test_statistics_arithmetic_unit_fn(self, name, sample_dataframe, setup_adapter, pl):
+        """Test that arithmetic statistics can be called with unit function."""
+        adapter = setup_adapter()
+        exprs = adapter._get_stat_function_from_name(f"statistics_{name}")("value")
+        result = sample_dataframe.select(exprs)
+
+        assert name in result.columns
+
 
 @pytest.mark.dataframe
 class TestStatGeometric:
@@ -241,6 +259,15 @@ class TestStatGeometric:
 
         assert result["geom_mean"][0] == pytest.approx(expected_geom_mean)
 
+    @pytest.mark.parametrize("name", ["geom_mean", "geom_mean_95_ci_lower", "geom_mean_95_ci_upper"])
+    def test_statistics_geometric_unit_fn(self, name, sample_dataframe, setup_adapter, pl):
+        """Test that geometric mean can be called with unit function."""
+        adapter = setup_adapter()
+        exprs = adapter._get_stat_function_from_name(f"statistics_{name}")("value")
+        result = sample_dataframe.select(exprs)
+
+        assert name in result.columns
+
 
 @pytest.mark.dataframe
 class TestStatPercentiles:
@@ -251,7 +278,6 @@ class TestStatPercentiles:
         adapter = setup_adapter()
         exprs = adapter._get_stat_function_from_name("stat_percentiles")("value")
         result = sample_dataframe.select(exprs)
-
         # Should return 7 percentiles + 7 CI lower + 7 CI upper = 21 columns
         assert result.shape == (1, 21)
 
@@ -309,6 +335,40 @@ class TestStatPercentiles:
         col_name = f"p{int(quantile * 100)}"
         assert col_name in result.columns
         assert result[col_name][0] is not None
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "p5",
+            "p10",
+            "p25",
+            "p50",
+            "p75",
+            "p90",
+            "p95",
+            "p5_ci_lower",
+            "p5_ci_upper",
+            "p10_ci_lower",
+            "p10_ci_upper",
+            "p25_ci_lower",
+            "p25_ci_upper",
+            "p50_ci_lower",
+            "p50_ci_upper",
+            "p75_ci_lower",
+            "p75_ci_upper",
+            "p90_ci_lower",
+            "p90_ci_upper",
+            "p95_ci_lower",
+            "p95_ci_upper",
+        ],
+    )
+    def test_stat_percentiles_unit_fn(self, sample_dataframe, setup_adapter, pl, name):
+        """Test that percentile function can be called with unit function."""
+        adapter = setup_adapter()
+        exprs = adapter._get_stat_function_from_name(f"statistics_percentiles_{name}")("value")
+        result = sample_dataframe.select(exprs)
+
+        assert name in result.columns
 
 
 @pytest.mark.dataframe

@@ -50,8 +50,8 @@ class TestDataFrameAggregationAdapter:
         """Test that the adapter can be instantiated."""
         adapter = setup_adapter()
         assert adapter is not None
-        assert hasattr(adapter, "summarize")
-        assert hasattr(adapter, "_summarize")
+        assert hasattr(adapter, "calculate_for_strata")
+        assert hasattr(adapter, "_calculate_for_stratum")
         assert hasattr(adapter, "_get_stat_function_from_name")
 
     def test_get_stat_function_from_name(self, setup_adapter):
@@ -81,13 +81,13 @@ class TestDataFrameAggregationAdapter:
 
 @pytest.mark.dataframe
 class TestSummarizeMethod:
-    """Test suite for the summarize method."""
+    """Test suite for the calculate_for_strata method."""
 
     def test_summarize_single_stratification(self, setup_adapter, sample_dataframe, pl):
-        """Test summarize with a single stratification."""
+        """Test calculate_for_strata with a single stratification."""
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=sample_dataframe.lazy(),
             stratifications=[["group_a"]],
             value_col="measurement",
@@ -103,10 +103,10 @@ class TestSummarizeMethod:
         assert "mean" in result.columns
 
     def test_summarize_multiple_stratifications(self, setup_adapter, sample_dataframe, pl):
-        """Test summarize with multiple stratifications."""
+        """Test calculate_for_strata with multiple stratifications."""
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=sample_dataframe.lazy(),
             stratifications=[["group_a"], ["group_b"], ["group_a", "group_b"]],
             value_col="measurement",
@@ -125,10 +125,10 @@ class TestSummarizeMethod:
         assert "group_b" in result.columns
 
     def test_summarize_with_nulls(self, setup_adapter, dataframe_with_nulls, pl):
-        """Test summarize handles null values correctly."""
+        """Test calculate_for_strata handles null values correctly."""
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=dataframe_with_nulls.lazy(),
             stratifications=[["group_a"]],
             value_col="measurement",
@@ -142,10 +142,10 @@ class TestSummarizeMethod:
         assert total_missing == 3  # We have 3 null values
 
     def test_summarize_multiple_stat_builders(self, setup_adapter, sample_dataframe, pl):
-        """Test summarize with multiple stat builders."""
+        """Test calculate_for_strata with multiple stat builders."""
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=sample_dataframe.lazy(),
             stratifications=[["group_a"]],
             value_col="measurement",
@@ -159,10 +159,10 @@ class TestSummarizeMethod:
         assert result.shape[0] == 2
 
     def test_summarize_with_percentiles(self, setup_adapter, sample_dataframe, pl):
-        """Test summarize with percentile statistics."""
+        """Test calculate_for_strata with percentile statistics."""
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=sample_dataframe.lazy(),
             stratifications=[["group_a"]],
             value_col="measurement",
@@ -177,10 +177,10 @@ class TestSummarizeMethod:
         assert result.shape[0] == 2
 
     def test_summarize_empty_stratifications(self, setup_adapter, sample_dataframe, pl):
-        """Test summarize with empty stratifications list (behaves like None)."""
+        """Test calculate_for_strata with empty stratifications list (behaves like None)."""
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=sample_dataframe.lazy(),
             stratifications=[],
             value_col="measurement",
@@ -194,10 +194,10 @@ class TestSummarizeMethod:
         assert result["n"][0] == 10
 
     def test_summarize_none_stratifications(self, setup_adapter, sample_dataframe, pl):
-        """Test summarize with stratifications=None (no grouping)."""
+        """Test calculate_for_strata with stratifications=None (no grouping)."""
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=sample_dataframe.lazy(),
             stratifications=None,
             value_col="measurement",
@@ -214,10 +214,10 @@ class TestSummarizeMethod:
         assert result["mean"][0] == pytest.approx(17.4)  # mean of all measurements
 
     def test_summarize_nested_stratification(self, setup_adapter, sample_dataframe, pl):
-        """Test summarize with nested/combined stratification."""
+        """Test calculate_for_strata with nested/combined stratification."""
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=sample_dataframe.lazy(),
             stratifications=[["group_a", "group_b"]],
             value_col="measurement",
@@ -236,13 +236,13 @@ class TestSummarizeMethod:
 
 @pytest.mark.dataframe
 class TestInternalSummarizeMethod:
-    """Test suite for the _summarize internal method."""
+    """Test suite for the _calculate_for_stratum internal method."""
 
     def test_internal_summarize_basic(self, setup_adapter, sample_dataframe, pl):
-        """Test _summarize with basic parameters."""
+        """Test _calculate_for_stratum with basic parameters."""
         adapter = setup_adapter()
 
-        result = adapter._summarize(
+        result = adapter._calculate_for_stratum(
             df=sample_dataframe.lazy(),
             group_cols=["group_a"],
             value_col="measurement",
@@ -259,10 +259,10 @@ class TestInternalSummarizeMethod:
         assert "n" in collected.columns
 
     def test_internal_summarize_multiple_groups(self, setup_adapter, sample_dataframe, pl):
-        """Test _summarize with multiple grouping columns."""
+        """Test _calculate_for_stratum with multiple grouping columns."""
         adapter = setup_adapter()
 
-        result = adapter._summarize(
+        result = adapter._calculate_for_stratum(
             df=sample_dataframe.lazy(),
             group_cols=["group_a", "group_b"],
             value_col="measurement",
@@ -276,10 +276,10 @@ class TestInternalSummarizeMethod:
         assert "st" in result.columns
 
     def test_internal_summarize_stratification_column(self, setup_adapter, sample_dataframe, pl):
-        """Test that _summarize adds stratification column correctly."""
+        """Test that _calculate_for_stratum adds stratification column correctly."""
         adapter = setup_adapter()
 
-        result = adapter._summarize(
+        result = adapter._calculate_for_stratum(
             df=sample_dataframe.lazy(),
             group_cols=["group_a", "category"],
             value_col="measurement",
@@ -293,10 +293,10 @@ class TestInternalSummarizeMethod:
         assert first_strat.to_list() == ["group_a", "category"]
 
     def test_internal_summarize_with_kwargs(self, setup_adapter, sample_dataframe, pl):
-        """Test _summarize passes kwargs to stat functions."""
+        """Test _calculate_for_stratum passes kwargs to stat functions."""
         adapter = setup_adapter()
 
-        result = adapter._summarize(
+        result = adapter._calculate_for_stratum(
             df=sample_dataframe.lazy(),
             group_cols=["group_a"],
             value_col="measurement",
@@ -319,7 +319,7 @@ class TestIntegrationScenarios:
         """Test complete workflow with single stratification."""
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=sample_dataframe.lazy(),
             stratifications=[["group_a"]],
             value_col="measurement",
@@ -339,7 +339,7 @@ class TestIntegrationScenarios:
         """Test complete workflow with complex stratifications."""
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=sample_dataframe.lazy(),
             stratifications=[
                 ["group_a"],
@@ -361,7 +361,7 @@ class TestIntegrationScenarios:
         """Test that results make sense when comparing across groups."""
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=sample_dataframe.lazy(),
             stratifications=[["group_a"]],
             value_col="measurement",
@@ -382,7 +382,7 @@ class TestIntegrationScenarios:
         """Test using all available statistics functions together."""
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=sample_dataframe.lazy(),
             stratifications=[["group_a"]],
             value_col="measurement",
@@ -418,7 +418,7 @@ class TestIntegrationScenarios:
 
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=df.lazy(),
             stratifications=[["group"]],
             value_col="value",
@@ -434,7 +434,7 @@ class TestIntegrationScenarios:
         """Test three-way stratification."""
         adapter = setup_adapter()
 
-        result = adapter.summarize(
+        result = adapter.calculate_for_strata(
             df=sample_dataframe.lazy(),
             stratifications=[["group_a", "group_b", "category"]],
             value_col="measurement",
