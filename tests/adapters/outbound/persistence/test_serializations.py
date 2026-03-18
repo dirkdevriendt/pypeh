@@ -225,5 +225,5 @@ class TestDump:
                 props = list(g.objects(el, observable_properties_pred))
                 assert props, "EntityList has no observable_properties"
                 for p in props:
-                    label_pred = rdflib.URIRef(ns["skos"] + "prefLabel")
-                    assert (p, label_pred, None) in g, f"Observable property {p} has no prefLabel"
+                    label_pred = rdflib.URIRef(ns["rdfs"] + "label")
+                    assert (p, label_pred, None) in g, f"Observable property {p} has no rdfs label"

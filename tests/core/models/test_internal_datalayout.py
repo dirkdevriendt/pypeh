@@ -378,14 +378,38 @@ class TestToTarget:
 
     @pytest.fixture(scope="class")
     def cache_view(self) -> CacheContainerView:
+        ods = [
+            peh.ObservationDesign(
+                id="peh:urine_lab_other_design",
+                observable_property_specifications=[
+                    peh.ObservablePropertySpecification(
+                        observable_property="peh:id_subject",
+                        specification_category=peh.ObservablePropertySpecificationCategory.identifying,
+                    ),
+                    peh.ObservablePropertySpecification(
+                        observable_property="peh:crt",
+                        specification_category=peh.ObservablePropertySpecificationCategory.required,
+                    ),
+                    peh.ObservablePropertySpecification(
+                        observable_property="peh:crt_lod",
+                        specification_category=peh.ObservablePropertySpecificationCategory.required,
+                    ),
+                    peh.ObservablePropertySpecification(
+                        observable_property="peh:crt_loq",
+                        specification_category=peh.ObservablePropertySpecificationCategory.required,
+                    ),
+                    peh.ObservablePropertySpecification(
+                        observable_property="peh:sg",
+                        specification_category=peh.ObservablePropertySpecificationCategory.required,
+                    ),
+                ],
+            )
+        ]
         obs = [
             peh.Observation(
                 id="peh:urine_lab_other",
                 ui_label="urine_lab_other",
-                observation_design=peh.ObservationDesign(
-                    identifying_observable_property_id_list=["peh:id_subject"],
-                    required_observable_property_id_list=["peh:crt", "peh:crt_lod", "peh:crt_loq", "peh:sg"],
-                ),
+                observation_design="peh:urine_lab_other_design",
             ),
         ]
         observable_properties = [
@@ -417,7 +441,7 @@ class TestToTarget:
         ]
 
         container = CacheContainerFactory.new()
-        for entity_list in (obs, observable_properties):
+        for entity_list in (ods, obs, observable_properties):
             for entity in entity_list:
                 container.add(entity)
         return CacheContainerView(container)
@@ -425,15 +449,19 @@ class TestToTarget:
     def test_add_observation(self, dataset_series_input, cache_view):
         obs = cache_view.get("peh:urine_lab_other", "Observation")
         assert isinstance(obs, peh.Observation)
+        obs_design = cache_view.get(obs.observation_design, "ObservationDesign")
+        assert isinstance(obs_design, peh.ObservationDesign)
         source_dataset_series, expected_schema = dataset_series_input
         assert isinstance(source_dataset_series, DatasetSeries)
-        labeled_observable_properties = {
-            obsprop.ui_label: obsprop for obsprop in cache_view.get_all("ObservableProperty")
-        }
+        labeled_observable_property_specifications = {}
+        for spec in obs_design.observable_property_specifications:
+            obsprop = cache_view.get(spec.observable_property, "ObservableProperty")
+            spec.observable_property = obsprop
+            labeled_observable_property_specifications[obsprop.ui_label] = spec
         source_dataset_series.add_observation(
             dataset_label="partial_urine_lab",
             observation=obs,
-            labeled_observable_properties=labeled_observable_properties,
+            labeled_observable_property_specifications=labeled_observable_property_specifications,
         )
         partial_urine_data = source_dataset_series["partial_urine_lab"]
         assert partial_urine_data is not None

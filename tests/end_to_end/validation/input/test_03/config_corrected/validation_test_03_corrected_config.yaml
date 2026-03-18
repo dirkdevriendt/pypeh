@@ -9,36 +9,48 @@ import_configs:
     - section: SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS
       observation_id_list:
       - peh:VALIDATION_TEST_SAMPLE_TIMEPOINT
+observation_designs:
+- id: peh:VALIDATION_TEST_SAMPLE_METADATA_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: sample
+  observable_property_specifications:
+  - observable_property: id_sample
+    specification_category: identifying
+  - observable_property: samplingyear
+    specification_category: optional
+  - observable_property: samplingmonth
+    specification_category: optional
+  - observable_property: samplingday
+    specification_category: optional
+  - observable_property: samplinghour
+    specification_category: optional
+  - observable_property: samplingminutes
+    specification_category: optional
+  - observable_property: matrix
+    specification_category: optional
+- id: peh:VALIDATION_TEST_SAMPLE_TIMEPOINT_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: sample
+  observable_property_specifications:
+  - observable_property: id_sample
+    specification_category: identifying
+  - observable_property: chol
+    specification_category: optional
+  - observable_property: chol_lod
+    specification_category: optional
+  - observable_property: chol_loq
+    specification_category: optional
 observations:
 - id: peh:VALIDATION_TEST_SAMPLE_METADATA
   name: VALIDATION_TEST_SAMPLE_METADATA
   ui_label: SAMPLE
   observation_type: metadata
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: sample
-    identifying_observable_property_id_list:
-    - id_sample
-    optional_observable_property_id_list:
-    - samplingyear
-    - samplingmonth
-    - samplingday
-    - samplinghour
-    - samplingminutes
-    - matrix
+  observation_design: peh:VALIDATION_TEST_SAMPLE_METADATA_DESIGN
 - id: peh:VALIDATION_TEST_SAMPLE_TIMEPOINT
   name: VALIDATION_TEST_SAMPLE_TIMEPOINT
   ui_label: SAMPLETIMEPOINT_BSS
   observation_type: sampling
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: sample
-    identifying_observable_property_id_list:
-    - id_sample
-    optional_observable_property_id_list:
-    - chol
-    - chol_lod
-    - chol_loq
+  observation_design: peh:VALIDATION_TEST_SAMPLE_TIMEPOINT_DESIGN
 layouts:
 - id: peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA
   name: CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA
@@ -83,34 +95,31 @@ layouts:
       observable_property: chol_loq
 observable_properties:
 - id: id_sample
-  unique_name: id_sample
   name: id_sample
   ui_label: id_sample
   value_type: decimal
   categorical: false
   multivalued: false
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: samplingyear
-  unique_name: samplingyear
   name: samplingyear
   description: year of sample collection
   ui_label: samplingyear
   value_type: decimal
   categorical: false
   multivalued: false
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: samplingmonth
-  unique_name: samplingmonth
   name: samplingmonth
   description: month of sample collection (1 is the first month of the year)
   ui_label: samplingmonth
@@ -142,56 +151,52 @@ observable_properties:
     value: November
   - key: '12'
     value: December
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: samplingday
-  unique_name: samplingday
   name: samplingday
   description: day of sample collection (1 is the first day of the month)
   ui_label: samplingday
   value_type: decimal
   categorical: false
   multivalued: false
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: samplinghour
-  unique_name: samplinghour
   name: samplinghour
   description: Hour of sampling
   ui_label: samplinghour
   value_type: decimal
   categorical: false
   multivalued: false
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: samplingminutes
-  unique_name: samplingminutes
   name: samplingminutes
   description: Minutes of sampling
   ui_label: samplingminutes
   value_type: decimal
   categorical: false
   multivalued: false
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: chol
-  unique_name: chol
   name: chol
   description: Cholesterol in sample
   ui_label: Cholesterol in sample
@@ -208,12 +213,11 @@ observable_properties:
     value: '6'
   - field: cb_source
     value: basic
-  default_unit: MilliGM-PER-DeciL
-  default_unit_label: mg/dL
-  default_required: false
-  default_zeroallowed: true
-  default_significantdecimals: 6
-  default_observation_result_type: measurement
+  unit: MilliGM-PER-DeciL
+  required: false
+  zeroallowed: true
+  significantdecimals: 6
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: chol
@@ -269,7 +273,6 @@ observable_properties:
       \  THEN chol IS not empty; \n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
       \  THEN chol [50,250]; \n\nIF matrix IS (BM,BMG)  THEN chol [5,100]"
 - id: chol_lod
-  unique_name: chol_lod
   name: chol_lod
   description: lod associated with the cholesterol measurement of the sample
   ui_label: lod associated with the cholesterol measurement of the sample
@@ -281,17 +284,15 @@ observable_properties:
     value: '7'
   - field: cb_source
     value: basic
-  default_unit: MilliGM-PER-DeciL
-  default_unit_label: mg/dL
-  default_required: false
-  default_zeroallowed: true
-  default_significantdecimals: 6
-  default_observation_result_type: measurement
+  unit: MilliGM-PER-DeciL
+  required: false
+  zeroallowed: true
+  significantdecimals: 6
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: chol_lod
 - id: chol_loq
-  unique_name: chol_loq
   name: chol_loq
   description: loq associated with the cholesterol measurement of the sample
   ui_label: loq associated with the cholesterol measurement of the sample
@@ -303,26 +304,24 @@ observable_properties:
     value: '8'
   - field: cb_source
     value: basic
-  default_unit: MilliGM-PER-DeciL
-  default_unit_label: mg/dL
-  default_required: false
-  default_zeroallowed: true
-  default_significantdecimals: 6
-  default_observation_result_type: measurement
+  unit: MilliGM-PER-DeciL
+  required: false
+  zeroallowed: true
+  significantdecimals: 6
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: chol_loq
 - id: matrix
-  unique_name: matrix
   name: matrix
   ui_label: matrix
   value_type: string
   categorical: false
   multivalued: false
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: matrix

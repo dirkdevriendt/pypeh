@@ -147,7 +147,7 @@ class SemanticDataset(SemanticResource):
     schema: SemanticDatasetSchema = field(default_factory=SemanticDatasetSchema)
     data: str | None = field(default=None)
     part_of: SemanticDatasetSeries | DatasetSeries | None = field(default=None)
-    observations: set[str] = field(default_factory=set)  # URIs of peh:Observation instances
+    observation_ids: set[str] = field(default_factory=set)  # URIs of peh:Observation instances
 
     # PROV — explicit typed fields
     was_generated_by: str | None = field(default=None)  # prov:wasGeneratedBy   (activity URI)
@@ -160,7 +160,7 @@ class SemanticDataset(SemanticResource):
             identifier=dataset.identifier,
             schema=schema_profile.from_dataset_schema(dataset.schema),
             part_of=dataset.part_of,
-            observations=dataset.observations,
+            observation_ids=dataset.observation_ids,
             **kwargs,
         )
 
@@ -185,8 +185,8 @@ class SemanticDataset(SemanticResource):
             yield (s, DCTERMS.isPartOf, URIRef(self.part_of.identifier))
             yield (s, DCAT.inSeries, URIRef(self.part_of.identifier))
 
-        # peh observations — each URI is a peh:Observation owl:namedIndividual
-        for obs_uri in self.observations:
+        # peh observation_ids — each URI points to a peh:Observation owl:namedIndividual
+        for obs_uri in self.observation_ids:
             yield (s, PEH.hasObservation, URIRef(obs_uri))
 
 

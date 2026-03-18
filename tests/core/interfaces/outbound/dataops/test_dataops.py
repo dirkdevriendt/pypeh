@@ -4,7 +4,14 @@ import re
 
 from datetime import date
 from typing import Protocol, Any, Generic
-from peh_model.peh import DataLayout, Observation, ObservationDesign, DataImportConfig
+from peh_model.peh import (
+    DataLayout,
+    Observation,
+    ObservationDesign,
+    DataImportConfig,
+    ObservablePropertySpecification,
+    ObservablePropertySpecificationCategory,
+)
 
 from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
 from pypeh.core.cache.utils import load_entities_from_tree
@@ -587,34 +594,94 @@ class TestDatasetSeriesMods(abc.ABC):
         raise NotImplementedError
 
     @pytest.fixture(scope="function")
+    def observation_designs(self) -> dict[str, list[ObservationDesign]]:
+        ret = {
+            "urine_lab": [
+                ObservationDesign(
+                    id="peh:urine_lab_this_design",
+                    observable_property_specifications=[
+                        ObservablePropertySpecification(
+                            observable_property="id_subject",
+                            specification_category=ObservablePropertySpecificationCategory.identifying,
+                        ),
+                        ObservablePropertySpecification(
+                            observable_property="matrix",
+                            specification_category=ObservablePropertySpecificationCategory.required,
+                        ),
+                        ObservablePropertySpecification(
+                            observable_property="crt",
+                            specification_category=ObservablePropertySpecificationCategory.required,
+                        ),
+                    ],
+                ),
+                ObservationDesign(
+                    id="peh:urine_lab_other_design",
+                    observable_property_specifications=[
+                        ObservablePropertySpecification(
+                            observable_property="id_subject",
+                            specification_category=ObservablePropertySpecificationCategory.identifying,
+                        ),
+                        ObservablePropertySpecification(
+                            observable_property="crt_lod",
+                            specification_category=ObservablePropertySpecificationCategory.required,
+                        ),
+                        ObservablePropertySpecification(
+                            observable_property="crt_loq",
+                            specification_category=ObservablePropertySpecificationCategory.required,
+                        ),
+                        ObservablePropertySpecification(
+                            observable_property="sg",
+                            specification_category=ObservablePropertySpecificationCategory.required,
+                        ),
+                    ],
+                ),
+            ],
+            "analyticalinfo": [
+                ObservationDesign(
+                    id="peh:analytical_info_obs_design",
+                    observable_property_specifications=[
+                        ObservablePropertySpecification(
+                            observable_property="id_subject",
+                            specification_category=ObservablePropertySpecificationCategory.identifying,
+                        ),
+                        ObservablePropertySpecification(
+                            observable_property="biomarkercode",
+                            specification_category=ObservablePropertySpecificationCategory.required,
+                        ),
+                        ObservablePropertySpecification(
+                            observable_property="matrix",
+                            specification_category=ObservablePropertySpecificationCategory.required,
+                        ),
+                        ObservablePropertySpecification(
+                            observable_property="labinstitution",
+                            specification_category=ObservablePropertySpecificationCategory.required,
+                        ),
+                    ],
+                ),
+            ],
+        }
+        return ret
+
+    @pytest.fixture(scope="function")
     def observations(self, raw_data) -> dict[str, list[Observation]]:
         ret = {
             "urine_lab": [
                 Observation(
                     id="peh:urine_lab_this",
                     ui_label="urine_lab_this",
-                    observation_design=ObservationDesign(
-                        identifying_observable_property_id_list=["id_subject"],
-                        required_observable_property_id_list=["matrix", "crt"],
-                    ),
+                    observation_design="peh:urine_lab_this_design",
                 ),
                 Observation(
                     id="peh:urine_lab_other",
                     ui_label="urine_lab_this",
-                    observation_design=ObservationDesign(
-                        identifying_observable_property_id_list=["id_subject"],
-                        required_observable_property_id_list=["crt_lod", "crt_loq", "sg"],
-                    ),
+                    observation_design="peh:urine_lab_other_design",
                 ),
             ],
             "analyticalinfo": [
                 Observation(
                     id="peh:analytical_info_obs",
                     ui_label="analytical_info_obs",
-                    observation_design=ObservationDesign(
-                        identifying_observable_property_id_list=["id_subject"],
-                        required_observable_property_id_list=["biomarkercode", "matrix", "labinstitution"],
-                    ),
+                    observation_design="peh:analytical_info_obs_design",
                 )
             ],
         }
@@ -703,14 +770,14 @@ class TestDatasetSeriesMods(abc.ABC):
             label="urine_lab",
             schema=urine_lab_schema,
             data=raw_data["urine_lab"],
-            observations=set(["peh:urine_lab_this", "peh:urine_lab_other"]),
+            observation_ids=set(["peh:urine_lab_this", "peh:urine_lab_other"]),
         )
 
         analyticalinfo_dataset = Dataset(
             label="analyticalinfo",
             schema=analyticalinfo_schema,
             data=raw_data["analyticalinfo"],
-            observations=set(["peh:analyticalinfo_obs"]),
+            observation_ids=set(["peh:analyticalinfo_obs"]),
         )
 
         # --- DATASET SERIES ---------------------------------------------------------
@@ -728,13 +795,15 @@ class TestDatasetSeriesMods(abc.ABC):
 
         return series
 
-    def test_subset_dataset(self, dataset_series, observations):
+    def test_subset_dataset(self, dataset_series, observation_designs, observations):
+        urine_this_design, urine_other_design = observation_designs["urine_lab"]
         urine_this, urine_other = observations["urine_lab"]
         num_primary_keys_urine_lab = len(dataset_series["urine_lab"].schema.primary_keys)
         ret = dataset_series.subset_dataset(
             dataset_label="urine_lab",
             new_dataset_series_label="urine_split",
             observation_groups={"this": [urine_this], "other": [urine_other]},
+            observation_designs=[urine_this_design, urine_other_design],
             dataops_adapter=self.get_adapter(),
         )
         assert len(ret.parts) == 2
@@ -845,7 +914,7 @@ class TestEnrichment(abc.ABC):
                             ),
                         },
                     ),
-                    observations={"peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED"},
+                    observation_ids={"peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED"},
                 ),
                 "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED": Dataset(
                     label="peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
@@ -878,7 +947,7 @@ class TestEnrichment(abc.ABC):
                             )
                         },
                     ),
-                    observations={"peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED"},
+                    observation_ids={"peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED"},
                 ),
             },
         )

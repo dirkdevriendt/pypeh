@@ -1,20 +1,18 @@
 observable_properties:
 - id: peh:id_subject
-  unique_name: id_subject
   name: id_subject
   short_name: id_subject
   description: Subject Identifier
   value_type: string
   categorical: false
   multivalued: false
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: false
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: true
+  zeroallowed: false
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: peh:current_year
-  unique_name: current_year
   name: current_year
   short_name: current_year
   description: year the questionnaire is filled in
@@ -26,24 +24,23 @@ observable_properties:
     value: '1900.0'
   - field: max
     value: '2100.0'
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: false
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: false
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: peh:current_month
-  unique_name: current_month
   name: current_month
   short_name: current_month
   description: month the questionnaire is filled in
   value_type: integer
   categorical: false
   multivalued: false
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: false
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: false
+  observation_result_type: measurement
   value_metadata:
   - field: min
     value: '1'
@@ -52,7 +49,6 @@ observable_properties:
   relevant_observation_types:
   - questionnaire
 - id: peh:current_day
-  unique_name: current_day
   name: current_day
   short_name: current_day
   description: day the questionnaire is filled in
@@ -64,56 +60,53 @@ observable_properties:
     value: '1.0'
   - field: max
     value: '31.0'
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: false
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: false
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: peh:N1Birthdate
-  unique_name: N1Birthdate
   name: N1Birthdate
   short_name: N1Birthdate
   description: 1. Birthdate
   value_type: datetime
   categorical: false
   multivalued: false
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: peh:N2Birthweight
-  unique_name: N2Birthweight
   name: N2Birthweight
   short_name: N2Birthweight
   description: 2. Birthweight (in gram)
   value_type: integer
   categorical: false
   multivalued: false
-  default_unit: GM
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: GM
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: peh:Todaysdate
-  unique_name: Todaysdate
   name: Todaysdate
   short_name: Todaysdate
   description: Today's date (as filled by participant on questionnaire)
   value_type: datetime
   categorical: false
   multivalued: false
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
-  calculation_designs:
-  - calculation_name: datetime_from_year_month_day
+  calculation_design:
+    calculation_name: datetime_from_year_month_day
     calculation_implementation:
       function_name: tests.core.models.enrichment_functions.datetime_from_year_month_day
       function_kwargs:
@@ -139,24 +132,23 @@ observable_properties:
       - value_type: datetime
         unit: UNITLESS
 - id: peh:agemonths
-  unique_name: agemonths
   name: agemonths
   short_name: agemonths
   description: Age in months of the child (calculated based on N1Birthdate and Todaysdate)
   categorical: false
   multivalued: false
   value_type: integer
-  default_unit: MO
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: MO
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   value_metadata:
   - field: max
     value: '239.0'
-  calculation_designs:
-  - calculation_name: age_in_months_from_birth_and_interview_dates
+  calculation_design:
+    calculation_name: age_in_months_from_birth_and_interview_dates
     calculation_implementation:
       function_name: tests.core.models.enrichment_functions.age_in_months_from_birth_and_interview_dates
       function_kwargs:

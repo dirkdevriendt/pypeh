@@ -1,6 +1,5 @@
 observable_properties:
 - id: adults_id_subject
-  unique_name: None_id_subject
   name: id_subject
   description: UID of the subject
   ui_label: UID of the subject
@@ -12,17 +11,16 @@ observable_properties:
     value: '1'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - UniqueIdentifier
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: id_subject
 - id: adults_bs_matrix
-  unique_name: bs_matrix
   name: matrix
   description: matrix of the sample
   ui_label: matrix of the sample
@@ -79,15 +77,14 @@ observable_properties:
     value: '2'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: matrix
 - id: adults_bs_analysisyear
-  unique_name: bs_analysisyear
   name: analysisyear
   description: Year in which the sample was analyzed in the lab
   ui_label: Year in which the sample was analyzed in the lab
@@ -103,15 +100,14 @@ observable_properties:
     value: '3'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: analysisyear
 - id: adults_bs_analysismonth
-  unique_name: bs_analysismonth
   name: analysismonth
   description: Month in which the sample was analyzed in the lab
   ui_label: Month in which the sample was analyzed in the lab
@@ -148,15 +144,14 @@ observable_properties:
     value: '4'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: analysismonth
 - id: adults_bs_analysisday
-  unique_name: bs_analysisday
   name: analysisday
   description: Day in which the sample was analyzed in the lab
   ui_label: Day in which the sample was analyzed in the lab
@@ -172,15 +167,14 @@ observable_properties:
     value: '5'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: analysisday
 - id: adults_bs_chol
-  unique_name: bs_chol
   name: chol
   description: Cholesterol in sample
   ui_label: Cholesterol in sample
@@ -197,12 +191,11 @@ observable_properties:
     value: '6'
   - field: cb_source
     value: basic
-  default_unit: MilliGM-PER-DeciL
-  default_unit_label: mg/dL
-  default_required: false
-  default_zeroallowed: true
-  default_significantdecimals: 6
-  default_observation_result_type: measurement
+  unit: MilliGM-PER-DeciL
+  required: false
+  zeroallowed: true
+  significantdecimals: 6
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: chol
@@ -292,7 +285,6 @@ observable_properties:
       \  THEN chol IS not empty; \n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
       \  THEN chol [50,250]; \n\nIF matrix IS (BM,BMG)  THEN chol [5,100]"
 - id: adults_bs_chol_lod
-  unique_name: bs_chol_lod
   name: chol_lod
   description: lod associated with the cholesterol measurement of the sample
   ui_label: lod associated with the cholesterol measurement of the sample
@@ -304,17 +296,15 @@ observable_properties:
     value: '7'
   - field: cb_source
     value: basic
-  default_unit: MilliGM-PER-DeciL
-  default_unit_label: mg/dL
-  default_required: false
-  default_zeroallowed: true
-  default_significantdecimals: 6
-  default_observation_result_type: measurement
+  unit: MilliGM-PER-DeciL
+  required: false
+  zeroallowed: true
+  significantdecimals: 6
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: chol_lod
 - id: adults_bs_chol_loq
-  unique_name: bs_chol_loq
   name: chol_loq
   description: loq associated with the cholesterol measurement of the sample
   ui_label: loq associated with the cholesterol measurement of the sample
@@ -326,12 +316,11 @@ observable_properties:
     value: '8'
   - field: cb_source
     value: basic
-  default_unit: MilliGM-PER-DeciL
-  default_unit_label: mg/dL
-  default_required: false
-  default_zeroallowed: true
-  default_significantdecimals: 6
-  default_observation_result_type: measurement
+  unit: MilliGM-PER-DeciL
+  required: false
+  zeroallowed: true
+  significantdecimals: 6
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: chol_loq

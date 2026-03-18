@@ -1,6 +1,6 @@
 import pytest
 
-from peh_model.peh import ObservableProperty, Observation, EntityList
+from peh_model.peh import ObservableProperty, Observation, ObservationDesign, EntityList
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory, CacheContainerView
 from pypeh.core.cache.utils import load_entities_from_tree
@@ -24,7 +24,7 @@ class TestCache:
         return container
 
     def test_filter_cache(self, container):
-        assert all(isinstance(i, (ObservableProperty, Observation)) for i in container.get_all())
+        assert all(isinstance(i, (ObservableProperty, Observation, ObservationDesign)) for i in container.get_all())
         filter = list(container.get_all(entity_type="Observation"))
         assert len(filter) > 1
 
@@ -45,18 +45,6 @@ class TestCache:
         }
         cache_view = CacheContainerView(container, container_subset)
         assert len(list(cache_view.get_all())) == 3
-
-    def test_cache_nested(self, container):
-        ret = container.walk_entity(
-            entity_id="OBSERVATION_ADULTS_BLOODSERUM_LAB",
-            nested_entity_path=["observation_design", "required_observable_property_id_list"],
-            entity_type="Observation",
-        )
-        count = 0
-        for item in ret:
-            assert isinstance(item, ObservableProperty)
-            count += 1
-        assert count == 7
 
     def test_pack_cache(self, container):
         assert isinstance(container, CacheContainer)

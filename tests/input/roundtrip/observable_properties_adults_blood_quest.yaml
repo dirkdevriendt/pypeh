@@ -1,6 +1,5 @@
 observable_properties:
 - id: adults_id_subject
-  unique_name: None_id_subject
   name: id_subject
   description: UID of the subject
   ui_label: UID of the subject
@@ -12,17 +11,16 @@ observable_properties:
     value: '1'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - UniqueIdentifier
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: id_subject
 - id: adults_bq_samplingyear
-  unique_name: bq_samplingyear
   name: samplingyear
   description: year of sample collection
   ui_label: year of sample collection
@@ -38,15 +36,14 @@ observable_properties:
     value: '2'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: samplingyear
 - id: adults_bq_samplingmonth
-  unique_name: bq_samplingmonth
   name: samplingmonth
   description: month of sample collection (1 is the first month of the year)
   ui_label: month of sample collection (1 is the first month of the year)
@@ -83,15 +80,14 @@ observable_properties:
     value: '3'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: samplingmonth
 - id: adults_bq_samplingday
-  unique_name: bq_samplingday
   name: samplingday
   description: day of sample collection (1 is the first day of the month)
   ui_label: day of sample collection (1 is the first day of the month)
@@ -110,15 +106,14 @@ observable_properties:
     value: '4'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: samplingday
 - id: adults_bq_samplingseason
-  unique_name: bq_samplingseason
   name: samplingseason
   description: Season of sampling
   ui_label: Season of sampling
@@ -149,15 +144,14 @@ observable_properties:
     value: '5'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: samplingseason
 - id: adults_bq_samplinghour
-  unique_name: bq_samplinghour
   name: samplinghour
   description: Hour of sampling
   ui_label: Hour of sampling
@@ -171,15 +165,14 @@ observable_properties:
     value: '6'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: samplinghour
 - id: adults_bq_samplingminutes
-  unique_name: bq_samplingminutes
   name: samplingminutes
   description: Minutes of sampling
   ui_label: Minutes of sampling
@@ -193,15 +186,14 @@ observable_properties:
     value: '7'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: samplingminutes
 - id: adults_bq_id_subject_original
-  unique_name: bq_id_subject_original
   name: id_subject_original
   description: unique ID number of the subject
   ui_label: ID (PARTICIPANT)
@@ -219,17 +211,16 @@ observable_properties:
     value: I.00
   - field: SectionDescription
     value: Questionnaire information
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: id_subject_original
 - id: adults_bq_id_interviewer
-  unique_name: bq_id_interviewer
   name: id_interviewer
   description: unique ID number of the interviewer
   ui_label: ID (INTERVIEWER)
@@ -247,17 +238,16 @@ observable_properties:
     value: I.00
   - field: SectionDescription
     value: Questionnaire information
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: id_interviewer
 - id: adults_bq_interviewday
-  unique_name: bq_interviewday
   name: interviewday
   description: date of the interview/filling in the questionnaire - day
   ui_label: DATE OF THE INTERVIEW ||| day
@@ -279,18 +269,16 @@ observable_properties:
     value: I.00
   - field: SectionDescription
     value: Questionnaire information
-  default_unit: DAY
-  default_unit_label: days
-  default_required: true
-  default_zeroallowed: true
+  unit: DAY
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: interviewday
 - id: adults_bq_interviewmonth
-  unique_name: bq_interviewmonth
   name: interviewmonth
   description: date of the interview/filling in the questionnaire - month
   ui_label: DATE OF THE INTERVIEW ||| month
@@ -312,18 +300,16 @@ observable_properties:
     value: I.00
   - field: SectionDescription
     value: Questionnaire information
-  default_unit: MO
-  default_unit_label: months
-  default_required: true
-  default_zeroallowed: true
+  unit: MO
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: interviewmonth
 - id: adults_bq_interviewyear
-  unique_name: bq_interviewyear
   name: interviewyear
   description: date of the interview/filling in the questionnaire - year
   ui_label: DATE OF THE INTERVIEW ||| year
@@ -345,18 +331,16 @@ observable_properties:
     value: I.00
   - field: SectionDescription
     value: Questionnaire information
-  default_unit: YR
-  default_unit_label: years
-  default_required: true
-  default_zeroallowed: true
+  unit: YR
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: interviewyear
 - id: adults_bq_interviewstarthour
-  unique_name: bq_interviewstarthour
   name: interviewstarthour
   description: start time of the interview/filling in the questionnaire - hour
   ui_label: START TIME ||| hours
@@ -376,18 +360,16 @@ observable_properties:
     value: I.00
   - field: SectionDescription
     value: Questionnaire information
-  default_unit: HR
-  default_unit_label: hours
-  default_required: false
-  default_zeroallowed: true
+  unit: HR
+  required: false
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_NOT_APPLICABLE
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: interviewstarthour
 - id: adults_bq_interviewstartminutes
-  unique_name: bq_interviewstartminutes
   name: interviewstartminutes
   description: start time of the interview/filling in the questionnaire - minutes
   ui_label: START TIME ||| minutes
@@ -407,18 +389,16 @@ observable_properties:
     value: I.00
   - field: SectionDescription
     value: Questionnaire information
-  default_unit: MIN
-  default_unit_label: minutes
-  default_required: false
-  default_zeroallowed: true
+  unit: MIN
+  required: false
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_NOT_APPLICABLE
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: interviewstartminutes
 - id: adults_bq_interviewendhour
-  unique_name: bq_interviewendhour
   name: interviewendhour
   description: end time of the interview/filling in the questionnaire - hour
   ui_label: END TIME ||| hours
@@ -438,18 +418,16 @@ observable_properties:
     value: I.00
   - field: SectionDescription
     value: Questionnaire information
-  default_unit: HR
-  default_unit_label: hours
-  default_required: false
-  default_zeroallowed: true
+  unit: HR
+  required: false
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_NOT_APPLICABLE
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: interviewendhour
 - id: adults_bq_interviewendminutes
-  unique_name: bq_interviewendminutes
   name: interviewendminutes
   description: end time of the interview/filling in the questionnaire - minutes
   ui_label: END TIME ||| minutes
@@ -469,18 +447,16 @@ observable_properties:
     value: I.00
   - field: SectionDescription
     value: Questionnaire information
-  default_unit: MIN
-  default_unit_label: minutes
-  default_required: false
-  default_zeroallowed: true
+  unit: MIN
+  required: false
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_NOT_APPLICABLE
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: interviewendminutes
 - id: adults_bq_interviewplace
-  unique_name: bq_interviewplace
   name: interviewplace
   description: place/platform were the interview/filling in the questionnaire took
     place
@@ -499,17 +475,16 @@ observable_properties:
     value: I.00
   - field: SectionDescription
     value: Questionnaire information
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OPTIONAL
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: interviewplace
 - id: adults_bq_bloodtaken
-  unique_name: bq_bloodtaken
   name: bloodtaken
   description: blood sample taken
   ui_label: Has the blood sample been taken?
@@ -532,17 +507,16 @@ observable_properties:
     value: B.01
   - field: SectionDescription
     value: Question for fieldworker about blood sample collection
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: bloodtaken
 - id: adults_bq_bloodnottaken
-  unique_name: bq_bloodnottaken
   name: bloodnottaken
   description: reason for missing blood sample
   ui_label: Has the blood sample been taken? ||| Please indicate the reason for missing
@@ -570,12 +544,12 @@ observable_properties:
     value: B.01
   - field: SectionDescription
     value: Question for fieldworker about blood sample collection
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: bloodnottaken
@@ -592,7 +566,6 @@ observable_properties:
       validation_command: is_not_null
     conditional: IF bloodtaken IS 0 THEN bloodnottaken IS not empty
 - id: adults_bq_bloodnottakenother
-  unique_name: bq_bloodnottakenother
   name: bloodnottakenother
   description: other reason for missing blood sample
   ui_label: Has the blood sample been taken? ||| Please indicate the reason for missing
@@ -611,12 +584,12 @@ observable_properties:
     value: B.01
   - field: SectionDescription
     value: Question for fieldworker about blood sample collection
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: bloodnottakenother
@@ -633,7 +606,6 @@ observable_properties:
       validation_command: is_not_null
     conditional: IF bloodnottaken IS 4 THEN bloodnottakenother IS not empty
 - id: adults_bq_bloodsampleday
-  unique_name: bq_bloodsampleday
   name: bloodsampleday
   description: date of blood sample collection - day
   ui_label: When was the blood sample obtained? ||| on ||| Day
@@ -655,13 +627,12 @@ observable_properties:
     value: B.01
   - field: SectionDescription
     value: Question for fieldworker about blood sample collection
-  default_unit: DAY
-  default_unit_label: days
-  default_required: true
-  default_zeroallowed: true
+  unit: DAY
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: bloodsampleday
@@ -678,7 +649,6 @@ observable_properties:
       validation_command: is_not_null
     conditional: IF bloodtaken IS 1 THEN bloodsampleday IS not empty
 - id: adults_bq_bloodsamplemonth
-  unique_name: bq_bloodsamplemonth
   name: bloodsamplemonth
   description: date of blood sample collection - month
   ui_label: When was the blood sample obtained? ||| on ||| Month
@@ -700,13 +670,12 @@ observable_properties:
     value: B.01
   - field: SectionDescription
     value: Question for fieldworker about blood sample collection
-  default_unit: MO
-  default_unit_label: months
-  default_required: true
-  default_zeroallowed: true
+  unit: MO
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: bloodsamplemonth
@@ -723,7 +692,6 @@ observable_properties:
       validation_command: is_not_null
     conditional: IF bloodtaken IS 1 THEN bloodsamplemonth IS not empty
 - id: adults_bq_bloodsampleyear
-  unique_name: bq_bloodsampleyear
   name: bloodsampleyear
   description: date of blood sample collection - year
   ui_label: When was the blood sample obtained? ||| on ||| Year
@@ -745,13 +713,12 @@ observable_properties:
     value: B.01
   - field: SectionDescription
     value: Question for fieldworker about blood sample collection
-  default_unit: YR
-  default_unit_label: years
-  default_required: true
-  default_zeroallowed: true
+  unit: YR
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: bloodsampleyear
@@ -768,7 +735,6 @@ observable_properties:
       validation_command: is_not_null
     conditional: IF bloodtaken IS 1 THEN bloodsampleyear IS not empty
 - id: adults_bq_bloodsamplehour
-  unique_name: bq_bloodsamplehour
   name: bloodsamplehour
   description: time of blood sample collection - hour
   ui_label: When was the blood sample obtained? ||| at ||| Hour
@@ -788,13 +754,12 @@ observable_properties:
     value: B.01
   - field: SectionDescription
     value: Question for fieldworker about blood sample collection
-  default_unit: HR
-  default_unit_label: hour
-  default_required: false
-  default_zeroallowed: true
+  unit: HR
+  required: false
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: bloodsamplehour
@@ -811,7 +776,6 @@ observable_properties:
       validation_command: is_not_null
     conditional: IF bloodtaken IS 1 THEN bloodsamplehour IS not empty
 - id: adults_bq_bloodsampleminute
-  unique_name: bq_bloodsampleminute
   name: bloodsampleminute
   description: time of blood sample collection - minute
   ui_label: When was the blood sample obtained? ||| at ||| Minute
@@ -831,13 +795,12 @@ observable_properties:
     value: B.01
   - field: SectionDescription
     value: Question for fieldworker about blood sample collection
-  default_unit: MIN
-  default_unit_label: minute
-  default_required: false
-  default_zeroallowed: true
+  unit: MIN
+  required: false
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: bloodsampleminute
@@ -854,7 +817,6 @@ observable_properties:
       validation_command: is_not_null
     conditional: IF bloodtaken IS 1 THEN bloodsampleminute IS not empty
 - id: adults_bq_mealbeforebloodday
-  unique_name: bq_mealbeforebloodday
   name: mealbeforebloodday
   description: date of last meal before blood sample collection - day
   ui_label: When was your last meal before blood sample collection? ||| on ||| Day
@@ -876,13 +838,12 @@ observable_properties:
     value: B.02
   - field: SectionDescription
     value: Question for participant about blood sample collection
-  default_unit: DAY
-  default_unit_label: days
-  default_required: false
-  default_zeroallowed: true
+  unit: DAY
+  required: false
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_NICE_TO_HAVE
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: mealbeforebloodday
@@ -899,7 +860,6 @@ observable_properties:
       validation_command: is_not_null
     conditional: IF bloodtaken IS 1 THEN mealbeforebloodday IS not empty
 - id: adults_bq_mealbeforebloodmonth
-  unique_name: bq_mealbeforebloodmonth
   name: mealbeforebloodmonth
   description: date of last meal before blood sample collection - month
   ui_label: When was your last meal before blood sample collection? ||| on ||| Month
@@ -921,13 +881,12 @@ observable_properties:
     value: B.02
   - field: SectionDescription
     value: Question for participant about blood sample collection
-  default_unit: MO
-  default_unit_label: months
-  default_required: false
-  default_zeroallowed: true
+  unit: MO
+  required: false
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_NICE_TO_HAVE
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: mealbeforebloodmonth
@@ -944,7 +903,6 @@ observable_properties:
       validation_command: is_not_null
     conditional: IF bloodtaken IS 1 THEN mealbeforebloodmonth IS not empty
 - id: adults_bq_mealbeforebloodyear
-  unique_name: bq_mealbeforebloodyear
   name: mealbeforebloodyear
   description: date of last meal before blood sample collection - year
   ui_label: When was your last meal before blood sample collection? ||| on ||| Year
@@ -966,13 +924,12 @@ observable_properties:
     value: B.02
   - field: SectionDescription
     value: Question for participant about blood sample collection
-  default_unit: YR
-  default_unit_label: years
-  default_required: false
-  default_zeroallowed: true
+  unit: YR
+  required: false
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_NICE_TO_HAVE
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: mealbeforebloodyear

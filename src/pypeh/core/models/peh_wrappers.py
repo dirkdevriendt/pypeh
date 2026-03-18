@@ -6,12 +6,11 @@ from linkml_runtime import SchemaView
 logger = logging.getLogger(__name__)
 
 ENTITYLIST_MAPPING = {
-    "Matrix": "matrices",
+    "MatrixSubClass": "matrix_subclasses",
     "ObservablePropertyMetadataField": "metadata_fields",
-    "BioChemEntity": "biochementities",
+    "BioChemEntitySubClass": "biochementity_subclasses",
     "Grouping": "groupings",
-    "Indicator": "indicators",
-    "Unit": "units",
+    "IndicatorSubClass": "indicator_subclasses",
     "ObservableProperty": "observable_properties",
     "Stakeholder": "stakeholders",
     "Project": "projects",
@@ -20,6 +19,7 @@ ENTITYLIST_MAPPING = {
     "PhysicalEntity": "physical_entities",
     "ObservationGroup": "observation_groups",
     "Observation": "observations",
+    "ObservationDesign": "observation_designs",
     "ObservationResult": "observation_results",
     "ObservedValue": "observed_values",
     "DataLayout": "layouts",

@@ -6,22 +6,29 @@ import_configs:
     - section: SAMPLE_METADATA_SECTION_SAMPLE
       observation_id_list:
       - peh:VALIDATION_TEST_SAMPLE_METADATA
+observation_designs:
+- id: peh:VALIDATION_TEST_SAMPLE_METADATA_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: sample
+  observable_property_specifications:
+  - observable_property: id_sample
+    specification_category: identifying
+  - observable_property: samplingyear
+    specification_category: optional
+  - observable_property: samplingmonth
+    specification_category: optional
+  - observable_property: samplingday
+    specification_category: optional
+  - observable_property: samplinghour
+    specification_category: optional
+  - observable_property: samplingminutes
+    specification_category: optional
 observations:
 - id: peh:VALIDATION_TEST_SAMPLE_METADATA
   name: VALIDATION_TEST_SAMPLE_METADATA
   ui_label: SAMPLE_METADATA
   observation_type: metadata
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: sample
-    identifying_observable_property_id_list:
-    - id_sample
-    optional_observable_property_id_list:
-    - samplingyear
-    - samplingmonth
-    - samplingday
-    - samplinghour
-    - samplingminutes
+  observation_design: peh:VALIDATION_TEST_SAMPLE_METADATA_DESIGN
 layouts:
 - id: peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA
   name: CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA
@@ -47,7 +54,6 @@ layouts:
       observable_property: samplingminutes
 observable_properties:
 - id: id_sample
-  unique_name: id_sample
   name: id_sample
   ui_label: id_sample
   value_type: decimal
@@ -58,14 +64,13 @@ observable_properties:
     value: '1.0'
   - field: max
     value: inf
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: samplingyear
-  unique_name: samplingyear
   name: samplingyear
   description: year of sample collection
   ui_label: samplingyear
@@ -77,14 +82,13 @@ observable_properties:
     value: '1900.0'
   - field: max
     value: '2023.0'
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: samplingmonth
-  unique_name: samplingmonth
   name: samplingmonth
   description: month of sample collection (1 is the first month of the year)
   ui_label: samplingmonth
@@ -116,14 +120,13 @@ observable_properties:
     value: November
   - key: '12'
     value: December
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: samplingday
-  unique_name: samplingday
   name: samplingday
   description: day of sample collection (1 is the first day of the month)
   ui_label: samplingday
@@ -135,14 +138,13 @@ observable_properties:
     value: '1.0'
   - field: max
     value: '31.0'
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: samplinghour
-  unique_name: samplinghour
   name: samplinghour
   description: Hour of sampling
   ui_label: samplinghour
@@ -152,14 +154,13 @@ observable_properties:
   value_metadata:
   - field: max
     value: '24.0'
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: samplingminutes
-  unique_name: samplingminutes
   name: samplingminutes
   description: Minutes of sampling
   ui_label: samplingminutes
@@ -169,9 +170,9 @@ observable_properties:
   value_metadata:
   - field: max
     value: '60.0'
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire

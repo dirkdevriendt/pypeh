@@ -54,7 +54,7 @@ def get_observable_property_property(label, observable_property, codebook_proper
         case "Unit":
             return None
         case "MissingsAllowed":
-            return 0 if observable_property.default_required else 1
+            return 0 if observable_property.required else 1
         case "MinValue":
             return None
         case "MaxValue":

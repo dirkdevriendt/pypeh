@@ -1,3 +1,220 @@
+observation_designs:
+- id: peh:VALIDATION_TEST_SAMPLE_SAMPLE_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: sample
+  observable_property_specifications:
+  - observable_property: id_sample
+    specification_category: identifying
+  - observable_property: id_subject
+    specification_category: optional
+  - observable_property: matrix
+    specification_category: optional
+  - observable_property: samplingyear
+    specification_category: optional
+  - observable_property: samplingmonth
+    specification_category: optional
+  - observable_property: samplingday
+    specification_category: optional
+  - observable_property: samplingseason
+    specification_category: optional
+  - observable_property: samplinghour
+    specification_category: optional
+  - observable_property: samplingminutes
+    specification_category: optional
+  - observable_property: analysisyear
+    specification_category: optional
+  - observable_property: analysismonth
+    specification_category: optional
+  - observable_property: analysisday
+    specification_category: optional
+  - observable_property: lipidassessment
+    specification_category: optional
+- id: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: person
+  observable_property_specifications:
+  - observable_property: id_subject
+    specification_category: identifying
+  - observable_property: id_participant
+    specification_category: optional
+  - observable_property: relation
+    specification_category: optional
+  - observable_property: sex
+    specification_category: optional
+  - observable_property: age_birth_m
+    specification_category: optional
+  - observable_property: smoking_m
+    specification_category: optional
+  - observable_property: case_control
+    specification_category: optional
+- id: peh:VALIDATION_TEST_SAMPLE_SUBJECTTIMEPOINT_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: person
+  observable_property_specifications:
+  - observable_property: id_subject
+    specification_category: identifying
+  - observable_property: population
+    specification_category: optional
+  - observable_property: subpopulation
+    specification_category: optional
+  - observable_property: subpopulation_other
+    specification_category: optional
+  - observable_property: country
+    specification_category: optional
+  - observable_property: nuts1
+    specification_category: optional
+  - observable_property: nuts2
+    specification_category: optional
+  - observable_property: nuts3
+    specification_category: optional
+  - observable_property: subdivision
+    specification_category: optional
+  - observable_property: degurba
+    specification_category: optional
+  - observable_property: ageyears
+    specification_category: optional
+  - observable_property: agemonths
+    specification_category: optional
+  - observable_property: ageweeks
+    specification_category: optional
+  - observable_property: agedays
+    specification_category: optional
+  - observable_property: isced_raw
+    specification_category: optional
+  - observable_property: isced
+    specification_category: optional
+  - observable_property: isced_m_raw
+    specification_category: optional
+  - observable_property: isced_m
+    specification_category: optional
+  - observable_property: isced_f_raw
+    specification_category: optional
+  - observable_property: isced_f
+    specification_category: optional
+  - observable_property: isced_hh_raw
+    specification_category: optional
+  - observable_property: isced_hh
+    specification_category: optional
+  - observable_property: smoking
+    specification_category: optional
+  - observable_property: height
+    specification_category: optional
+  - observable_property: weight
+    specification_category: optional
+  - observable_property: bmi
+    specification_category: optional
+- id: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: sample
+  observable_property_specifications:
+  - observable_property: id_sample
+    specification_category: identifying
+  - observable_property: chol
+    specification_category: optional
+  - observable_property: chol_lod
+    specification_category: optional
+  - observable_property: chol_loq
+    specification_category: optional
+  - observable_property: trigl
+    specification_category: optional
+  - observable_property: trigl_lod
+    specification_category: optional
+  - observable_property: trigl_loq
+    specification_category: optional
+  - observable_property: lipid
+    specification_category: optional
+  - observable_property: lipid_lod
+    specification_category: optional
+  - observable_property: lipid_loq
+    specification_category: optional
+  - observable_property: lipid_enz
+    specification_category: optional
+  - observable_property: ag
+    specification_category: optional
+  - observable_property: ag_lod
+    specification_category: optional
+  - observable_property: ag_loq
+    specification_category: optional
+  - observable_property: al
+    specification_category: optional
+  - observable_property: al_lod
+    specification_category: optional
+  - observable_property: al_loq
+    specification_category: optional
+  - observable_property: cd
+    specification_category: optional
+  - observable_property: cd_lod
+    specification_category: optional
+  - observable_property: cd_loq
+    specification_category: optional
+  - observable_property: co
+    specification_category: optional
+  - observable_property: co_lod
+    specification_category: optional
+  - observable_property: co_loq
+    specification_category: optional
+  - observable_property: cu
+    specification_category: optional
+  - observable_property: cu_lod
+    specification_category: optional
+  - observable_property: cu_loq
+    specification_category: optional
+  - observable_property: li
+    specification_category: optional
+  - observable_property: li_lod
+    specification_category: optional
+  - observable_property: li_loq
+    specification_category: optional
+  - observable_property: mn
+    specification_category: optional
+  - observable_property: mn_lod
+    specification_category: optional
+  - observable_property: mn_loq
+    specification_category: optional
+  - observable_property: mo
+    specification_category: optional
+  - observable_property: mo_lod
+    specification_category: optional
+  - observable_property: mo_loq
+    specification_category: optional
+  - observable_property: ni
+    specification_category: optional
+  - observable_property: ni_lod
+    specification_category: optional
+  - observable_property: ni_loq
+    specification_category: optional
+  - observable_property: pb
+    specification_category: optional
+  - observable_property: pb_lod
+    specification_category: optional
+  - observable_property: pb_loq
+    specification_category: optional
+  - observable_property: pt
+    specification_category: optional
+  - observable_property: pt_lod
+    specification_category: optional
+  - observable_property: pt_loq
+    specification_category: optional
+  - observable_property: tcr
+    specification_category: optional
+  - observable_property: tcr_lod
+    specification_category: optional
+  - observable_property: tcr_loq
+    specification_category: optional
+  - observable_property: zn
+    specification_category: optional
+  - observable_property: zn_lod
+    specification_category: optional
+  - observable_property: zn_loq
+    specification_category: optional
+- id: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB_IMPUTED_DESIGN
+  observation_result_type: calculation
+  observable_entity_type: sample
+  observable_property_specifications:
+  - observable_property: id_sample
+    specification_category: identifying
+  - observable_property: chol_imputed
+    specification_category: optional
 observations:
 - id: peh:VALIDATION_TEST_SAMPLE_STUDYINFO
   name: peh:VALIDATION_TEST_SAMPLE_STUDYINFO
@@ -7,142 +224,24 @@ observations:
   name: peh:VALIDATION_TEST_SAMPLE_SAMPLE
   ui_label: SAMPLE
   observation_type: metadata
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: sample
-    identifying_observable_property_id_list:
-    - id_sample
-    optional_observable_property_id_list:
-    - id_subject
-    - matrix
-    - samplingyear
-    - samplingmonth
-    - samplingday
-    - samplingseason
-    - samplinghour
-    - samplingminutes
-    - analysisyear
-    - analysismonth
-    - analysisday
-    - lipidassessment
+  observation_design: peh:VALIDATION_TEST_SAMPLE_SAMPLE_DESIGN
 - id: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE
   name: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE
   ui_label: SUBJECTUNIQUE
   observation_type: metadata
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: person
-    identifying_observable_property_id_list:
-    - id_subject
-    optional_observable_property_id_list:
-    - id_participant
-    - relation
-    - sex
-    - age_birth_m
-    - smoking_m
-    - case_control
+  observation_design: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE_DESIGN
 - id: peh:VALIDATION_TEST_SAMPLE_SUBJECTTIMEPOINT
   name: peh:VALIDATION_TEST_SAMPLE_SUBJECTTIMEPOINT
   ui_label: SUBJECTTIMEPOINT
   observation_type: metadata
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: person
-    identifying_observable_property_id_list:
-    - id_subject
-    optional_observable_property_id_list:
-    - population
-    - subpopulation
-    - subpopulation_other
-    - country
-    - nuts1
-    - nuts2
-    - nuts3
-    - subdivision
-    - degurba
-    - ageyears
-    - agemonths
-    - ageweeks
-    - agedays
-    - isced_raw
-    - isced
-    - isced_m_raw
-    - isced_m
-    - isced_f_raw
-    - isced_f
-    - isced_hh_raw
-    - isced_hh
-    - smoking
-    - height
-    - weight
-    - bmi
+  observation_design: peh:VALIDATION_TEST_SAMPLE_SUBJECTTIMEPOINT_DESIGN
 - id: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB
   name: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB
   ui_label: SAMPLETIMEPOINT_BWB
   observation_type: sampling
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: sample
-    identifying_observable_property_id_list:
-    - id_sample
-    optional_observable_property_id_list:
-    - chol
-    - chol_lod
-    - chol_loq
-    - trigl
-    - trigl_lod
-    - trigl_loq
-    - lipid
-    - lipid_lod
-    - lipid_loq
-    - lipid_enz
-    - ag
-    - ag_lod
-    - ag_loq
-    - al
-    - al_lod
-    - al_loq
-    - cd
-    - cd_lod
-    - cd_loq
-    - co
-    - co_lod
-    - co_loq
-    - cu
-    - cu_lod
-    - cu_loq
-    - li
-    - li_lod
-    - li_loq
-    - mn
-    - mn_lod
-    - mn_loq
-    - mo
-    - mo_lod
-    - mo_loq
-    - ni
-    - ni_lod
-    - ni_loq
-    - pb
-    - pb_lod
-    - pb_loq
-    - pt
-    - pt_lod
-    - pt_loq
-    - tcr
-    - tcr_lod
-    - tcr_loq
-    - zn
-    - zn_lod
-    - zn_loq
+  observation_design: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB_DESIGN
 - id: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB_IMPUTED
   name: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB_IMPUTED
   ui_label: SAMPLETIMEPOINT_BWB_IMPUTED
   observation_type: sampling
-  observation_design:
-    observation_result_type: calculation
-    observable_entity_type: sample
-    identifying_observable_property_id_list:
-    - id_sample
-    optional_observable_property_id_list:
-    - chol_imputed
+  observation_design: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB_IMPUTED_DESIGN

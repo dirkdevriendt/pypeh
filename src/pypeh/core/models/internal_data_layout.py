@@ -217,10 +217,8 @@ class DatasetSchema:
                     self.apply_context_to_expression(expression, context, this_dataset=this_dataset)
 
             # CALCULATION DESIGN EXCLUDED FOR NOW
-            # calculation_designs = observable_property.calculation_designs
-            # if calculation_designs is not None:
-            #    for calculation_design in calculation_designs:
-            #        pass
+            # if observable_property.calculation_design is not None:
+            #    pass
 
     #### RESTRUCTURE DATASETSCHEMA ####
 
@@ -405,7 +403,7 @@ class Dataset(Resource, Generic[T_DataType]):
     schema: DatasetSchema = field(default_factory=DatasetSchema)
     data: T_DataType | None = field(default=None)
     part_of: DatasetSeries | None = field(default=None)
-    observations: set[str] = field(default_factory=set)
+    observation_ids: set[str] = field(default_factory=set)
 
     def get_type_annotations(self) -> dict[str, ObservablePropertyValueType]:
         return self.schema.get_type_annotations()
@@ -440,28 +438,31 @@ class Dataset(Resource, Generic[T_DataType]):
         self,
         new_dataset_series_label: str,
         observation_groups: dict[str, list[peh.Observation]],
+        observation_designs: list[peh.ObservationDesign],
         dataops_adapter: OutDataOpsInterface,
     ) -> DatasetSeries:
         # TODO: schemas for all new datasets need to be properly relabeled
         ret = DatasetSeries(label=new_dataset_series_label, parts={})
+        observation_design_dict = {od.id: od for od in observation_designs}
 
         for dataset_label, observation_group in observation_groups.items():
-            observable_properties = set()
-            observation_ids: set[str] = set()
+            observable_property_ids: set[str] = set()
+            selected_observation_ids: set[str] = set()
             for observation in observation_group:
-                assert observation.id in self.observations
-                observation_ids.add(observation.id)
-                observation_design = observation.observation_design
+                assert observation.id in self.observation_ids
+                selected_observation_ids.add(observation.id)
+                observation_design_id = str(observation.observation_design)
+                assert observation_design_id in observation_design_dict.keys()
+                observation_design = observation_design_dict[observation_design_id]
                 assert observation_design is not None
-                for observable_property in getattr(observation_design, "identifying_observable_property_id_list", []):
-                    observable_properties.add(observable_property)
-                for observable_property in getattr(observation_design, "required_observable_property_id_list", []):
-                    observable_properties.add(observable_property)
-                for observable_property in getattr(observation_design, "optional_observable_property_id_list", []):
-                    observable_properties.add(observable_property)
+                assert isinstance(observation_design, peh.ObservationDesign)
+                for observable_property_specification in observation_design.observable_property_specifications:
+                    assert observable_property_specification is not None
+                    assert observable_property_specification.observable_property is not None
+                    observable_property_ids.add(str(observable_property_specification.observable_property))
 
             element_group = []
-            for observable_property_id in observable_properties:
+            for observable_property_id in observable_property_ids:
                 elements = self.schema.yield_elements_by_observable_property_id(observable_property_id)
                 for element in elements:
                     element_group.append(element.label)
@@ -479,7 +480,7 @@ class Dataset(Resource, Generic[T_DataType]):
                 schema=schema_subset,
                 label=dataset_label,
                 data=data_subset,
-                observations=observation_ids,
+                observation_ids=selected_observation_ids,
                 part_of=ret,
             )
             ret.parts[dataset_label] = new_dataset
@@ -514,10 +515,10 @@ class Dataset(Resource, Generic[T_DataType]):
     def add_observation_to_index(self, observation_id: str):
         if self.part_of:
             self.part_of._register_observation(observation_id, self.label)
-        self.observations.add(observation_id)
+        self.observation_ids.add(observation_id)
 
     def remove_observation_from_index(self, observation_id: str):
-        self.observations.remove(observation_id)
+        self.observation_ids.remove(observation_id)
         if self.part_of:
             self.part_of._unregister_observation(observation_id)
 
@@ -774,31 +775,34 @@ class DatasetSeries(Resource, Generic[T_DataType]):
             assert observation_ids is not None
             assert isinstance(observation_ids, list)
             for observation_id in observation_ids:
-                # labeled_observable_properties = {element_label: ObservableProperty}
                 # observation_observable_properties
                 observation = cache_view.get(observation_id, "Observation")
                 assert isinstance(observation, peh.Observation)
-                observation_design = observation.observation_design
+                observation_design_id = observation.observation_design
+                assert isinstance(observation_design_id, peh.ObservationDesignId)
+                observation_design = cache_view.get(observation_design_id, "ObservationDesign")
                 assert isinstance(observation_design, peh.ObservationDesign)
-                all_observation_obs_props = set().union(
-                    observation_design.identifying_observable_property_id_list or [],
-                    observation_design.required_observable_property_id_list or [],
-                    observation_design.optional_observable_property_id_list or [],
-                )
+                obs_prop_spec_dict = {
+                    str(s.observable_property): s for s in observation_design.observable_property_specifications
+                }
                 # data_layout_section_observable_properties
                 elements = layout_section.elements
                 assert elements is not None
-                labeled_observable_properties = {}
+                # labeled_observable_property_specifications = {element_label: ObservablePropertySpecification}
+                labeled_observable_property_specifications = {}
                 for element in elements:
                     assert isinstance(element, peh.DataLayoutElement)
-                    if element.observable_property in all_observation_obs_props:
+                    if element.observable_property in obs_prop_spec_dict.keys():
                         element_label = element.label
                         assert element_label is not None
                         obs_prop_id = element.observable_property
                         assert isinstance(obs_prop_id, str)
                         obs_prop = cache_view.get(obs_prop_id, "ObservableProperty")
                         assert isinstance(obs_prop, peh.ObservableProperty)
-                        labeled_observable_properties[element_label] = obs_prop
+                        obs_prop_spec = obs_prop_spec_dict[obs_prop_id]
+                        assert isinstance(obs_prop_spec, peh.ObservablePropertySpecification)
+                        obs_prop_spec.observable_property = obs_prop
+                        labeled_observable_property_specifications[element_label] = obs_prop_spec
                         # process foreign keys
                         foreign_key = element.foreign_key_link
                         if foreign_key is not None:
@@ -824,7 +828,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
                 ret.add_observation(
                     dataset_label=dataset_label,
                     observation=observation,
-                    labeled_observable_properties=labeled_observable_properties,
+                    labeled_observable_property_specifications=labeled_observable_property_specifications,
                 )
 
         return ret
@@ -890,24 +894,25 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         self,
         dataset_label: str,
         observation: peh.Observation,
-        labeled_observable_properties: dict[str, peh.ObservableProperty],
+        labeled_observable_property_specifications: dict[str, peh.ObservablePropertySpecification],
         data: T_DataType | None = None,
     ):
         """
-        labeled_observable_properties: dict[element_label: ObservableProperty]
+        labeled_observable_property_specifications: dict[element_label: ObservablePropertySpecification]
         """
         if dataset_label not in self.parts:
             dataset = self.add_empty_dataset(dataset_label)
         else:
             dataset = self[dataset_label]
         assert dataset is not None
-        observation_design = observation.observation_design
-        assert isinstance(observation_design, peh.ObservationDesign)
-        assert isinstance(observation_design.identifying_observable_property_id_list, list)
-        identifying_observable_properties_set = set(observation_design.identifying_observable_property_id_list)
         dataset.add_observation_to_index(observation.id)
-        for element_label, observable_property in labeled_observable_properties.items():
-            identifying = observable_property.id in identifying_observable_properties_set
+        for element_label, observable_property_specification in labeled_observable_property_specifications.items():
+            identifying = (
+                str(observable_property_specification.specification_category)
+                == peh.ObservablePropertySpecificationCategory.identifying.text
+            )
+            observable_property = observable_property_specification.observable_property
+            assert isinstance(observable_property, peh.ObservableProperty)
             if identifying:
                 if observable_property.id in dataset.schema._elements_by_observable_property:
                     self._register_observable_property(
@@ -936,6 +941,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         dataset_label: str,
         new_dataset_series_label: str,
         observation_groups: dict[str, list[peh.Observation]],
+        observation_designs: list[peh.ObservationDesign],
         dataops_adapter: OutDataOpsInterface,
     ) -> DatasetSeries:
         """
@@ -944,7 +950,9 @@ class DatasetSeries(Resource, Generic[T_DataType]):
 
         dataset = self.get(dataset_label)
         assert dataset is not None
-        return dataset.subset(new_dataset_series_label, observation_groups, dataops_adapter=dataops_adapter)
+        return dataset.subset(
+            new_dataset_series_label, observation_groups, observation_designs, dataops_adapter=dataops_adapter
+        )
 
     def relabel_dataset(
         self, dataset_label: str, element_mapping: dict[str, str], dataops_adapter: OutDataOpsInterface
@@ -1054,7 +1062,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         for dataset_label in self:
             dataset = self[dataset_label]
             assert dataset is not None
-            ret[dataset_label] = dataset.observations
+            ret[dataset_label] = dataset.observation_ids
 
         return ret
 

@@ -1,14 +1,13 @@
 observable_properties:
 - id: peh:ParticipantID
-  unique_name: ParticipantID
   name: ParticipantID
   ui_label: Participant ID (e.g., CZ_PS_JF)
   value_type: string
   categorical: false
   multivalued: false
-  default_required: false
-  default_zeroallowed: true
-  default_significantdecimals: 0
+  required: false
+  zeroallowed: true
+  significantdecimals: 0
   grouping_id_list:
   - peh:PRIMARY_QUEST_HEALTH
   - peh:PRIMARY_QUEST_LIFESTYLE_PERCEIVED_IAQ
@@ -16,11 +15,10 @@ observable_properties:
   - peh:PRIMARY_QUEST_LIFESTYLE_VIEWS_IAQ
   - peh:PRIMARY_QUEST_SOCIO_ECONOMICS
   - peh:ID
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: peh:adjusttheventilation
-  unique_name: adjusttheventilation
   name: adjusttheventilation
   ui_label: It is easy for me to adjust the ventilation at home.
   value_type: string
@@ -43,16 +41,15 @@ observable_properties:
     value: Disagree strongly
   - key: '99'
     value: I don't know or prefer not to answer
-  default_required: false
-  default_zeroallowed: true
-  default_significantdecimals: 0
+  required: false
+  zeroallowed: true
+  significantdecimals: 0
   grouping_id_list:
   - peh:PRIMARY_QUEST_LIFESTYLE_VIEWS_IAQ
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: peh:Allergies_child_dd
-  unique_name: Allergies_child_dd
   name: Allergies_child_dd
   ui_label: Allergies (diagnosed by a doctor)
   value_type: string
@@ -65,26 +62,25 @@ observable_properties:
     value: 'No'
   - key: '99'
     value: Don't know/prefer not to answer
-  default_required: false
-  default_zeroallowed: true
-  default_significantdecimals: 0
+  required: false
+  zeroallowed: true
+  significantdecimals: 0
   grouping_id_list:
   - peh:PRIMARY_QUEST_HEALTH
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
 - id: peh:allergy_source
-  unique_name: allergy_source
   name: allergy_source
   ui_label: If answered ‘Yes', please specify the source of the allergy
   value_type: string
   categorical: false
   multivalued: false
-  default_required: false
-  default_zeroallowed: true
-  default_significantdecimals: 0
+  required: false
+  zeroallowed: true
+  significantdecimals: 0
   grouping_id_list:
   - peh:PRIMARY_QUEST_HEALTH
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
