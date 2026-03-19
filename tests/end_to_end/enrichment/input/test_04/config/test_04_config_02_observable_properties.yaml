@@ -1397,6 +1397,29 @@ observable_properties:
     conditional: "IF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BM,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,BMG,DBS,VAMS)\
       \  THEN chol IS not empty; \n\nIF matrix IS (BWB,BP,BS,CBWB,CBP,CBS,BWBG,BPG,BSG,CBWBG,CBPG,CBSG,DBS,VAMS)\
       \  THEN chol [50,250]; \n\nIF matrix IS (BM,BMG)  THEN chol [5,100]"
+- id: chol_imputed
+  unique_name: chol_imputed
+  name: chol_imputed
+  ui_label: chol_imputed
+  description: Imputed Cholesterol in sample
+  value_type: decimal
+  calculation_designs:
+  - calculation_name: chol_medium_bound_imputation
+    calculation_implementation:
+      function_name: compehndly.medium_bound_imputation["0.0.1"]
+      function_kwargs:
+      - mapping_name: measurement
+        contextual_field_reference:
+          dataset_label: SAMPLETIMEPOINT_BWB
+          field_label: chol
+      - mapping_name: loq
+        contextual_field_reference:
+          dataset_label: SAMPLETIMEPOINT_BWB
+          field_label: chol_loq
+      - mapping_name: lod
+        contextual_field_reference:
+          dataset_label: SAMPLETIMEPOINT_BWB
+          field_label: chol_lod
 - id: chol_lod
   unique_name: chol_lod
   name: chol_lod
@@ -1627,7 +1650,7 @@ observable_properties:
         field_label: lipid
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - dataset_label: SAMPLE
+        - dataset_label: SAMPLETIMEPOINT_BWB
           field_label: lipidassessment
         validation_command: is_in
         validation_arg_values:

@@ -47,6 +47,7 @@ test-rocrate = [
     "rocrate",
 ]
 test-s3 = ["s3fs"]
+test-compehndly = ["compehndly"]
 dev = [
     "ruff>=0.4.4,<0.5",
     "black",
@@ -100,6 +101,7 @@ markers = [
 	"s3: tests for the s3 adapter",
 	"session: tests for stateful session interactions",
 	"web: tests for web IO, requires internet connection",
+	"compehndly: test with compehndly-based derived variables",
 	"other: placeholder",
 ]
 

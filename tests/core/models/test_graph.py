@@ -1,11 +1,11 @@
 import pytest
-import peh_model.peh as peh
 
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
 from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.models.graph import Graph, Node
 from pypeh.core.interfaces.outbound.dataops import DataEnrichmentInterface
+from pypeh.core.models.internal_data_layout import ContextIndexProtocol
 from tests.test_utils.dirutils import get_absolute_path
 
 
@@ -100,6 +100,11 @@ class TestGraph:
         assert "Circular dependency detected" in str(excinfo.value)
 
 
+class MockIndex(ContextIndexProtocol):
+    def context_lookup(self, observation_id: str, observable_property_id: str) -> tuple[str, str]:
+        return (observation_id, observable_property_id)
+
+
 @pytest.mark.core
 class TestEnrichmentInterfaceCore:
     def container(self, path: str) -> CacheContainerView:
@@ -113,31 +118,13 @@ class TestEnrichmentInterfaceCore:
 
         return CacheContainerView(container)
 
-    def make_contextual_field_reference_map(self, observations: list[peh.Observation]):
-        ret = {}
-        for observation in observations:
-            observation_design = observation.observation_design
-            assert isinstance(observation_design, peh.ObservationDesign)
-            for property_list_label in [
-                "identifying_observable_property_id_list",
-                "required_observable_property_id_list",
-                "optional_observable_property_id_list",
-            ]:
-                observable_property_id_list = getattr(observation_design, property_list_label)
-                if observable_property_id_list is not None:
-                    for observable_property_id in observable_property_id_list:
-                        ret[observable_property_id] = (observation.id, observable_property_id)
-
-        return ret
-
     def test_building_dependency_graph(self):
         interface = DataEnrichmentInterface()
         container = self.container("./input/dependency_graph/Enrichment_01_SINGLE_SOURCE")
         observations = list(container.get_all("Observation"))
-        contextual_field_reference_map = self.make_contextual_field_reference_map(observations)  # type: ignore
         g = interface.build_dependency_graph(
             observations,  # type: ignore
-            contextual_field_reference_map=contextual_field_reference_map,
+            context_index=MockIndex(),
             cache_view=container,
         )
 
@@ -149,10 +136,9 @@ class TestEnrichmentInterfaceCore:
         src_path = "./input/dependency_graph/Enrichment_01_SINGLE_SOURCE"
         container = self.container(src_path)
         observations = list(container.get_all("Observation"))
-        contextual_field_reference_map = self.make_contextual_field_reference_map(observations)  # type: ignore
         g = interface.build_dependency_graph(
             observations,  # type: ignore
-            contextual_field_reference_map=contextual_field_reference_map,
+            context_index=MockIndex(),
             cache_view=container,
         )
         sorted_nodes = g.topological_sort()
@@ -172,10 +158,9 @@ class TestEnrichmentInterfaceCore:
         src_path = "./input/dependency_graph/Enrichment_02_LINKED_SOURCE"
         container = self.container(src_path)
         observations = list(container.get_all("Observation"))
-        contextual_field_reference_map = self.make_contextual_field_reference_map(observations)  # type: ignore
         g = interface.build_dependency_graph(
             observations,  # type: ignore
-            contextual_field_reference_map=contextual_field_reference_map,
+            context_index=MockIndex(),
             cache_view=container,
         )
         sorted_nodes = g.topological_sort()
@@ -195,10 +180,9 @@ class TestEnrichmentInterfaceCore:
         src_path = "./input/dependency_graph/Enrichment_03_MULTI_STEP"
         container = self.container(src_path)
         observations = list(container.get_all("Observation"))
-        contextual_field_reference_map = self.make_contextual_field_reference_map(observations)  # type: ignore
         g = interface.build_dependency_graph(
             observations,  # type: ignore
-            contextual_field_reference_map=contextual_field_reference_map,
+            context_index=MockIndex(),
             cache_view=container,
         )
         sorted_nodes = g.topological_sort()

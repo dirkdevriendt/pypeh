@@ -20,7 +20,7 @@ layouts:
     section_type: data_table
     elements:
     - label: id_subject
-      observable_property: peh:id_subject_00
+      observable_property: peh:id_subject
       is_observable_entity_key: true
     - label: current_year
       observable_property: peh:current_year
@@ -36,7 +36,7 @@ layouts:
     section_type: data_table
     elements:
     - label: id_subject
-      observable_property: peh:id_subject_01
+      observable_property: peh:id_subject
       is_observable_entity_key: true
       foreign_key_link:
         section: peh:ENRICHMENT_TEST_SUBJECTUNIQUE
@@ -50,7 +50,7 @@ observations:
     observation_result_type: measurement
     observable_entity_type: person
     identifying_observable_property_id_list:
-    - peh:id_subject_00
+    - peh:id_subject
     optional_observable_property_id_list:
     - peh:current_year
     - peh:current_month
@@ -64,7 +64,7 @@ observations:
     observation_result_type: calculation
     observable_entity_type: person
     identifying_observable_property_id_list:
-    - peh:id_subject_01
+    - peh:id_subject
     optional_observable_property_id_list:
     - peh:N2Birthweight
   observation_result_id_list:
@@ -75,7 +75,7 @@ observations:
     observation_result_type: calculation
     observable_entity_type: person
     identifying_observable_property_id_list:
-    - peh:id_subject_01
+    - peh:id_subject
     optional_observable_property_id_list:
     - peh:Todaysdate
     - peh:agemonths
