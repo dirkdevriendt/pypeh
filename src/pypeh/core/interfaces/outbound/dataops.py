@@ -23,6 +23,7 @@ from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.settings import FileSystemSettings
 from pypeh.core.models import graph, validation_dto
 from pypeh.core.session.connections import ConnectionManager
+from pypeh.core.utils.function_utils import _extract_callable
 
 if TYPE_CHECKING:
     from typing import Sequence, Any
@@ -817,7 +818,7 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
 
                         function_name = calculation_implementation.function_name
                         assert function_name is not None
-                        map_fn = self._extract_callable(function_name)
+                        map_fn = _extract_callable(function_name)
 
                         if function_kwargs := calculation_implementation.function_kwargs:
                             for function_kwarg in function_kwargs:
@@ -851,10 +852,3 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
                         target_dataset.add_data(target_data.collect())  # type: ignore
 
             return aggregated_dataset_series
-
-    @staticmethod
-    def _extract_callable(path: str) -> Callable:
-        assert "." in path, "Could not split path into module and func_name"
-        module_name, func_name = path.rsplit(".", 1)
-        module = importlib.import_module(module_name)
-        return getattr(module, func_name)

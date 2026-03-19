@@ -1,10 +1,9 @@
-import importlib
-
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Callable
 
 from pypeh.core.models.internal_data_layout import JoinSpec
+from pypeh.core.utils.function_utils import _extract_callable
 
 
 @dataclass(frozen=True, order=True)
@@ -141,19 +140,6 @@ class Graph:
 
         return sorted_nodes
 
-    @staticmethod
-    def _extract_callable(path: str) -> Callable:
-        assert "." in path, "Could not split path into module and func_name"
-        module_name, func_name = path.rsplit(".", 1)
-        try:
-            module = importlib.import_module(module_name)
-        except ImportError as e:
-            raise ImportError(f"Module '{module_name}' could not be imported") from e
-        try:
-            return getattr(module, func_name)
-        except AttributeError as e:
-            raise AttributeError(f"Function '{func_name}' not found in module '{module_name}'") from e
-
     def add_calculation_target(
         self,
         target: Node,
@@ -161,7 +147,7 @@ class Graph:
         result_dtype: str,
     ):
         child = target
-        map_fn = self._extract_callable(function_name)
+        map_fn = _extract_callable(function_name)
         self.add_node(child, node_fn=map_fn, output_dtype=result_dtype)
 
     def add_calculation_source(
