@@ -8,7 +8,7 @@ import re
 import secrets
 
 from dataclasses import is_dataclass
-from typing import Dict, Callable, Protocol, Type, Any
+from typing import Dict, Callable, Type, Any
 
 
 logger = logging.getLogger(__name__)
