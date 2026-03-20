@@ -117,6 +117,16 @@ class OutDataOpsInterface(Generic[T_DataType]):
             ret[observable_property.ui_label] = observable_property_spec
         return ret
 
+    def get_dataset_by_observation_id(self, dataset_series: DatasetSeries, observation_id: str) -> Dataset:
+        gen = dataset_series.get_datasets_by_observation(observation_id)
+        dataset = next(gen)
+        try:
+            _ = next(gen)
+            raise AssertionError("Expected only one dataset, but generator yielded more")
+        except StopIteration:
+            pass
+        return dataset
+
 
 class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
     @abstractmethod
@@ -612,14 +622,9 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
         # ADD TARGET OBSERVATION TO SOURCE_DATASET_SERIES
         for source_obs, target_observation in zip(target_derived_from, target_observations):
             # TODO: ENSURE PREREQUISTE IS MET: DATASETSERIES SPLIT INTO OBSERVATIONS
-            gen = source_dataset_series.get_datasets_by_observation(source_obs.id)
-            source_dataset = next(gen)
-            try:
-                _ = next(gen)
-                raise AssertionError("Expected only one dataset, but generator yielded more")
-            except StopIteration:
-                pass
-
+            source_dataset = self.get_dataset_by_observation_id(
+                dataset_series=source_dataset_series, observation_id=source_obs.id
+            )
             assert source_dataset is not None
             source_dataset_label = source_dataset.label
             # TODO: extract observable_property_specification_labels: FIXME
@@ -717,7 +722,7 @@ class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
 class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
     @abstractmethod
     def _calculate_for_stratum(
-        self, df: T_DataType, group_cols: list[str], value_col: str, stat_builders: list, **kwargs
+        self, df: T_DataType, group_cols: list[str] | None, value_col: str, stat_builders: list, **kwargs
     ) -> T_DataType:
         raise NotImplementedError
 
@@ -730,6 +735,10 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
         stat_builders: list[str],
         **kwargs,
     ) -> T_DataType:
+        raise NotImplementedError
+
+    @abstractmethod
+    def group_results(self, results_to_collect: list[T_DataType], strata: list[str] | None = None) -> T_DataType:
         raise NotImplementedError
 
     @classmethod
@@ -750,20 +759,30 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
         source_dataset_series: DatasetSeries,
         target_observations: list[peh.Observation],
         target_derived_from: list[peh.Observation],
-        stratifications: list[list[str]],
         cache_view: CacheContainerView,
+        id_factory: Callable[[str], str] | None = None,
     ) -> DatasetSeries:
         # ADD TARGET OBSERVATION TO A NEW DATASET_SERIES
-        aggregated_dataset_series: DatasetSeries = DatasetSeries(label=f"{source_dataset_series.label}_aggregated")
+        aggregated_dataset_series: DatasetSeries = DatasetSeries(
+            label=f"{source_dataset_series.label}_aggregated", id_factory=id_factory
+        )
+        assert len(target_observations) == len(target_derived_from)
 
-        for source_obs, target_observation, stratification in zip(
-            target_derived_from, target_observations, stratifications
-        ):
+        for source_obs, target_observation in zip(target_derived_from, target_observations):
+            collected_results = []
+            # FOR LOOP COMPUTES ALL SUMMARY STATS ASSOCIATED WITH A SINGLE SOURCE OBSERVABLE PROPERTY
+            source_dataset = self.get_dataset_by_observation_id(
+                dataset_series=source_dataset_series, observation_id=source_obs.id
+            )
+            source_data = source_dataset.data
+            assert source_data is not None
+
+            # COMPILE LIST OF LABELED OBSERVABLE PROPERTIES FOR TARGET
             if label := target_observation.ui_label:
                 labeled_observable_property_specifications = self.extract_labeled_observable_property_specifications(
                     target_observation, cache_view=cache_view
                 )
-                aggregated_dataset_series.add_observation(
+                target_dataset = aggregated_dataset_series.add_observation(
                     label,
                     target_observation,
                     labeled_observable_property_specifications=labeled_observable_property_specifications,
@@ -772,67 +791,96 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
                 raise ValueError(
                     f"Source observation {source_obs.id} lacks a `ui_label` which is required to add the target observation to the DatasetSeries"
                 )
-            assert target_observation.observation_design is not None
-            assert isinstance(target_observation.observation_design, peh.ObservationDesignId)
-            target_observation_design = cache_view.get(target_observation.observation_design, "ObservationDesign")
+
+            # COMPILE STRATIFICATIONS
+            stratification_ids = []
+            # COMPILE AGGREGATION FUNCTION LIST
+            map_fn_list = []
+            map_fn_result_label_list = []
+            # LOOP OVER ALL OBSERVABLE PROPERTY SPECIFICATIONS
+            target_observation_design_id = target_observation.observation_design
+            assert isinstance(target_observation_design_id, str)
+            target_observation_design = cache_view.get(target_observation_design_id, "ObservationDesign")
             assert isinstance(target_observation_design, peh.ObservationDesign)
-            for observable_property_spec in target_observation_design.observable_property_specifications:
-                assert isinstance(
-                    observable_property_spec.observable_property,
-                    (peh.ObservableProperty, peh.ObservablePropertyId, str),
+            observable_property_specs = target_observation_design.observable_property_specifications
+            assert observable_property_specs is not None
+            for observable_property_spec in observable_property_specs:
+                assert isinstance(observable_property_spec, peh.ObservablePropertySpecification)
+                # TODO: FIXME: inplace model change triggered by the labeled_observable_property_spec method
+                # observable_property_id = observable_property_spec.observable_property
+                # assert isinstance(observable_property_id, str)
+                observable_property = observable_property_spec.observable_property
+                assert isinstance(observable_property, peh.ObservableProperty)
+                observable_property_id = observable_property.id
+                specification_category = observable_property_spec.specification_category
+                assert specification_category is not None
+                identifying = (
+                    str(specification_category) == peh.ObservablePropertySpecificationCategory.identifying.text
                 )
-                if isinstance(observable_property_spec.observable_property, (peh.ObservablePropertyId, str)):
-                    observable_property = cache_view.get(
-                        observable_property_spec.observable_property, "ObservableProperty"
-                    )
-                elif isinstance(observable_property_spec.observable_property, peh.ObservableProperty):
-                    observable_property = observable_property_spec.observable_property
+                if identifying:
+                    stratification_ids.append(observable_property.id)
+                observable_property = cache_view.get(observable_property_id, "ObservableProperty")
                 assert observable_property is not None
                 assert isinstance(observable_property, peh.ObservableProperty)
-                target_contextual_field_ref = aggregated_dataset_series.get_contextual_field_reference_index().get(
-                    observable_property.id
-                )
-                assert (
-                    target_contextual_field_ref is not None
-                ), f"Observable property with id {observable_property.id} is non unique."
 
+                # EXTRACT CALCULATION DESIGN
                 if observable_property.calculation_design is not None:
-                    # Node target_dataset_label, target_field_label
                     calculation_design = observable_property.calculation_design
                     assert isinstance(calculation_design, peh.CalculationDesign)
                     calculation_implementation = calculation_design.calculation_implementation
                     assert isinstance(calculation_implementation, peh.CalculationImplementation)
                     output_dtype = ObservablePropertyValueType(getattr(observable_property, "value_type", "string"))
                     assert output_dtype is not None
-
                     function_name = calculation_implementation.function_name
                     assert function_name is not None
                     map_fn = _extract_callable(function_name)
-
+                    map_fn_list.append(map_fn)
                     if function_kwargs := calculation_implementation.function_kwargs:
                         for function_kwarg in function_kwargs:
+                            assert isinstance(function_kwarg, peh.CalculationKeywordArgument)
                             source_field_ref = function_kwarg.contextual_field_reference
-                            source_dataset_label = source_field_ref.dataset_label
-                            source_field_label = source_field_ref.field_label
-                            map_name = function_kwarg.mapping_name
+                            assert isinstance(source_field_ref, peh.ContextualFieldReference)
+                            kwarg_source_observation_id = source_field_ref.dataset_label
+                            assert kwarg_source_observation_id is not None
+                            if kwarg_source_observation_id != source_obs.id:
+                                raise ValueError(
+                                    f"All CalculationKeywordArguments should refer to specified source observation: {source_obs.id}"
+                                )
+                            kwarg_source_observable_property_id = source_field_ref.field_label
+                            assert kwarg_source_observable_property_id is not None
+                            _, source_element_label = source_dataset_series.context_lookup(
+                                kwarg_source_observation_id, kwarg_source_observable_property_id
+                            )
+                    if function_results := calculation_implementation.function_results:
+                        for function_result in function_results:
+                            # there can only be one such name !!!!!
+                            if len(function_results) > 1:
+                                raise NotImplementedError(
+                                    "Only a single function result is currently supported by the AggregationInterface"
+                                )
+                            assert isinstance(function_result, peh.CalculationResult)
+                            mapping_name = function_result.mapping_name
+                            map_fn_result_label_list.append(mapping_name)
 
-                    source_dataset = source_dataset_series.get(source_dataset_label)
-                    source_data = source_dataset.data
-                    target_data = self._calculate_for_stratum(
-                        df=source_data.lazy(),
-                        group_cols=stratification,
-                        value_col=source_field_label,
-                        stat_builders=[map_fn],
-                        result_alias=map_name,
-                    )
+            # LOOKUP STRATIFICATION LABELS
+            stratification_labels = None
+            if len(stratification_ids) > 0:
+                stratification_labels = []
+                for strat_id in stratification_ids:
+                    _, element_label = source_dataset_series.context_lookup(source_obs.id, strat_id)
+                    stratification_labels.append(element_label)
+            # COMPUTE SUMMARY STAT FOR SINGLE SOURCE ELEMENT
+            assert source_element_label is not None
+            target_data = self._calculate_for_stratum(
+                df=source_data.lazy(),  # TODO: FIXME: THIS IS ADAPTER SPECIFIC
+                group_cols=stratification_labels,
+                value_col=source_element_label,
+                stat_builders=map_fn_list,
+                result_aliases=map_fn_result_label_list,
+            )
+            collected_results.append(target_data)
 
-                    gen = aggregated_dataset_series.get_datasets_by_observation(target_observation.id)
-                    target_dataset = next(gen)
-                    try:
-                        _ = next(gen)
-                        raise AssertionError("Expected only one dataset, but generator yielded more")
-                    except StopIteration:
-                        pass
-                    target_dataset.add_data(target_data.collect())  # type: ignore
+            target_data = self.group_results(collected_results, strata=stratification_labels)
+            target_dataset.add_data(data=target_data)
 
-            return aggregated_dataset_series
+        return aggregated_dataset_series

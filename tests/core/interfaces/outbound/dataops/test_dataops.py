@@ -63,9 +63,7 @@ class DataOpsProtocol(Protocol, Generic[T_DataType]):
 
     def enrich(self, source_dataset_series, target_observations, target_derived_from, cache_view): ...
 
-    def summarize(
-        self, source_dataset_series, target_observations, target_derived_from, stratifications, cache_view
-    ): ...
+    def summarize(self, source_dataset_series, target_observations, target_derived_from, cache_view): ...
 
 
 class TestValidation(abc.ABC):
@@ -1179,32 +1177,41 @@ class TestAggregation(abc.ABC):
                 data=dataset,
                 data_labels=data_labels,
             )
-        target_observation = cache_view.get("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "Observation")
-        assert target_observation is not None
+        target_observations = []
+        target_derived_from = []
+        for target_obs_id, derived_from_obs_id in [
+            ("peh:TEST_SUMMARY", "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED"),
+            ("peh:TEST_SUMMARY2", "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE"),
+        ]:
+            target_observation = cache_view.get(target_obs_id, "Observation")
+            assert target_observation is not None
+            target_observations.append(target_observation)
+            derived_from_observation = cache_view.get(derived_from_obs_id, "Observation")
+            assert derived_from_observation is not None
+            target_derived_from.append(derived_from_observation)
+
         ret = adapter.summarize(
             source_dataset_series=dataset_series,
-            target_observations=[
-                target_observation,
-            ],
-            target_derived_from=[
-                cache_view.get("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE", "Observation")
-            ],
+            target_observations=target_observations,
+            target_derived_from=target_derived_from,
             cache_view=cache_view,
-            stratifications=[["current_year", "current_month"]],
         )
-        shape = (
-            2,
-            4,
-        )  # 2 rows for the two unique combinations of current_year and current_month, 4 columns for the stat builder result and the stratification columns
-
         assert isinstance(ret, DatasetSeries)
-        result_dataset = ret[target_observation.ui_label]
-        assert result_dataset is not None
-        assert result_dataset.data.shape == shape
-        # function function_kwarg.mapping_name is used as column name for the result of the stat builder, so we check that it is present in the resulting dataset, along with the stratification columns
-        assert "day" in result_dataset.data.columns
-        assert "stratification" in result_dataset.data.columns
-        assert len(ret.parts) == 1
+        assert len(ret.parts) == 2
+
+        expected_shape_dict = {"TEST_SUMMARY": (2, 5), "TEST_SUMMARY2": (2, 3)}
+        expected_labels_dict = {
+            "TEST_SUMMARY": {"current_year", "current_month", "mean_weight", "sem_weight", "mean_length"},
+            "TEST_SUMMARY2": {"current_year", "current_month", "mean_weight"},
+        }
+
+        for result_label, expected_shape in expected_shape_dict.items():
+            result_dataset = ret[result_label]
+            assert result_dataset is not None
+            assert result_dataset.data.shape == expected_shape
+            # function function_kwarg.mapping_name is used as column name for the result of the stat builder, so we check that it is present in the resulting dataset, along with the stratification columns
+            observed_labels = set(adapter.get_element_labels(result_dataset.data))
+            assert observed_labels == expected_labels_dict[result_label]
 
 
 @pytest.mark.dataframe
@@ -1227,13 +1234,19 @@ class TestDataFrameAggregation(TestAggregation):
                 "id_subject": [1, 2, 3, 4, 5],
                 "current_year": [2024, 2024, 2025, 2025, 2025],
                 "current_month": [12, 12, 12, 12, 12],
-                "current_day": [5, 5, 11, 11, 11],
-                "N1Birthdate": [
-                    date(1990, 5, 21),
-                    date(1985, 7, 14),
-                    date(2000, 1, 3),
-                    date(1995, 9, 30),
-                    date(1988, 3, 12),
+                "N1BirthWeight": [
+                    100,
+                    200,
+                    300,
+                    400,
+                    500,
+                ],
+                "N1BirthLength": [
+                    40,
+                    60,
+                    50,
+                    45,
+                    54,
                 ],
             }
         )
@@ -1241,7 +1254,9 @@ class TestDataFrameAggregation(TestAggregation):
         df_enriched = pl.DataFrame(
             {
                 "id_subject": [1, 2, 3, 4, 5],
-                "N2Birthweight": [3.2, 2.8, 3.5, 4.0, 3.0],
+                "current_year": [2024, 2024, 2025, 2025, 2025],
+                "current_month": [12, 12, 12, 12, 12],
+                "N2BirthWeight": [3.2, 2.8, 3.5, 4.0, 3.0],
             }
         )
 
