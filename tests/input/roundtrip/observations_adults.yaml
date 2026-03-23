@@ -1,86 +1,141 @@
+observation_designs:
+- id: OBSERVATION_ADULTS_CONSIDERATIONS_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: person
+  observable_property_specifications:
+  - observable_property: adults_id_subject
+    specification_category: identifying
+  - observable_property: adults_id_household
+    specification_category: required
+  - observable_property: adults_con_cst_ipchem
+    specification_category: required
+  - observable_property: adults_con_parc_300
+    specification_category: required
+- id: OBSERVATION_ADULTS_GENERAL_QUEST_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: person
+  observable_property_specifications:
+  - observable_property: adults_id_subject
+    specification_category: identifying
+  - observable_property: adults_gq_sex
+    specification_category: required
+  - observable_property: adults_gq_country
+    specification_category:  required
+  - observable_property: adults_gq_nuts1
+    specification_category:  required
+  - observable_property: adults_gq_nuts2
+    specification_category:  required
+  - observable_property: adults_gq_nuts3
+    specification_category:  required
+  - observable_property: adults_gq_subdivision
+    specification_category:  required
+  - observable_property: adults_gq_degurba
+    specification_category:  required
+  - observable_property: adults_gq_ageyears
+    specification_category:  required
+  - observable_property: adults_gq_isced_raw
+    specification_category:  required
+  - observable_property: adults_gq_isced
+    specification_category:  required
+  - observable_property: adults_gq_isced_hh_raw
+    specification_category:  required
+  - observable_property: adults_gq_isced_hh
+    specification_category:  required
+- id: OBSERVATION_ADULTS_BLOOD_QUEST_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: person
+  observable_property_specifications:
+  - observable_property: adults_id_subject
+    specification_category: identifying
+  - observable_property: adults_bq_samplingyear
+    specification_category: required
+  - observable_property: adults_bq_samplingmonth
+    specification_category: required
+  - observable_property: adults_bq_samplingday
+    specification_category: required
+  - observable_property: adults_bq_samplingseason
+    specification_category: required
+  - observable_property: adults_bq_samplinghour
+    specification_category: required
+  - observable_property: adults_bq_samplingminutes
+    specification_category: required
+  - observable_property: adults_bq_id_subject_original
+    specification_category: required
+  - observable_property: adults_bq_id_interviewer
+    specification_category: required
+  - observable_property: adults_bq_interviewday
+    specification_category: required
+  - observable_property: adults_bq_interviewmonth
+    specification_category: required
+  - observable_property: adults_bq_interviewyear
+    specification_category: required
+  - observable_property: adults_bq_interviewstarthour
+    specification_category: required
+  - observable_property: adults_bq_interviewstartminutes
+    specification_category: required
+  - observable_property: adults_bq_interviewendhour
+    specification_category: required
+  - observable_property: adults_bq_interviewendminutes
+    specification_category: required
+  - observable_property: adults_bq_interviewplace
+    specification_category: required
+  - observable_property: adults_bq_bloodtaken
+    specification_category: required
+  - observable_property: adults_bq_bloodnottaken
+    specification_category: required
+  - observable_property: adults_bq_bloodnottakenother
+    specification_category: required
+  - observable_property: adults_bq_bloodsampleday
+    specification_category: required
+  - observable_property: adults_bq_bloodsamplemonth
+    specification_category: required
+  - observable_property: adults_bq_bloodsampleyear
+    specification_category: required
+  - observable_property: adults_bq_bloodsamplehour
+    specification_category: required
+  - observable_property: adults_bq_bloodsampleminute
+    specification_category: required
+  - observable_property: adults_bq_mealbeforebloodday
+    specification_category: required
+  - observable_property: adults_bq_mealbeforebloodmonth
+    specification_category: required
+  - observable_property: adults_bq_mealbeforebloodyear
+    specification_category: required
+- id: OBSERVATION_ADULTS_BLOODSERUM_LAB_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: sample
+  observable_property_specifications:
+  - observable_property: adults_id_subject
+    specification_category: identifying
+  - observable_property: adults_bs_matrix
+    specification_category: required
+  - observable_property: adults_bs_analysisyear
+    specification_category: required
+  - observable_property: adults_bs_analysismonth
+    specification_category: required
+  - observable_property: adults_bs_analysisday
+    specification_category: required
+  - observable_property: adults_bs_chol
+    specification_category: required
+  - observable_property: adults_bs_chol_lod
+    specification_category: required
+  - observable_property: adults_bs_chol_loq
+    specification_category: required
 observations:
 - id: OBSERVATION_ADULTS_CONSIDERATIONS
   name: OBSERVATION_ADULTS_CONSIDERATIONS
   observation_type: metadata
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: person
-    identifying_observable_property_id_list:
-    - adults_id_subject
-    required_observable_property_id_list:
-    - adults_id_household
-    - adults_con_cst_ipchem
-    - adults_con_parc_300
+  observation_design: OBSERVATION_ADULTS_CONSIDERATIONS_DESIGN
 - id: OBSERVATION_ADULTS_GENERAL_QUEST
   name: OBSERVATION_ADULTS_GENERAL_QUEST
   observation_type: questionnaire
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: person
-    identifying_observable_property_id_list:
-    - adults_id_subject
-    required_observable_property_id_list:
-    - adults_gq_sex
-    - adults_gq_country
-    - adults_gq_nuts1
-    - adults_gq_nuts2
-    - adults_gq_nuts3
-    - adults_gq_subdivision
-    - adults_gq_degurba
-    - adults_gq_ageyears
-    - adults_gq_isced_raw
-    - adults_gq_isced
-    - adults_gq_isced_hh_raw
-    - adults_gq_isced_hh
+  observation_design: OBSERVATION_ADULTS_GENERAL_QUEST_DESIGN
 - id: OBSERVATION_ADULTS_BLOOD_QUEST
   name: OBSERVATION_ADULTS_BLOOD_QUEST
   observation_type: questionnaire
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: person
-    identifying_observable_property_id_list:
-    - adults_id_subject
-    required_observable_property_id_list:
-    - adults_bq_samplingyear
-    - adults_bq_samplingmonth
-    - adults_bq_samplingday
-    - adults_bq_samplingseason
-    - adults_bq_samplinghour
-    - adults_bq_samplingminutes
-    - adults_bq_id_subject_original
-    - adults_bq_id_interviewer
-    - adults_bq_interviewday
-    - adults_bq_interviewmonth
-    - adults_bq_interviewyear
-    - adults_bq_interviewstarthour
-    - adults_bq_interviewstartminutes
-    - adults_bq_interviewendhour
-    - adults_bq_interviewendminutes
-    - adults_bq_interviewplace
-    - adults_bq_bloodtaken
-    - adults_bq_bloodnottaken
-    - adults_bq_bloodnottakenother
-    - adults_bq_bloodsampleday
-    - adults_bq_bloodsamplemonth
-    - adults_bq_bloodsampleyear
-    - adults_bq_bloodsamplehour
-    - adults_bq_bloodsampleminute
-    - adults_bq_mealbeforebloodday
-    - adults_bq_mealbeforebloodmonth
-    - adults_bq_mealbeforebloodyear
+  observation_design: OBSERVATION_ADULTS_BLOOD_QUEST_DESIGN
 - id: OBSERVATION_ADULTS_BLOODSERUM_LAB
   name: OBSERVATION_ADULTS_BLOODSERUM_LAB
   observation_type: sampling
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: sample
-    identifying_observable_property_id_list:
-    - adults_id_subject
-    required_observable_property_id_list:
-    - adults_bs_matrix
-    - adults_bs_analysisyear
-    - adults_bs_analysismonth
-    - adults_bs_analysisday
-    - adults_bs_chol
-    - adults_bs_chol_lod
-    - adults_bs_chol_loq
+  observation_design: OBSERVATION_ADULTS_BLOODSERUM_LAB_DESIGN
+

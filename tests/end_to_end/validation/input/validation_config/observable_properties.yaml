@@ -1,6 +1,5 @@
 observable_properties:
 - id: peh:adults_id_subject
-  unique_name: None_id_subject
   name: id_subject
   description: UID of the subject
   ui_label: UID of the subject
@@ -12,17 +11,16 @@ observable_properties:
     value: '1'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - peh:UniqueIdentifier
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: id_subject
 - id: peh:adults_u_matrix
-  unique_name: u_matrix
   name: matrix
   description: matrix of the sample
   ui_label: matrix of the sample
@@ -79,15 +77,14 @@ observable_properties:
     value: '2'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: matrix
 - id: peh:adults_u_crt
-  unique_name: u_crt
   name: crt
   description: Concentration of creatinine in urine of the sample
   ui_label: Concentration of creatinine in urine of the sample
@@ -108,12 +105,11 @@ observable_properties:
     value: '7'
   - field: cb_source
     value: basic
-  default_unit: MilliGM-PER-DeciL
-  default_unit_label: mg/dL
-  default_required: true
-  default_zeroallowed: true
-  default_significantdecimals: 6
-  default_observation_result_type: measurement
+  unit: MilliGM-PER-DeciL
+  required: true
+  zeroallowed: true
+  significantdecimals: 6
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: crt

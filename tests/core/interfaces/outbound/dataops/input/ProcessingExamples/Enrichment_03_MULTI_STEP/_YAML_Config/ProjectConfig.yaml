@@ -43,41 +43,52 @@ layouts:
         label: id_subject
     - label: N2Birthweight
       observable_property: peh:N2Birthweight
+observation_designs:
+- id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: person
+  observable_property_specifications:
+  - observable_property: peh:id_subject
+    specification_category: identifying
+  - observable_property: peh:current_year
+    specification_category: optional
+  - observable_property: peh:current_month
+    specification_category: optional
+  - observable_property: peh:current_day
+    specification_category: optional
+  - observable_property: peh:N1Birthdate
+    specification_category: optional
+- id: peh:EENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE_DESIGN
+  observation_result_type: calculation
+  observable_entity_type: person
+  observable_property_specifications:
+  - observable_property: peh:id_subject
+    specification_category: identifying
+  - observable_property: peh:N2Birthweight
+    specification_category: optional
+- id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_DESIGN
+  observation_result_type: calculation
+  observable_entity_type: person
+  observable_property_specifications:
+  - observable_property: peh:id_subject
+    specification_category: identifying
+  - observable_property: peh:Todaysdate
+    specification_category: optional
+  - observable_property: peh:agemonths
+    specification_category: optional
 observations:
 - id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
   name: ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: person
-    identifying_observable_property_id_list:
-    - peh:id_subject
-    optional_observable_property_id_list:
-    - peh:current_year
-    - peh:current_month
-    - peh:current_day
-    - peh:N1Birthdate
+  observation_design: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED_DESIGN
   observation_result_id_list:
   - peh:INGESTION_RESULT_20251001_01
 - id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE
   name: ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE
-  observation_design:
-    observation_result_type: calculation
-    observable_entity_type: person
-    identifying_observable_property_id_list:
-    - peh:id_subject
-    optional_observable_property_id_list:
-    - peh:N2Birthweight
+  observation_design: peh:EENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE_DESIGN
   observation_result_id_list:
   - peh:ENRICHMENT_BASE_RESULT_20251001_01
 - id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED
   name: ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED
-  observation_design:
-    observation_result_type: calculation
-    observable_entity_type: person
-    identifying_observable_property_id_list:
-    - peh:id_subject
-    optional_observable_property_id_list:
-    - peh:Todaysdate
-    - peh:agemonths
+  observation_design: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_DESIGN
   observation_result_id_list:
   - peh:ENRICHMENT_RESULT_20251001_01

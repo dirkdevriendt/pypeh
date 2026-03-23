@@ -14,16 +14,15 @@ import logging
 
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from dataclasses import fields
 from peh_model.peh import NamedThing, EntityList
-from typing import Dict, Type, TYPE_CHECKING, Set, TypeVar, Generic, Sequence
+from typing import Dict, Type, TYPE_CHECKING, Set, TypeVar, Generic
 
 from pypeh.core.cache.utils import get_entity_type, load_entities_from_tree
 from pypeh.core.models.peh_wrappers import get_from_entity_list_map
 from pypeh.core.models.proxy import TypedLazyProxy
 
 if TYPE_CHECKING:
-    from typing import Optional, Generator, Any
+    from typing import Optional, Generator
     from pypeh.core.models.typing import T_NamedThingLike
 
 logger = logging.getLogger(__name__)
@@ -71,30 +70,6 @@ class CacheContainer(ABC, Generic[T_Container]):
     @abstractmethod
     def __len__(self) -> int:
         pass
-
-    def walk_entity(
-        self,
-        entity_id: str,
-        nested_entity_path: list[str],
-        entity_type: str | None = None,
-    ) -> Generator[T_NamedThingLike, None, None]:
-        # naive implementation
-        # the container could be improved to include the links
-        # lets figure out if we need this feature
-        entity = self.get(entity_id=entity_id, entity_type=entity_type)
-        if entity is not None:
-            for field_name in nested_entity_path:
-                new_entity = getattr(entity, field_name)
-                entity = new_entity
-            if isinstance(entity, Sequence):
-                for _id in entity:
-                    yield self.get(entity_id=_id)
-            elif isinstance(entity, str):
-                yield self.get(entity_id=entity)
-            else:
-                raise ValueError
-        else:
-            return
 
     def unpack_entity_list(self, entity_list: EntityList) -> bool:
         for entity in load_entities_from_tree(entity_list):
@@ -150,18 +125,6 @@ class CacheContainerView(Generic[T_Container]):
                         logger.debug(f"Entity with id {entity_id} not found in cache")
         else:
             yield from self._container.get_all(entity_type)
-
-    def walk_entity(
-        self,
-        entity_id: str,
-        nested_entity_path: list[str],
-        entity_type: str | None = None,
-    ) -> Generator[T_NamedThingLike, None, None]:
-        yield from self._container.walk_entity(
-            entity_id=entity_id,
-            nested_entity_path=nested_entity_path,
-            entity_type=entity_type,
-        )
 
     def pack_entity_list(self) -> EntityList:
         return self._container.pack_entity_list()

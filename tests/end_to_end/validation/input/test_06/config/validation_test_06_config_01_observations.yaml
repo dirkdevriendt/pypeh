@@ -1,46 +1,65 @@
+observation_designs:
+- id: peh:VALIDATION_TEST_SAMPLE_SAMPLE_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: sample
+  observable_property_specifications:
+  - observable_property: peh:OBSPROP_ID_id_sample
+    specification_category: identifying
+  - observable_property: peh:OBSPROP_ID_id_subject
+    specification_category: optional
+  - observable_property: peh:OBSPROP_ID_matrix
+    specification_category: optional
+  - observable_property: peh:OBSPROP_ID_samplingyear
+    specification_category: optional
+  - observable_property: peh:OBSPROP_ID_samplingmonth
+    specification_category: optional
+  - observable_property: peh:OBSPROP_ID_samplingday
+    specification_category: optional
+  - observable_property: peh:OBSPROP_ID_samplinghour
+    specification_category: optional
+  - observable_property: peh:OBSPROP_ID_samplingminutes
+    specification_category: optional
+- id: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: person
+  observable_property_specifications:
+  - observable_property: peh:OBSPROP_ID_id_subject
+    specification_category: identifying
+  - observable_property: peh:OBSPROP_ID_id_participant
+    specification_category: optional
+  - observable_property: peh:OBSPROP_ID_relation
+    specification_category: optional
+  - observable_property: peh:OBSPROP_ID_sex
+    specification_category: optional
+  - observable_property: peh:OBSPROP_ID_age_birth_m
+    specification_category: optional
+  - observable_property: peh:OBSPROP_ID_smoking_m
+    specification_category: optional
+- id: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: sample
+  observable_property_specifications:
+  - observable_property: peh:OBSPROP_ID_id_sample
+    specification_category: identifying
+  - observable_property: peh:OBSPROP_ID_chol
+    specification_category: optional
+  - observable_property: peh:OBSPROP_ID_chol_lod
+    specification_category: optional
+  - observable_property: peh:OBSPROP_ID_chol_loq
+    specification_category: optional
 observations:
 - id: peh:VALIDATION_TEST_SAMPLE_SAMPLE
   name: peh:VALIDATION_TEST_SAMPLE_SAMPLE
   ui_label: SAMPLE
   observation_type: metadata
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: sample
-    identifying_observable_property_id_list:
-    - peh:OBSPROP_ID_id_sample
-    optional_observable_property_id_list:
-    - peh:OBSPROP_ID_id_subject
-    - peh:OBSPROP_ID_matrix
-    - peh:OBSPROP_ID_samplingyear
-    - peh:OBSPROP_ID_samplingmonth
-    - peh:OBSPROP_ID_samplingday
-    - peh:OBSPROP_ID_samplinghour
-    - peh:OBSPROP_ID_samplingminutes
+  observation_design: peh:VALIDATION_TEST_SAMPLE_SAMPLE_DESIGN
 - id: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE
   name: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE
   ui_label: SUBJECTUNIQUE
   observation_type: metadata
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: person
-    identifying_observable_property_id_list:
-    - peh:OBSPROP_ID_id_subject
-    optional_observable_property_id_list:
-    - peh:OBSPROP_ID_id_participant
-    - peh:OBSPROP_ID_relation
-    - peh:OBSPROP_ID_sex
-    - peh:OBSPROP_ID_age_birth_m
-    - peh:OBSPROP_ID_smoking_m
+  observation_design: peh:VALIDATION_TEST_SAMPLE_SUBJECTUNIQUE_DESIGN
 - id: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB
   name: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB
   ui_label: SAMPLETIMEPOINT_BWB
   observation_type: sampling
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: sample
-    identifying_observable_property_id_list:
-    - peh:OBSPROP_ID_id_sample
-    optional_observable_property_id_list:
-    - peh:OBSPROP_ID_chol
-    - peh:OBSPROP_ID_chol_lod
-    - peh:OBSPROP_ID_chol_loq
+  observation_design: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB_DESIGN

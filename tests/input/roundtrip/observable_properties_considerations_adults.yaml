@@ -1,6 +1,5 @@
 observable_properties:
 - id: adults_id_subject
-  unique_name: None_id_subject
   name: id_subject
   description: UID of the subject
   ui_label: UID of the subject
@@ -10,18 +9,17 @@ observable_properties:
   value_metadata:
   - field: id_line
     value: '1'
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - UniqueIdentifier
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: id_subject
 - id: adults_id_household
-  unique_name: None_id_household
   name: id_household
   description: UID of the household of the subject
   ui_label: UID of the household of the subject
@@ -35,17 +33,16 @@ observable_properties:
   value_metadata:
   - field: id_line
     value: '2'
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: id_household
 - id: adults_con_cst_ipchem
-  unique_name: con_cst_ipchem
   name: cst_ipchem
   description: data subject consents to share individual level data with IPCHEM
   ui_label: data subject consents to share individual level data with IPCHEM
@@ -60,17 +57,16 @@ observable_properties:
   value_metadata:
   - field: id_line
     value: '3'
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: cst_ipchem
 - id: adults_con_parc_300
-  unique_name: con_parc_300
   name: parc_300
   description: indicates whether subject is part of reference set of 300 subjects
     selected as representative sample for PARC or not
@@ -87,12 +83,12 @@ observable_properties:
   value_metadata:
   - field: id_line
     value: '4'
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - PRIORITY_OBLIGATORY
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: parc_300

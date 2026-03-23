@@ -1,6 +1,5 @@
 observable_properties:
 - id: peh:adults_id_subject
-  unique_name: None_id_subject
   name: id_subject
   description: UID of the subject
   ui_label: UID of the subject
@@ -12,17 +11,16 @@ observable_properties:
     value: '1'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
   grouping_id_list:
   - peh:UniqueIdentifier
-  default_observation_result_type: measurement
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: id_subject
 - id: peh:adults_u_matrix
-  unique_name: u_matrix
   name: matrix
   description: matrix of the sample
   ui_label: matrix of the sample
@@ -79,15 +77,14 @@ observable_properties:
     value: '2'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: matrix
 - id: peh:adults_u_sg
-  unique_name: u_sg
   name: sg
   description: Specific gravity of urine of the sample
   ui_label: Specific gravity of urine of the sample
@@ -103,11 +100,11 @@ observable_properties:
     value: '11'
   - field: cb_source
     value: basic
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_significantdecimals: 6
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  significantdecimals: 6
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: sg
@@ -148,7 +145,6 @@ observable_properties:
     conditional: 'IF matrix IS (US,UD,UM) THEN sg IS not empty;
       IF crt < 2 THEN sg [1.001,1.02]'
 - id: peh:adults_u_crt
-  unique_name: u_crt
   name: crt
   description: Concentration of creatinine in urine of the sample
   ui_label: Concentration of creatinine in urine of the sample
@@ -169,12 +165,11 @@ observable_properties:
     value: '7'
   - field: cb_source
     value: basic
-  default_unit: MilliGM-PER-DeciL
-  default_unit_label: mg/dL
-  default_required: false
-  default_zeroallowed: true
-  default_significantdecimals: 6
-  default_observation_result_type: measurement
+  unit: MilliGM-PER-DeciL
+  required: false
+  zeroallowed: true
+  significantdecimals: 6
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: crt
@@ -193,7 +188,6 @@ observable_properties:
       validation_command: is_not_null
     conditional: IF matrix IS (US,UD,UM) THEN crt IS not empty
 - id: peh:adults_anl_biomarkercode
-  unique_name: anl_biomarkercode
   name: biomarkercode
   description: Biomarker abbreviation as used in the SAMPLETIMEPOINT tabs
   ui_label: Biomarker abbreviation as used in the SAMPLETIMEPOINT tabs
@@ -203,15 +197,14 @@ observable_properties:
   value_metadata:
   - field: id_line
     value: '1'
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: biomarkercode
 - id: peh:adults_anl_matrix
-  unique_name: anl_matrix
   name: matrix
   description: matrix abbreviation
   ui_label: matrix abbreviation
@@ -260,15 +253,14 @@ observable_properties:
   value_metadata:
   - field: id_line
     value: '2'
-  default_unit: UNITLESS
-  default_required: true
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: true
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: matrix
 - id: peh:adults_anl_labinstitution
-  unique_name: anl_labinstitution
   name: labinstitution
   description: institution name acronym of the laboratory performing the chemical
     analysis
@@ -279,10 +271,10 @@ observable_properties:
   value_metadata:
   - field: id_line
     value: '3'
-  default_unit: UNITLESS
-  default_required: false
-  default_zeroallowed: true
-  default_observation_result_type: measurement
+  unit: UNITLESS
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
   short_name: labinstitution

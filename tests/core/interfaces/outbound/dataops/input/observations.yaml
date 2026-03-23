@@ -1,26 +1,34 @@
+observation_designs:
+- id: peh:SAMPLE_DATA_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: person
+  observable_property_specifications:
+  - observable_property: adults_id_subject
+    specification_category: identifying
+  - observable_property: adults_u_matrix
+    specification_category: optional
+  - observable_property: adults_u_crt
+    specification_category: optional
+- id: peh:SAMPLE_METADATA_DESIGN
+  observation_result_type: measurement
+  observable_entity_type: lab_analysis_process
+  observable_property_specifications:
+  - observable_property: adults_id_subject
+    specification_category: identifying
+  - observable_property: adults_anl_biomarkercode
+    specification_category: optional
+  - observable_property: adults_anl_matrix
+    specification_category: optional
+  - observable_property: adults_anl_labinstitution
+    specification_category: optional
 observations:
 - id: peh:SAMPLE_DATA
   name: VALIDATION_TEST_SAMPLE_METADATA
   ui_label: SAMPLE
   observation_type: metadata
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: person
-    identifying_observable_property_id_list:
-    - adults_id_subject
-    optional_observable_property_id_list:
-    - adults_u_matrix
-    - adults_u_crt
+  observation_design: peh:SAMPLE_DATA_DESIGN
 - id: peh:SAMPLE_METADATA
   name: SAMPLE_METADATA
   ui_label: SAMPLE_METADATA
   observation_type: sampling
-  observation_design:
-    observation_result_type: measurement
-    observable_entity_type: lab_analysis_process
-    identifying_observable_property_id_list:
-    - adults_id_subject
-    optional_observable_property_id_list:
-    - adults_anl_biomarkercode
-    - adults_anl_matrix
-    - adults_anl_labinstitution
+  observation_design: peh:SAMPLE_METADATA_DESIGN

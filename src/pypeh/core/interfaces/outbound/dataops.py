@@ -101,33 +101,20 @@ class OutDataOpsInterface(Generic[T_DataType]):
     def type_mapper(self, peh_value_type: str | ObservablePropertyValueType):
         raise NotImplementedError
 
-    def extract_labeled_target_observable_properties(
+    def extract_labeled_observable_property_specifications(
         self, observation: peh.Observation, cache_view: CacheContainerView
-    ) -> dict[str, peh.ObservableProperty]:
+    ) -> dict[str, peh.ObservablePropertySpecification]:
         ret = {}
-
-        observation_design = observation.observation_design
+        observation_design_id = observation.observation_design
+        observation_design = cache_view.get(observation_design_id, peh.ObservationDesign)
         assert observation_design is not None
-        for observable_property_list_label in [
-            "identifying_observable_property_id_list",
-            "required_observable_property_id_list",
-            "optional_observable_property_id_list",
-        ]:
-            observable_property_id_list = getattr(observation_design, observable_property_list_label, None)
-            assert observable_property_id_list is not None
-            for observable_property_id in observable_property_id_list:
-                observable_property = cache_view.get(observable_property_id, "ObservableProperty")
-                assert observable_property is not None
-                ret[observable_property.ui_label] = observable_property
-
-                # TODO: HOW TO DEFINE CALCULATION RESULT BASED ON CONTEXTUAL FIELD REF OF RESULT
-                # calculation_designs = observable_property.calculation_designs
-                # if calculation_designs is not None:
-                #    calculation_design = calculation_designs[0]
-                #    calculation_implementation = calculation_design.calculation_implementation
-                #    assert calculation_implementation is not None
-                #    calculation_results = calculation_implementation.calculation_results
-
+        for observable_property_spec in observation_design.observable_property_specifications:
+            observable_property = cache_view.get(observable_property_spec.observable_property, "ObservableProperty")
+            assert observable_property is not None
+            assert isinstance(observable_property, peh.ObservableProperty)
+            observable_property_spec.observable_property = observable_property
+            assert isinstance(observable_property_spec.observable_property, peh.ObservableProperty)
+            ret[observable_property.ui_label] = observable_property_spec
         return ret
 
 
@@ -178,7 +165,7 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         ), f"ObservableProperty with id {observable_property_id} not found"
 
         if apply_required_check:
-            required = observable_property.default_required
+            required = observable_property.required
         else:
             required = False
 
@@ -547,68 +534,71 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
         join_spec_mapping: dict | None = None,
     ) -> graph.Graph:
         dependency_graph = graph.Graph()
-        nested_entity_paths = [
-            ["observation_design", "identifying_observable_property_id_list"],
-            ["observation_design", "required_observable_property_id_list"],
-            ["observation_design", "optional_observable_property_id_list"],
-        ]
         # the source_observations also need to be added to the dependency graph!!!!!
         for observation in observations:
-            observation_id = observation.id
-            for path in nested_entity_paths:
-                for observable_property in cache_view.walk_entity(
-                    entity_id=observation_id, nested_entity_path=path, entity_type="Observation"
-                ):
-                    assert isinstance(observable_property, peh.ObservableProperty)
-                    target_contextual_field_ref = context_index.context_lookup(observation_id, observable_property.id)
-                    target_dataset_label, target_field_label = target_contextual_field_ref
-                    calculation_designs = observable_property.calculation_designs
-                    if calculation_designs:
-                        # EXTRA INFO FROM CALCULATION DESIGN AND UPDATE DEPENDENCY GRAPH
-                        child = graph.Node(dataset_label=target_dataset_label, field_label=target_field_label)
-                        if len(calculation_designs) > 1:
-                            raise NotImplementedError(
-                                "No current implementation for multiple calculation designs linked to a single observable property"
-                            )
-                        calculation_design = calculation_designs[0]
-                        assert isinstance(calculation_design, peh.CalculationDesign)
-                        calculation_implementation = calculation_design.calculation_implementation
-                        assert isinstance(calculation_implementation, peh.CalculationImplementation)
-                        output_dtype = observable_property.value_type
-                        assert output_dtype is not None
-                        function_name = calculation_implementation.function_name
-                        assert isinstance(function_name, str)
+            assert observation.observation_design is not None
+            assert isinstance(observation.observation_design, peh.ObservationDesignId)
+            observation_design = cache_view.get(observation.observation_design, "ObservationDesign")
+            assert isinstance(observation_design, peh.ObservationDesign)
+            for observable_property_spec in observation_design.observable_property_specifications:
+                assert isinstance(
+                    observable_property_spec.observable_property,
+                    (peh.ObservableProperty, peh.ObservablePropertyId, str),
+                )
+                if isinstance(observable_property_spec.observable_property, (peh.ObservablePropertyId, str)):
+                    observable_property = cache_view.get(
+                        observable_property_spec.observable_property, "ObservableProperty"
+                    )
+                elif isinstance(observable_property_spec.observable_property, peh.ObservableProperty):
+                    observable_property = observable_property_spec.observable_property
+                assert observable_property is not None
+                assert isinstance(observable_property, peh.ObservableProperty)
+                target_contextual_field_ref = context_index.context_lookup(observation.id, observable_property.id)
+                assert (
+                    target_contextual_field_ref is not None
+                ), f"Target contextual reference could not be found for property {observable_property.id} in observation {observation.id}."
+                target_dataset_label, target_field_label = target_contextual_field_ref
+                if observable_property.calculation_design is not None:
+                    # EXTRA INFO FROM CALCULATION DESIGN AND UPDATE DEPENDENCY GRAPH
+                    calculation_design = observable_property.calculation_design
+                    assert isinstance(calculation_design, peh.CalculationDesign)
+                    calculation_implementation = calculation_design.calculation_implementation
+                    assert isinstance(calculation_implementation, peh.CalculationImplementation)
+                    function_name = calculation_implementation.function_name
+                    assert isinstance(function_name, str)
+                    output_dtype = observable_property.value_type
+                    assert output_dtype is not None
 
-                        dependency_graph.add_calculation_target(
-                            child, function_name=function_name, result_dtype=output_dtype
-                        )
-                        function_kwargs = calculation_implementation.function_kwargs
-                        assert function_kwargs is not None
-                        for function_kwarg in function_kwargs:
-                            assert isinstance(function_kwarg, peh.CalculationKeywordArgument)
-                            source_field_ref = function_kwarg.contextual_field_reference
-                            assert isinstance(source_field_ref, peh.ContextualFieldReference)
-                            # TODO: adapt this to observation-based logic !!!!!!!!!!!!!!!!
-                            source_dataset_label = source_field_ref.dataset_label
-                            assert source_dataset_label is not None
-                            source_field_label = source_field_ref.field_label
-                            assert source_field_label is not None
-                            parent = graph.Node(dataset_label=source_dataset_label, field_label=source_field_label)
-                            map_name = function_kwarg.mapping_name
-                            assert map_name is not None
-                            join_spec = None
-                            if join_spec_mapping is not None:
-                                join_spec = join_spec_mapping.get(
-                                    frozenset([target_dataset_label, source_dataset_label]), None
-                                )
-                                if join_spec is not None:
-                                    assert len(join_spec) == 1, "Complex JoinSpecs are not supported yet."
-                            dependency_graph.add_calculation_source(
-                                parent,
-                                child,
-                                map_name,
-                                join_spec=join_spec,
+                    child = graph.Node(dataset_label=target_dataset_label, field_label=target_field_label)
+                    dependency_graph.add_calculation_target(
+                        child, function_name=function_name, result_dtype=output_dtype
+                    )
+                    function_kwargs = calculation_implementation.function_kwargs
+                    assert function_kwargs is not None
+                    for function_kwarg in function_kwargs:
+                        assert isinstance(function_kwarg, peh.CalculationKeywordArgument)
+                        source_field_ref = function_kwarg.contextual_field_reference
+                        assert isinstance(source_field_ref, peh.ContextualFieldReference)
+                        source_dataset_label = source_field_ref.dataset_label
+                        assert source_dataset_label is not None
+                        source_field_label = source_field_ref.field_label
+                        assert source_field_label is not None
+                        parent = graph.Node(dataset_label=source_dataset_label, field_label=source_field_label)
+                        map_name = function_kwarg.mapping_name
+                        assert map_name is not None
+                        join_spec = None
+                        if join_spec_mapping is not None:
+                            join_spec = join_spec_mapping.get(
+                                frozenset([target_dataset_label, source_dataset_label]), None
                             )
+                            if join_spec is not None:
+                                assert len(join_spec) == 1, "Complex JoinSpecs are not supported yet."
+                        dependency_graph.add_calculation_source(
+                            parent,
+                            child,
+                            map_name,
+                            join_spec=join_spec,
+                        )
 
         return dependency_graph
 
@@ -632,14 +622,14 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
 
             assert source_dataset is not None
             source_dataset_label = source_dataset.label
-            # TODO: extract observable_property_labels: FIXME
-            labeled_observable_properties = self.extract_labeled_target_observable_properties(
+            # TODO: extract observable_property_specification_labels: FIXME
+            labeled_observable_property_specifications = self.extract_labeled_observable_property_specifications(
                 target_observation, cache_view=cache_view
             )
             source_dataset_series.add_observation(
                 source_dataset_label,
                 target_observation,
-                labeled_observable_properties=labeled_observable_properties,
+                labeled_observable_property_specifications=labeled_observable_property_specifications,
             )
         join_spec_mapping = source_dataset_series.resolve_all_joins()
         # BUILD DEPENDENCY GRAPH
@@ -763,12 +753,6 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
         stratifications: list[list[str]],
         cache_view: CacheContainerView,
     ) -> DatasetSeries:
-        nested_entity_paths = [
-            ["observation_design", "identifying_observable_property_id_list"],
-            ["observation_design", "required_observable_property_id_list"],
-            ["observation_design", "optional_observable_property_id_list"],
-        ]
-
         # ADD TARGET OBSERVATION TO A NEW DATASET_SERIES
         aggregated_dataset_series: DatasetSeries = DatasetSeries(label=f"{source_dataset_series.label}_aggregated")
 
@@ -776,79 +760,79 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
             target_derived_from, target_observations, stratifications
         ):
             if label := target_observation.ui_label:
-                labeled_observable_properties = self.extract_labeled_target_observable_properties(
-                    target_observation,
-                    cache_view=cache_view,
+                labeled_observable_property_specifications = self.extract_labeled_observable_property_specifications(
+                    target_observation, cache_view=cache_view
                 )
                 aggregated_dataset_series.add_observation(
                     label,
                     target_observation,
-                    labeled_observable_properties=labeled_observable_properties,
+                    labeled_observable_property_specifications=labeled_observable_property_specifications,
                 )
             else:
                 raise ValueError(
                     f"Source observation {source_obs.id} lacks a `ui_label` which is required to add the target observation to the DatasetSeries"
                 )
-
-            for path in nested_entity_paths:
-                for observable_property in cache_view.walk_entity(
-                    entity_id=target_observation.id, nested_entity_path=path, entity_type="Observation"
-                ):
-                    assert isinstance(observable_property, peh.ObservableProperty)
-                    target_contextual_field_ref = aggregated_dataset_series.get_contextual_field_reference_index().get(
-                        observable_property.id
+            assert target_observation.observation_design is not None
+            assert isinstance(target_observation.observation_design, peh.ObservationDesignId)
+            target_observation_design = cache_view.get(target_observation.observation_design, "ObservationDesign")
+            assert isinstance(target_observation_design, peh.ObservationDesign)
+            for observable_property_spec in target_observation_design.observable_property_specifications:
+                assert isinstance(
+                    observable_property_spec.observable_property,
+                    (peh.ObservableProperty, peh.ObservablePropertyId, str),
+                )
+                if isinstance(observable_property_spec.observable_property, (peh.ObservablePropertyId, str)):
+                    observable_property = cache_view.get(
+                        observable_property_spec.observable_property, "ObservableProperty"
                     )
-                    assert (
-                        target_contextual_field_ref is not None
-                    ), f"Observable property with id {observable_property.id} is non unique."
-                    calculation_designs = observable_property.calculation_designs
+                elif isinstance(observable_property_spec.observable_property, peh.ObservableProperty):
+                    observable_property = observable_property_spec.observable_property
+                assert observable_property is not None
+                assert isinstance(observable_property, peh.ObservableProperty)
+                target_contextual_field_ref = aggregated_dataset_series.get_contextual_field_reference_index().get(
+                    observable_property.id
+                )
+                assert (
+                    target_contextual_field_ref is not None
+                ), f"Observable property with id {observable_property.id} is non unique."
 
-                    if calculation_designs:
-                        # Node target_dataset_label, target_field_label
-                        if len(calculation_designs) > 1:
-                            raise NotImplementedError(
-                                "No current implementation for multiple calculation designs linked to a single observable property"
-                            )
-                        calculation_design = calculation_designs[0]
-                        assert isinstance(calculation_design, peh.CalculationDesign)
-                        calculation_implementation = calculation_design.calculation_implementation
-                        assert isinstance(calculation_implementation, peh.CalculationImplementation)
-                        output_dtype = ObservablePropertyValueType(getattr(observable_property, "value_type", "string"))
-                        assert output_dtype is not None
+                if observable_property.calculation_design is not None:
+                    # Node target_dataset_label, target_field_label
+                    calculation_design = observable_property.calculation_design
+                    assert isinstance(calculation_design, peh.CalculationDesign)
+                    calculation_implementation = calculation_design.calculation_implementation
+                    assert isinstance(calculation_implementation, peh.CalculationImplementation)
+                    output_dtype = ObservablePropertyValueType(getattr(observable_property, "value_type", "string"))
+                    assert output_dtype is not None
 
-                        function_name = calculation_implementation.function_name
-                        assert function_name is not None
-                        map_fn = _extract_callable(function_name)
+                    function_name = calculation_implementation.function_name
+                    assert function_name is not None
+                    map_fn = _extract_callable(function_name)
 
-                        if function_kwargs := calculation_implementation.function_kwargs:
-                            for function_kwarg in function_kwargs:
-                                assert isinstance(function_kwarg, peh.CalculationKeywordArgument)
-                                source_field_ref = function_kwarg.contextual_field_reference
-                                assert isinstance(source_field_ref, peh.ContextualFieldReference)
-                                source_dataset_label = source_field_ref.dataset_label
-                                source_field_label = source_field_ref.field_label
-                                assert source_field_label is not None
-                                map_name = function_kwarg.mapping_name
+                    if function_kwargs := calculation_implementation.function_kwargs:
+                        for function_kwarg in function_kwargs:
+                            source_field_ref = function_kwarg.contextual_field_reference
+                            source_dataset_label = source_field_ref.dataset_label
+                            source_field_label = source_field_ref.field_label
+                            map_name = function_kwarg.mapping_name
 
-                        source_dataset = source_dataset_series.get(source_dataset_label)
-                        assert source_dataset is not None
-                        source_data = source_dataset.data
-                        assert source_data is not None
-                        target_data = self._calculate_for_stratum(
-                            df=source_data.lazy(),
-                            group_cols=stratification,
-                            value_col=source_field_label,
-                            stat_builders=[map_fn],
-                            result_alias=map_name,
-                        )
+                    source_dataset = source_dataset_series.get(source_dataset_label)
+                    source_data = source_dataset.data
+                    target_data = self._calculate_for_stratum(
+                        df=source_data.lazy(),
+                        group_cols=stratification,
+                        value_col=source_field_label,
+                        stat_builders=[map_fn],
+                        result_alias=map_name,
+                    )
 
-                        gen = aggregated_dataset_series.get_datasets_by_observation(target_observation.id)
-                        target_dataset = next(gen)
-                        try:
-                            _ = next(gen)
-                            raise AssertionError("Expected only one dataset, but generator yielded more")
-                        except StopIteration:
-                            pass
-                        target_dataset.add_data(target_data.collect())  # type: ignore
+                    gen = aggregated_dataset_series.get_datasets_by_observation(target_observation.id)
+                    target_dataset = next(gen)
+                    try:
+                        _ = next(gen)
+                        raise AssertionError("Expected only one dataset, but generator yielded more")
+                    except StopIteration:
+                        pass
+                    target_dataset.add_data(target_data.collect())  # type: ignore
 
             return aggregated_dataset_series
