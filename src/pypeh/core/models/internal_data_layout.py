@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import itertools
 import logging
-import uuid
 
 from collections import defaultdict
 from dataclasses import dataclass, field
 from peh_model import peh
 from typing import TYPE_CHECKING, Callable, Generator, Generic, Sequence, Protocol
+from ulid import ULID
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerView
 from pypeh.core.models.typing import T_DataType
@@ -38,6 +38,7 @@ class DatasetSchemaElement:
     label: str
     observable_property_id: str
     data_type: ObservablePropertyValueType
+    identifier: str = field(default_factory=lambda: str(ULID()))
 
 
 @dataclass
@@ -50,6 +51,7 @@ class ElementReference:
 class ForeignKey:
     element_label: str
     reference: ElementReference
+    identifier: str = field(default_factory=lambda: str(ULID()))
 
 
 @dataclass
@@ -57,6 +59,7 @@ class DatasetSchema:
     elements: dict[str, DatasetSchemaElement] = field(default_factory=dict)
     primary_keys: set[str] = field(default_factory=set)
     foreign_keys: dict[str, ForeignKey] = field(default_factory=dict)
+    identifier: str = field(default_factory=lambda: str(ULID()))
 
     def __post_init__(self):
         self._type = self.get_type_annotations()
@@ -377,14 +380,14 @@ class Resource:
     """
 
     label: str
-    identifier: str = field(default_factory=lambda: str(uuid.uuid4()))
+    identifier: str = field(default_factory=lambda: str(ULID()))
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    id_factory: Callable[[str], str] | None = field(default=None)
+    id_factory: Callable[[], str] | None = field(default=None)
 
     def __post_init__(self):
         if self.id_factory is not None:
-            self.identifier = self.id_factory(self.label)
+            self.identifier = self.id_factory()
 
     def add_metadata(self, metadata_key: str, metadata_value: Any) -> bool:
         if metadata_key in self.metadata:
@@ -626,7 +629,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         for dataset_label in self.parts:
             dataset = self[dataset_label]
             assert dataset is not None
-            for obs in dataset.observations:
+            for obs in dataset.observation_ids:
                 self._register_observation(obs, dataset_label)
 
     def build_context_index(self):
@@ -637,9 +640,9 @@ class DatasetSeries(Resource, Generic[T_DataType]):
             dataset = self[dataset_label]
             assert dataset is not None
             assert (
-                len(dataset.observations) == 1
+                len(dataset.observation_ids) == 1
             ), "Cannot build context index if any dataset contains more than one observation"
-            observation_id = next(iter(dataset.observations))
+            observation_id = next(iter(dataset.observation_ids))
             dataset_schema = dataset.schema
             assert dataset_schema is not None
             for element_label, element in dataset.schema.elements.items():
@@ -672,7 +675,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         data_layout: peh.DataLayout,
         cache_view: CacheContainerView,
         apply_context: bool = True,
-        id_factory: Callable[[str], str] | None = None,
+        id_factory: Callable[[], str] | None = None,
     ) -> DatasetSeries:
         dataset_series_label = data_layout.ui_label
         assert dataset_series_label is not None
@@ -697,9 +700,9 @@ class DatasetSeries(Resource, Generic[T_DataType]):
                 observable_property_id = element.observable_property
                 assert observable_property_id is not None
                 identifying = getattr(element, "is_observable_entity_key", False)
-                observation_id = str(uuid.uuid4())
+                observation_id = str(ULID())
                 if id_factory is not None:
-                    observation_id = id_factory(observation_id)
+                    observation_id = id_factory()
                 observable_property = cache_view.get(observable_property_id, "ObservableProperty")
                 assert isinstance(observable_property, peh.ObservableProperty)
                 data_type = ObservablePropertyValueType(getattr(observable_property, "value_type", "string"))
@@ -742,7 +745,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         data_import_config: peh.DataImportConfig,
         cache_view: CacheContainerView,
         apply_context: bool = True,
-        id_factory: Callable[[str], str] | None = None,
+        id_factory: Callable[[], str] | None = None,
     ) -> DatasetSeries:
         data_layout_id = data_import_config.layout
         assert data_layout_id is not None
@@ -750,7 +753,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         assert isinstance(data_layout, peh.DataLayout)
         layout_label = data_layout.ui_label
         if layout_label is None:
-            layout_label = str(uuid.uuid4())
+            layout_label = str(ULID())
         ret = DatasetSeries(label=layout_label, id_factory=id_factory, metadata={"described_by": data_layout_id})
 
         # add Observation links
@@ -881,7 +884,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         )
 
     def add_empty_dataset(
-        self, dataset_label: str, id_factory: Callable[[str], str] | None = None, metadata: dict | None = None
+        self, dataset_label: str, id_factory: Callable[[], str] | None = None, metadata: dict | None = None
     ) -> Dataset:
         dataset = Dataset(label=dataset_label, id_factory=id_factory)
         if metadata is not None:

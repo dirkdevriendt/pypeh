@@ -34,7 +34,7 @@ class TestInternalDataLayout:
         return CacheContainerView(container)
 
     def get_id_factory(self):
-        def _id_factory(resource: dict):
+        def _id_factory():
             return f"https://w3id.org/{uuid.uuid4()}"
 
         return _id_factory
@@ -350,14 +350,14 @@ class TestToTarget:
             label="partial_urine_lab",
             schema=partial_urine_lab_schema,
             data=None,
-            observations=set(["peh:urine_lab_this"]),
+            observation_ids=set(["peh:urine_lab_this"]),
         )
 
         analyticalinfo_dataset = Dataset(
             label="analyticalinfo",
             schema=analyticalinfo_schema,
             data=None,
-            observations=set(["peh:analyticalinfo_obs"]),
+            observation_ids=set(["peh:analyticalinfo_obs"]),
         )
 
         # --- DATASET SERIES ---------------------------------------------------------

@@ -269,7 +269,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
             raise ValueError("A namespace_key can only be provided when a NamespaceMananger is bound to the Session")
         if self.namespace_manager is not None:
             id_factory = self.namespace_manager.get_id_factory(
-                namespace_key, suffix_strategy=NamespaceManager.slugify_suffix()
+                namespace_key, suffix_strategy=NamespaceManager.generate_ulid()
             )
         dataset_series = DatasetSeries.from_peh_data_import_config(
             data_import_config,
@@ -464,7 +464,6 @@ class Session(Generic[T_AdapterType, T_DataType]):
         assert self.namespace_manager is not None, "No NameSpaceManager is bound to Session"
         identifier = self.namespace_manager.mint(
             resource_class=resource_cls,
-            resource_kwargs=data,
             namespace_key=namespace_key,
             identifying_field=identifiying_field,
         )
