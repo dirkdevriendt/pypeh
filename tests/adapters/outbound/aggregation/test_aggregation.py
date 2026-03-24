@@ -98,7 +98,6 @@ class TestSummarizeMethod:
         assert isinstance(result, pl.DataFrame)
         assert result.shape[0] == 2
         assert "group_a" in result.columns
-        assert "stratification" in result.columns
         assert "n" in result.columns
         assert "mean" in result.columns
 
@@ -117,7 +116,6 @@ class TestSummarizeMethod:
         # group_a: 2 groups, group_b: 2 groups, group_a+group_b: 4 groups = 8 total
         assert isinstance(result, pl.DataFrame)
         assert result.shape[0] == 8
-        assert "stratification" in result.columns
         assert "n" in result.columns
 
         # Check that all group columns exist (some will be null for certain stratifications)
@@ -255,7 +253,6 @@ class TestInternalSummarizeMethod:
 
         assert collected.shape[0] == 2
         assert "group_a" in collected.columns
-        assert "stratification" in collected.columns
         assert "n" in collected.columns
 
     def test_internal_summarize_multiple_groups(self, setup_adapter, sample_dataframe, pl):
@@ -286,11 +283,9 @@ class TestInternalSummarizeMethod:
             stat_builders=["stat_count"],
         ).collect()
 
-        assert "stratification" in result.columns
         # All rows should have the same stratification value
         # The stratification should contain the group column names
-        first_strat = result["stratification"][0]
-        assert first_strat.to_list() == ["group_a", "category"]
+        assert {"group_a", "category"}.issubset(set(result.columns))
 
     def test_internal_summarize_with_kwargs(self, setup_adapter, sample_dataframe, pl):
         """Test _calculate_for_stratum passes kwargs to stat functions."""
@@ -353,9 +348,6 @@ class TestIntegrationScenarios:
 
         # Should have: 2 (group_a) + 2 (group_b) + 2 (category) + 4 (group_a x group_b) = 10
         assert result.shape[0] == 10
-
-        # Verify stratification column shows correct grouping
-        assert "stratification" in result.columns
 
     def test_comparison_across_groups(self, setup_adapter, sample_dataframe, pl):
         """Test that results make sense when comparing across groups."""

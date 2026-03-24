@@ -20,61 +20,83 @@ layouts:
     section_type: data_table
     elements:
     - label: id_subject
-      observable_property: peh:id_subject_00
+      observable_property: peh:id_subject
       is_observable_entity_key: true
     - label: current_year
       observable_property: peh:current_year
     - label: current_month
       observable_property: peh:current_month
-    - label: current_day
-      observable_property: peh:current_day
-    - label: N1Birthdate
-      observable_property: peh:N1Birthdate
+    - label: N1BirthWeight
+      observable_property: peh:N1BirthWeight
+    - label: N1BirthLength
+      observable_property: peh:N1BirthLength
   - id: peh:ENRICHMENT_TEST_ENRICH
     ui_label: ENRICH_BASE
     observable_entity_type: person
     section_type: data_table
     elements:
     - label: id_subject
-      observable_property: peh:id_subject_01
+      observable_property: peh:id_subject
       is_observable_entity_key: true
       foreign_key_link:
         section: peh:ENRICHMENT_TEST_SUBJECTUNIQUE
         label: id_subject
-    - label: N2Birthweight
-      observable_property: peh:N2Birthweight
+    - label: current_year
+      observable_property: peh:current_year
+    - label: current_month
+      observable_property: peh:current_month
+    - label: N2BirthWeight
+      observable_property: peh:N2BirthWeight
 observation_designs:
 - id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED_DESIGN
   observation_result_type: measurement
   observable_entity_type: person
   observable_property_specifications:
-  - observable_property: peh:id_subject_00
+  - observable_property: peh:id_subject
     specification_category: identifying
   - observable_property: peh:current_year
-    specification_category: optional
+    specification_category: required
   - observable_property: peh:current_month
+    specification_category: required
+  - observable_property: peh:N1BirthWeight
     specification_category: optional
-  - observable_property: peh:current_day
-    specification_category: optional
-  - observable_property: peh:N1Birthdate
+  - observable_property: peh:N1BirthLength
     specification_category: optional
 - id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE_DESIGN
   observation_result_type: calculation
   observable_entity_type: person
   observable_property_specifications:
-  - observable_property: peh:id_subject_01
+  - observable_property: peh:id_subject
     specification_category: identifying
-  - observable_property: peh:N2Birthweight
+  - observable_property: peh:current_year
+    specification_category: required
+  - observable_property: peh:current_month
+    specification_category: required
+  - observable_property: peh:N2BirthWeight
     specification_category: optional
-- id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_DESIGN
+- id: peh:TEST_SUMMARY_DESIGN
   observation_result_type: calculation
   observable_entity_type: person
   observable_property_specifications:
-  - observable_property: peh:id_subject_01
+  - observable_property: peh:current_year
     specification_category: identifying
-  - observable_property: peh:Todaysdate
+  - observable_property: peh:current_month
+    specification_category: identifying
+  - observable_property: peh:mean_birthweight
     specification_category: optional
-  - observable_property: peh:agemonths
+  - observable_property: peh:sem_birthweight
+    specification_category: optional
+  - observable_property: peh:mean_birthlength
+    specification_category: optional
+- id: peh:TEST_SUMMARY2_DESIGN
+  observation_result_type: calculation
+  observable_entity_type: person
+  observable_property_specifications:
+  - observable_property: peh:current_year
+    specification_category: identifying
+  - observable_property: peh:current_month
+    specification_category: identifying
+  - observable_property: peh:mean_birthweight2
     specification_category: optional
 observations:
 - id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
@@ -89,9 +111,15 @@ observations:
   observation_design: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE_DESIGN
   observation_result_id_list:
   - peh:ENRICHMENT_BASE_RESULT_20251001_01
-- id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED
-  name: ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED
-  ui_label: ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED
-  observation_design: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_DESIGN
+- id: peh:TEST_SUMMARY
+  name: TEST_SUMMARY
+  ui_label: TEST_SUMMARY
+  observation_design: peh:TEST_SUMMARY_DESIGN
   observation_result_id_list:
   - peh:ENRICHMENT_RESULT_20251001_01
+- id: peh:TEST_SUMMARY2
+  name: TEST_SUMMARY2
+  ui_label: TEST_SUMMARY2
+  observation_design: peh:TEST_SUMMARY2_DESIGN
+  observation_result_id_list:
+  - peh:ENRICHMENT_RESULT_20251001_02

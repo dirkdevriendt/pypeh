@@ -896,7 +896,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         observation: peh.Observation,
         labeled_observable_property_specifications: dict[str, peh.ObservablePropertySpecification],
         data: T_DataType | None = None,
-    ):
+    ) -> Dataset:
         """
         labeled_observable_property_specifications: dict[element_label: ObservablePropertySpecification]
         """
@@ -933,6 +933,8 @@ class DatasetSeries(Resource, Generic[T_DataType]):
 
         if data is not None:
             dataset.add_data(data=data)
+
+        return dataset
 
     #### RESTRUCTURE DATASETSERIES ####
 
