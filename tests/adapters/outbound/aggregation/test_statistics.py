@@ -117,20 +117,23 @@ class TestStatCount:
 class TestStatArithmetic:
     """Test suite for stat_arithmetic function."""
 
-    def test_stat_arithmetic_basic(self, sample_dataframe, setup_adapter, pl):
+    def test_stat_arithmetic_basic(self, dataframe_with_nulls, setup_adapter, pl):
         """Test basic arithmetic statistics."""
+        import scipy.stats as stats
 
         adapter = setup_adapter()
 
+        df = dataframe_with_nulls
+
         exprs = adapter._get_stat_function_from_name("stat_arithmetic")("value")
-        result = sample_dataframe.select(exprs)
+        result = df.select(exprs)
 
         assert result.shape == (1, 5)
-        assert result["mean"][0] == pytest.approx(5.5)
+        assert result["mean"][0] == pytest.approx(stats.tmean(df["value"].drop_nulls().to_list()))
         # Standard deviation of 1-10 is approximately 3.028
-        assert result["st"][0] == pytest.approx(3.0276503540974917)
-        # SEM = std / n (not sqrt(n))
-        assert result["sem"][0] == pytest.approx(0.30276503540974917)
+        assert result["st"][0] == pytest.approx(stats.tstd(df["value"].drop_nulls().to_list()))
+        # SEM = std / sqrt(n)
+        assert result["sem"][0] == pytest.approx(stats.sem(df["value"].drop_nulls().to_list()))
 
     def test_stat_arithmetic_confidence_intervals(self, sample_dataframe, setup_adapter, pl):
         """Test that confidence intervals are correctly calculated."""

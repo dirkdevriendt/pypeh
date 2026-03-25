@@ -31,8 +31,9 @@ def stat_arithmetic(
     *,
     result_aliases: list[str] = ["mean", "st", "sem", "mean_95_ci_lower", "mean_95_ci_upper"],
 ) -> list[pl.Expr]:
+    n = pl.col(value_col).is_finite().sum()
     mean = pl.col(value_col).mean()
-    sem = pl.col(value_col).std() / pl.len()
+    sem = pl.col(value_col).std() / n.sqrt()
     return [
         mean.alias(result_aliases[0]),
         pl.col(value_col).std().alias(result_aliases[1]),
@@ -87,8 +88,9 @@ def stat_geometric(
     *,
     result_aliases: list[str] = ["geom_mean", "geom_mean_95_ci_lower", "geom_mean_95_ci_upper"],
 ) -> list[pl.Expr]:
+    n = pl.col(value_col).is_finite().sum()
     log_mean = pl.col(value_col).log().mean()
-    se = pl.col(value_col).log().std() / pl.len()
+    se = pl.col(value_col).log().std() / n.sqrt()
     return [
         log_mean.exp().alias(result_aliases[0]),
         (log_mean - 1.96 * se).exp().alias(result_aliases[1]),
@@ -125,7 +127,7 @@ def _percentile_ci_lower(
     q: float,
     *,
     result_aliases: list[str] = ["p", "ci_lower"],
-) -> tuple[pl.Expr, pl.Expr]:
+) -> pl.Expr:
     """Calculate the lower confidence interval for a given percentile.
 
     Formula (Conover, 1999):
@@ -133,7 +135,7 @@ def _percentile_ci_lower(
 
     for ci_lower / n in [0,1]
     """
-    n = pl.col(value_col).count()
+    n = pl.col(value_col).is_finite().sum()
     se = (n * q * (1 - q)).sqrt()
     ci_lower = (n * q - 1.96 * se).ceil()
 
@@ -149,13 +151,13 @@ def _percentile_ci_upper(
     q: float,
     *,
     result_aliases: list[str] = ["p", "ci_upper"],
-) -> tuple[pl.Expr, pl.Expr]:
+) -> pl.Expr:
     """Calculate the upper confidence interval for a given percentile.
 
     Formula (Conover, 1999):
         k = nq + 1.96 root(nq(1-q))
     """
-    n = pl.col(value_col).count()
+    n = pl.col(value_col).is_finite().sum()
     se = (n * q * (1 - q)).sqrt()
     ci_upper = (n * q + 1.96 * se).ceil()
 
