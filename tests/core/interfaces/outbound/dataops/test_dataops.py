@@ -45,10 +45,6 @@ class DataOpsProtocol(Protocol, Generic[T_DataType]):
 
     def validate(self, dataset, dependent_dataset_series, cache_view, allow_incomplete) -> ValidationErrorReport: ...
 
-    def import_data(self, source, config) -> Any: ...
-
-    def import_data_layout(self, source, config) -> Any: ...
-
     def build_column_validation(self, dataset_schema_element, type_annotations, cache_view): ...
 
     def build_validation_config(
@@ -535,33 +531,6 @@ class TestDataImport(abc.ABC):
     def get_adapter(self) -> DataOpsProtocol:
         """Return the adapter implementation to test."""
         raise NotImplementedError
-
-    def test_import_data_layout(self):
-        adapter = self.get_adapter()
-        source = "./input/datalayout.yaml"
-        path = get_absolute_path(source)
-        config = LocalFileSettings()
-        data = adapter.import_data_layout(path, config)
-        if isinstance(data, list):
-            assert all(isinstance(dl, DataLayout) for dl in data)
-        else:
-            assert isinstance(data, DataLayout)
-
-    def test_import_csv(self):
-        adapter = self.get_adapter()
-        source = "./input/data.csv"
-        path = get_absolute_path(source)
-        config = LocalFileSettings()
-        data = adapter.import_data(path, config)
-        assert isinstance(data, adapter.data_format)
-
-    def test_import_excel(self):
-        adapter = self.get_adapter()
-        source = "./input/data.xlsx"
-        path = get_absolute_path(source)
-        config = LocalFileSettings()
-        data = adapter.import_data(path, config)
-        assert all(isinstance(d, adapter.data_format) for d in data.values())
 
     @pytest.fixture(scope="function")
     def data_layout_container(self):

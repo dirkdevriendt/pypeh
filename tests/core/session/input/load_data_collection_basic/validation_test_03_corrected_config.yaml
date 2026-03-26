@@ -228,7 +228,8 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: peh:matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BWB
@@ -247,7 +248,8 @@ observable_properties:
         - VAMS
       validation_arg_expressions:
       - validation_subject_contextual_field_references:
-        - field_label: peh:chol
+        - dataset_label: SAMPLETIMEPOINT_BSS
+          field_label: chol
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '50'
@@ -257,14 +259,16 @@ observable_properties:
   - validation_expression:
       validation_condition_expression:
         validation_subject_contextual_field_references:
-        - field_label: peh:matrix
+        - dataset_label: SAMPLE
+          field_label: matrix
         validation_command: is_in
         validation_arg_values:
         - BM
         - BMG
       validation_arg_expressions:
       - validation_subject_contextual_field_references:
-        - field_label: peh:chol
+        - dataset_label: SAMPLETIMEPOINT_BSS
+          field_label: chol
         validation_command: is_greater_than_or_equal_to
         validation_arg_values:
         - '5'

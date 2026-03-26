@@ -27,7 +27,6 @@ from pypeh.core.interfaces.outbound.dataops import (
     OutDataOpsInterface,
     DataEnrichmentInterface,
     ValidationInterface,
-    DataImportInterface,
 )
 from pypeh.core.session.connections import ConnectionManager
 from pypeh.core.utils.namespaces import NamespaceManager
@@ -144,9 +143,6 @@ class Session(Generic[T_AdapterType, T_DataType]):
         adapter = None
         match interface_functionality:
             case "validation":
-                adapter = ValidationInterface.get_default_adapter_class()
-                self._adapter_mapping[interface_functionality] = adapter
-            case "data_import":
                 adapter = ValidationInterface.get_default_adapter_class()
                 self._adapter_mapping[interface_functionality] = adapter
             case "dataops":
@@ -290,9 +286,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
         with self.connection_manager.get_connection(connection_label=connection_label) as connection:
             data_dict = connection.load(source, format=file_format, data_schema=data_schema)
         assert isinstance(data_dict, dict)
-        import_adapter = self.get_adapter("data_import")
+        import_adapter = self.get_adapter("dataops")
         for raw_dataset_label, raw_dataset in data_dict.items():
-            assert isinstance(import_adapter, DataImportInterface)
+            assert isinstance(import_adapter, OutDataOpsInterface)
             data_labels = import_adapter.get_element_labels(raw_dataset)
             result = dataset_series.add_data(
                 dataset_label=raw_dataset_label,
@@ -408,7 +404,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         dataset_series = DatasetSeries.from_peh_datalayout(
             data_layout=data_layout,
             cache_view=cache_view,
-            apply_context=True,
+            apply_context=False,
         )
         validation_interface = ValidationInterface()
 

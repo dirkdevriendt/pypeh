@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import warnings
 
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -674,9 +675,15 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         cls,
         data_layout: peh.DataLayout,
         cache_view: CacheContainerView,
-        apply_context: bool = True,
+        apply_context: bool = False,
         id_factory: Callable[[], str] | None = None,
     ) -> DatasetSeries:
+        if apply_context:
+            warnings.warn(
+                "apply_context flag for `DatasetSeries.from_peh_datalayout` is deprecated and will be removed in a future release.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         dataset_series_label = data_layout.ui_label
         assert dataset_series_label is not None
         ret = DatasetSeries(
@@ -744,7 +751,6 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         cls,
         data_import_config: peh.DataImportConfig,
         cache_view: CacheContainerView,
-        apply_context: bool = True,
         id_factory: Callable[[], str] | None = None,
     ) -> DatasetSeries:
         data_layout_id = data_import_config.layout
@@ -785,9 +791,13 @@ class DatasetSeries(Resource, Generic[T_DataType]):
                 assert isinstance(observation_design_id, peh.ObservationDesignId)
                 observation_design = cache_view.get(observation_design_id, "ObservationDesign")
                 assert isinstance(observation_design, peh.ObservationDesign)
-                obs_prop_spec_dict = {
-                    str(s.observable_property): s for s in observation_design.observable_property_specifications
-                }
+                obs_prop_spec_dict = {}
+                obs_prop_specs = observation_design.observable_property_specifications
+                assert obs_prop_specs is not None
+                for obs_prop_spec in obs_prop_specs:
+                    assert isinstance(obs_prop_spec, peh.ObservablePropertySpecification)
+                    obs_prop_id = str(obs_prop_spec.observable_property)
+                    obs_prop_spec_dict[obs_prop_id] = obs_prop_spec
                 # data_layout_section_observable_properties
                 elements = layout_section.elements
                 assert elements is not None
@@ -804,7 +814,6 @@ class DatasetSeries(Resource, Generic[T_DataType]):
                         assert isinstance(obs_prop, peh.ObservableProperty)
                         obs_prop_spec = obs_prop_spec_dict[obs_prop_id]
                         assert isinstance(obs_prop_spec, peh.ObservablePropertySpecification)
-                        obs_prop_spec.observable_property = obs_prop
                         labeled_observable_property_specifications[element_label] = obs_prop_spec
                         # process foreign keys
                         foreign_key = element.foreign_key_link
@@ -832,6 +841,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
                     dataset_label=dataset_label,
                     observation=observation,
                     labeled_observable_property_specifications=labeled_observable_property_specifications,
+                    cache_view=cache_view,
                 )
 
         return ret
@@ -898,6 +908,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         dataset_label: str,
         observation: peh.Observation,
         labeled_observable_property_specifications: dict[str, peh.ObservablePropertySpecification],
+        cache_view: CacheContainerView,
         data: T_DataType | None = None,
     ) -> Dataset:
         """
@@ -914,7 +925,9 @@ class DatasetSeries(Resource, Generic[T_DataType]):
                 str(observable_property_specification.specification_category)
                 == peh.ObservablePropertySpecificationCategory.identifying.text
             )
-            observable_property = observable_property_specification.observable_property
+            observable_property_id = observable_property_specification.observable_property
+            assert isinstance(observable_property_id, str)
+            observable_property = cache_view.get(observable_property_id, "ObservableProperty")
             assert isinstance(observable_property, peh.ObservableProperty)
             if identifying:
                 if observable_property.id in dataset.schema._elements_by_observable_property:

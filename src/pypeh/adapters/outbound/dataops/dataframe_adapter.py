@@ -72,3 +72,6 @@ class DataFrameAdapter(OutDataOpsInterface[pl.DataFrame]):
                 return pl.Float64
             case _:
                 return pl.String
+
+    def normalize_input(self, data: pl.DataFrame) -> pl.LazyFrame:
+        return data.lazy()
