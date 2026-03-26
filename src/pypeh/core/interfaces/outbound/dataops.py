@@ -760,7 +760,7 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
         target_observations: list[peh.Observation],
         target_derived_from: list[peh.Observation],
         cache_view: CacheContainerView,
-        id_factory: Callable[[str], str] | None = None,
+        id_factory: Callable[[], str] | None = None,
     ) -> DatasetSeries:
         # ADD TARGET OBSERVATION TO A NEW DATASET_SERIES
         aggregated_dataset_series: DatasetSeries = DatasetSeries(

@@ -1,4 +1,5 @@
 import pytest
+import re
 import yaml
 
 from peh_model.peh import Observation, ObservableProperty
@@ -10,7 +11,7 @@ from pypeh.core.utils.namespaces import NamespaceManager
 from tests.test_utils.dirutils import get_absolute_path
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def get_session() -> Session:
     session = Session(
         connection_config=[
@@ -68,3 +69,15 @@ class TestSessionMint:
         next_instance = next(session.cache.get_all("ObservableProperty"))
         assert isinstance(next_instance, ObservableProperty)
         assert next_instance.id == ret.id
+
+    def test_mint_and_cache_resource(self, get_session):
+        session = get_session
+        assert isinstance(session, Session)
+        namespace_manager = NamespaceManager(default_base_uri="https://w3id.org/example/id/")
+        session.bind_namespace_manager(namespace_manager=namespace_manager)
+        ret = session.mint_and_cache(ObservableProperty, ui_label="test")
+        next_instance = next(session.cache.get_all("ObservableProperty"))
+        assert isinstance(next_instance, ObservableProperty)
+        assert next_instance.id == ret.id
+        pattern = r"^https://w3id\.org/example/id/observable-property/[0-9A-HJKMNP-TV-Z]{26}$"
+        assert re.match(pattern, ret.id), f"IRI did not match expected pattern: {ret.id}"

@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-import base64
-import hashlib
-import json
 import logging
 import re
-import secrets
 
 from dataclasses import is_dataclass
-from typing import Dict, Callable, Type, Any
-
+from typing import Dict, Callable, Type
+from ulid import ULID
 
 logger = logging.getLogger(__name__)
 
@@ -121,11 +117,15 @@ class NamespaceManager:
         self._default_base_uri = self._validate_and_normalize_base(default_base_uri)
         self.namespaces: dict[str, str] = {}  # namespace_label -> base_uri
         self.dataclass_namespace_map: dict[Type, str] = {}  # dataclass → namespace_label
-        self.suffix_strategy: Callable[[Any], str] = self.hash_suffix()
+        self.suffix_strategy: Callable[[], str] = self.generate_ulid()
+        self.resource_type_strategy: Callable[[Type], str] = default_resource_type
 
     @property
     def default_base_uri(self):
         return self._default_base_uri
+
+    def set_suffix_strategy(self, strategy: Callable):
+        self.suffix_strategy = strategy
 
     @staticmethod
     def _validate_and_normalize_base(uri: str | None) -> str | None:
@@ -147,27 +147,12 @@ class NamespaceManager:
         self.dataclass_namespace_map[cls] = namespace
 
     @classmethod
-    def hash_suffix(cls, length: int = 16):
-        def _hash_suffix(mapping):
-            canonical = json.dumps(mapping, sort_keys=True, separators=(",", ":"))
-            h = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-            return h[:length]
+    def generate_ulid(cls, length: int = 26):
+        def _generate_ulid() -> str:
+            ret = str(ULID())
+            return ret[:length]
 
-        return _hash_suffix
-
-    @classmethod
-    def slugify_suffix(cls):
-        n_bytes = 10
-
-        def _slugify_suffix(text):
-            text = text.lower()
-            text = re.sub(r"[^a-z0-9]+", "-", text)
-            slug = text.strip("-")
-            token = secrets.token_bytes(n_bytes)
-            h = base64.urlsafe_b64encode(token).decode("ascii").rstrip("=")
-            return f"{slug}-{h}"
-
-        return _slugify_suffix
+        return _generate_ulid
 
     def _resolve_base(self, resource_class: Type | None = None, namespace_key: str | None = None) -> str | None:
         # Explicit namespace overrides everything
@@ -177,52 +162,63 @@ class NamespaceManager:
                 raise ValueError(f"No registered base URI for namespace {namespace_key}")
             return base
 
+        resource_type = None
         # Class-specific namespace
-        if resource_class in self.dataclass_namespace_map:
-            ns = self.dataclass_namespace_map[resource_class]
-            return self.namespaces[ns]
+        if resource_class is not None:
+            if resource_class in self.dataclass_namespace_map:
+                ns = self.dataclass_namespace_map[resource_class]
+                return self.namespaces[ns]
+            else:
+                resource_type = self.resource_type_strategy(resource_class)
 
         # Default namespace
         if self.default_base_uri is not None:
-            return self.default_base_uri
+            if resource_type is not None:
+                return f"{self.default_base_uri}{resource_type}/"
+            else:
+                return self.default_base_uri
 
         return None
 
     def mint(
         self,
         resource_class: Type,
-        resource_kwargs: dict,
         namespace_key: str | None = None,
         identifying_field: str = "id",
     ) -> str:
-        data = {k: v for k, v in resource_kwargs.items() if k != identifying_field}
-
         base = self._resolve_base(resource_class, namespace_key)
         if base is None:
             raise ValueError("Could not resolve base URI")
-        suffix = self.suffix_strategy(data)
+        suffix = self.suffix_strategy()
         return f"{base}{suffix}"
 
-    def mint_and_set(self, obj, namespace_key: str | None = None, identifying_field: str = "id"):
+    def mint_and_set(self, obj, namespace_key: str | None = None, identifying_field: str = "id") -> str:
         uri = self.mint(
             resource_class=obj.__class__,
-            resource_kwargs=obj.__dict__,
             namespace_key=namespace_key,
             identifying_field=identifying_field,
         )
         setattr(obj, identifying_field, uri)
 
+        return uri
+
     def get_id_factory(
-        self, namespace_key: str | None = None, suffix_strategy: Callable[[Any], str] | None = None
-    ) -> Callable[[Any], str] | None:
+        self, namespace_key: str | None = None, suffix_strategy: Callable[[], str] | None = None
+    ) -> Callable[[], str] | None:
         base = self._resolve_base(resource_class=None, namespace_key=namespace_key)
         if base is None:
             return None
         if suffix_strategy is None:
             suffix_strategy = self.suffix_strategy
 
-        def _factory(resource_kwargs: dict):
-            suffix = suffix_strategy(resource_kwargs)
+        def _factory():
+            suffix = suffix_strategy()
             return f"{base}{suffix}"
 
         return _factory
+
+
+def default_resource_type(cls: Type) -> str:
+    # Convert CamelCase → kebab-case
+    name = cls.__name__
+    return re.sub(r"(?<!^)(?=[A-Z])", "-", name).lower()
