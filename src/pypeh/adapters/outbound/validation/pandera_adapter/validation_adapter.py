@@ -8,34 +8,26 @@ specification on what the custom part should look like.
 from __future__ import annotations
 
 import logging
-import polars as pl
 
 
 from contextlib import contextmanager
 from dataguard import Validator, ErrorCollector
-from peh_model.peh import DataLayout
 from polars import DataFrame
-from typing import TYPE_CHECKING, List, Dict
+from typing import TYPE_CHECKING
 
-from pypeh.core.interfaces.outbound.dataops import (
-    ValidationInterface,
-    DataImportInterface,
-)
+from pypeh.core.interfaces.outbound.dataops import ValidationInterface
 from pypeh.core.models.validation_errors import ValidationErrorReport, EntityLocation
 from pypeh.core.models.validation_dto import ValidationConfig
-from pypeh.core.session.connections import ConnectionManager
 from pypeh.adapters.outbound.validation.pandera_adapter.parsers import parse_config, parse_error_report
 from pypeh.adapters.outbound.dataops.dataframe_adapter import DataFrameAdapter
-from pypeh.adapters.outbound.persistence.hosts import FileIO
 
 if TYPE_CHECKING:
     from typing import Mapping
-    from pypeh.core.models.settings import FileSystemSettings
 
 logger = logging.getLogger(__name__)
 
 
-class DataFrameValidationAdapter(DataFrameAdapter, ValidationInterface[DataFrame], DataImportInterface[DataFrame]):
+class DataFrameValidationAdapter(DataFrameAdapter, ValidationInterface[DataFrame]):
     data_format = DataFrame
 
     def parse_configuration(self, config: ValidationConfig) -> Mapping:
@@ -110,55 +102,3 @@ class DataFrameValidationAdapter(DataFrameAdapter, ValidationInterface[DataFrame
             )
 
         return this
-
-    def summarize(self, data: Mapping, config: Mapping):
-        pass
-
-    def import_data(self, source: str, config: FileSystemSettings, **kwargs) -> DataFrame | Dict[str, DataFrame]:
-        provider = ConnectionManager._create_adapter(config)
-        # format  = # should either be .csv or .xls/.xlsx
-        # or provide additional info in kwargs
-        format = FileIO.get_format(source)
-        if format not in set(("csv", "xls", "xlsx")):
-            # TODO: provide transformation function from format to dataframe
-            logger.error("File format should either be .csv, .xls, or .xlsx")
-            raise ValueError
-        data = provider.load(source)
-        if not isinstance(data, DataFrame):
-            me = "Imported data is not a dataframe or dict of dataframes."
-            if isinstance(data, dict):
-                if not all(isinstance(d, DataFrame) for d in data.values()):
-                    logger.error(me)
-                    raise TypeError(me)
-            else:
-                logger.error(me)
-                raise TypeError(me)
-        return data
-
-    def import_data_layout(
-        self,
-        source: str,
-        config: FileSystemSettings,
-        **kwargs,
-    ) -> DataLayout | List[DataLayout]:
-        return super().import_data_layout(source, config, **kwargs)
-
-    def _normalize_observable_properties(self) -> bool:
-        return True
-
-    def _raw_data_to_observation_data(
-        self,
-        raw_data: DataFrame,
-        data_layout_element_labels: list[str],
-        identifying_layout_element_label: str,
-        entity_id_list: list[str] | None = None,
-    ) -> DataFrame:
-        columns_to_select = [col for col in data_layout_element_labels if col in raw_data.columns]
-        if not entity_id_list:
-            ret = raw_data.select(columns_to_select)
-        else:
-            ret = raw_data.filter(pl.col(identifying_layout_element_label).is_in(entity_id_list)).select(
-                columns_to_select
-            )
-
-        return ret

@@ -14,15 +14,13 @@ import logging
 from abc import abstractmethod
 from collections import defaultdict
 from peh_model import peh
-from typing import TYPE_CHECKING, Callable, Generic, cast, List
+from typing import TYPE_CHECKING, Callable, Generic
 
 from pypeh.core.cache.containers import CacheContainerView
 from pypeh.core.models.constants import ObservablePropertyValueType
 from pypeh.core.models.internal_data_layout import Dataset, DatasetSchemaElement, DatasetSeries, ContextIndexProtocol
 from pypeh.core.models.typing import T_DataType
-from pypeh.core.models.settings import FileSystemSettings
 from pypeh.core.models import graph, validation_dto
-from pypeh.core.session.connections import ConnectionManager
 from pypeh.core.utils.function_utils import _extract_callable
 
 if TYPE_CHECKING:
@@ -106,14 +104,14 @@ class OutDataOpsInterface(Generic[T_DataType]):
     ) -> dict[str, peh.ObservablePropertySpecification]:
         ret = {}
         observation_design_id = observation.observation_design
-        observation_design = cache_view.get(observation_design_id, peh.ObservationDesign)
+        assert isinstance(observation_design_id, str)
+        observation_design = cache_view.get(observation_design_id, "ObservationDesign")
         assert observation_design is not None
-        for observable_property_spec in observation_design.observable_property_specifications:
+        observable_property_specs = observation_design.observable_property_specifications
+        assert observable_property_specs is not None
+        for observable_property_spec in observable_property_specs:
             observable_property = cache_view.get(observable_property_spec.observable_property, "ObservableProperty")
-            assert observable_property is not None
             assert isinstance(observable_property, peh.ObservableProperty)
-            observable_property_spec.observable_property = observable_property
-            assert isinstance(observable_property_spec.observable_property, peh.ObservableProperty)
             ret[observable_property.ui_label] = observable_property_spec
         return ret
 
@@ -126,6 +124,10 @@ class OutDataOpsInterface(Generic[T_DataType]):
         except StopIteration:
             pass
         return dataset
+
+    @abstractmethod
+    def normalize_input(self, data: T_DataType) -> T_DataType:
+        raise NotImplementedError
 
 
 class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
@@ -627,7 +629,6 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
             )
             assert source_dataset is not None
             source_dataset_label = source_dataset.label
-            # TODO: extract observable_property_specification_labels: FIXME
             labeled_observable_property_specifications = self.extract_labeled_observable_property_specifications(
                 target_observation, cache_view=cache_view
             )
@@ -635,6 +636,7 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
                 source_dataset_label,
                 target_observation,
                 labeled_observable_property_specifications=labeled_observable_property_specifications,
+                cache_view=cache_view,
             )
         join_spec_mapping = source_dataset_series.resolve_all_joins()
         # BUILD DEPENDENCY GRAPH
@@ -659,64 +661,6 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
         )
         # RETURN THE UPDATED SOURCE_DATASET_SERIES
         return source_dataset_series
-
-
-class DataImportInterface(OutDataOpsInterface, Generic[T_DataType]):
-    @classmethod
-    def get_default_adapter_class(cls):
-        try:
-            adapter_module = importlib.import_module(
-                "pypeh.adapters.outbound.validation.pandera_adapter.validation_adapter"
-            )
-            adapter_class = getattr(adapter_module, "DataFrameValidationAdapter")
-        except Exception as e:
-            logger.error("Exception encountered while attempting to import a Pandera-based DataFrameAdapter")
-            raise e
-        return adapter_class
-
-    @abstractmethod
-    def import_data(self, source: str, config: FileSystemSettings) -> T_DataType | List[T_DataType]:
-        raise NotImplementedError
-
-    def import_data_layout(
-        self,
-        source: str,
-        config: FileSystemSettings,
-        **kwargs,
-    ) -> peh.DataLayout | List[peh.DataLayout]:
-        provider = ConnectionManager._create_adapter(config)
-        layout = provider.load(source)
-        if isinstance(layout, peh.EntityList):
-            layout = layout.layouts
-        if isinstance(layout, list):
-            if not all(isinstance(item, peh.DataLayout) for item in layout):
-                me = "Imported layouts should all be DataLayout instances"
-                logger.error(me)
-                raise TypeError(me)
-            return cast(List[peh.DataLayout], layout)
-
-        elif isinstance(layout, peh.DataLayout):
-            return layout
-
-        else:
-            me = f"Imported layout should be a DataLayout instance not {type(layout)}"
-            logger.error(me)
-            raise TypeError(me)
-
-    def _extract_observed_value_provenance(self) -> bool:
-        return True
-
-    def _normalize_observable_properties(self) -> bool:
-        raise NotImplementedError
-
-    def _raw_data_to_observation_data(
-        self,
-        raw_data: T_DataType,
-        data_layout_element_labels: list[str],
-        identifying_layout_element_label: str,
-        entity_id_list: list[str] | None = None,
-    ) -> T_DataType:
-        raise NotImplementedError
 
 
 class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
@@ -786,6 +730,7 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
                     label,
                     target_observation,
                     labeled_observable_property_specifications=labeled_observable_property_specifications,
+                    cache_view=cache_view,
                 )
             else:
                 raise ValueError(
@@ -806,22 +751,17 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
             assert observable_property_specs is not None
             for observable_property_spec in observable_property_specs:
                 assert isinstance(observable_property_spec, peh.ObservablePropertySpecification)
-                # TODO: FIXME: inplace model change triggered by the labeled_observable_property_spec method
-                # observable_property_id = observable_property_spec.observable_property
-                # assert isinstance(observable_property_id, str)
-                observable_property = observable_property_spec.observable_property
+                observable_property_id = observable_property_spec.observable_property
+                assert isinstance(observable_property_id, str)
+                observable_property = cache_view.get(observable_property_id, "ObservableProperty")
                 assert isinstance(observable_property, peh.ObservableProperty)
-                observable_property_id = observable_property.id
                 specification_category = observable_property_spec.specification_category
                 assert specification_category is not None
                 identifying = (
                     str(specification_category) == peh.ObservablePropertySpecificationCategory.identifying.text
                 )
                 if identifying:
-                    stratification_ids.append(observable_property.id)
-                observable_property = cache_view.get(observable_property_id, "ObservableProperty")
-                assert observable_property is not None
-                assert isinstance(observable_property, peh.ObservableProperty)
+                    stratification_ids.append(observable_property_id)
 
                 # EXTRACT CALCULATION DESIGN
                 if observable_property.calculation_design is not None:
@@ -872,7 +812,7 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
             # COMPUTE SUMMARY STAT FOR SINGLE SOURCE ELEMENT
             assert source_element_label is not None
             target_data = self._calculate_for_stratum(
-                df=source_data.lazy(),  # TODO: FIXME: THIS IS ADAPTER SPECIFIC
+                df=self.normalize_input(source_data),
                 group_cols=stratification_labels,
                 value_col=source_element_label,
                 stat_builders=map_fn_list,

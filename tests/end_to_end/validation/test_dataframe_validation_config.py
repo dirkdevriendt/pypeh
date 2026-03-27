@@ -48,6 +48,7 @@ class TestBasicValidationConfig:
         dataset_series = DatasetSeries.from_peh_datalayout(
             layout,
             cache_view=cache_view,
+            apply_context=True,
         )
         assert isinstance(dataset_series, DatasetSeries)
         # add fake data
@@ -122,6 +123,7 @@ class TestBasicValidationConfig:
         dataset_series = DatasetSeries.from_peh_datalayout(
             layout,
             cache_view=cache_view,
+            apply_context=True,
         )
         assert isinstance(dataset_series, DatasetSeries)
         # add fake data
@@ -180,6 +182,7 @@ class TestBasicValidationConfig:
         dataset_series = DatasetSeries.from_peh_datalayout(
             layout,
             cache_view=cache_view,
+            apply_context=True,
         )
         assert isinstance(dataset_series, DatasetSeries)
         # add fake data
@@ -265,6 +268,7 @@ class TestBasicValidationConfig:
         dataset_series = DatasetSeries.from_peh_datalayout(
             layout,
             cache_view=cache_view,
+            apply_context=True,
         )
         assert isinstance(dataset_series, DatasetSeries)
         # add fake data
