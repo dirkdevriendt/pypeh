@@ -565,3 +565,21 @@ class TestIntegration:
         assert "mean" in result.columns
         assert "geom_mean" in result.columns
         assert "p50" in result.columns
+
+
+@pytest.mark.dataframe
+class TestFrequencyTable:
+    """Test suite for frequency table generation."""
+
+    def test_frequency_table_basic(self, dataframe_with_nulls, setup_adapter, pl):
+        """Test basic frequency table generation."""
+        adapter = setup_adapter()
+
+        exprs = adapter._get_stat_function_from_name("stat_frequency_table")("value")
+
+        result = exprs(dataframe_with_nulls)
+
+        assert result.shape == (9, 2)
+        assert "value" in result.columns
+        assert "frequency" in result.columns
+        assert result.filter(pl.col("value").is_null()).select(pl.col("frequency")).item() == 2
