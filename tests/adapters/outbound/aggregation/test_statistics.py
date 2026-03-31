@@ -575,7 +575,7 @@ class TestFrequencyTable:
         """Test basic frequency table generation."""
         adapter = setup_adapter()
 
-        exprs = adapter._get_stat_function_from_name("stat_frequency_table")("value")
+        exprs = adapter._get_stat_function_from_name("frequency_table")("value")
 
         result = exprs(dataframe_with_nulls)
 

@@ -570,7 +570,7 @@ def statistics_percentiles_p95_ci_upper(
     ]
 
 
-def stat_frequency_table(
+def frequency_table(
     value_col: str,
     *,
     result_aliases: list[str] = ["value", "frequency"],

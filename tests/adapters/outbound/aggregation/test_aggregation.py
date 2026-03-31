@@ -514,3 +514,24 @@ class TestIntegrationScenarios:
 
         # Each row should have a combination of all three grouping variables
         assert all(result["n"] > 0)
+
+
+@pytest.mark.dataframe
+class TestCalculateFrequencies:
+    """Test suite for the calculate_frequencies method."""
+
+    def test_calculate_frequencies_basic(self, setup_adapter, sample_dataframe, pl):
+        """Test calculate_frequencies with basic parameters."""
+        adapter = setup_adapter()
+
+        result = adapter._calculate_frequency(
+            df=sample_dataframe.lazy(),
+            group_cols=None,
+            value_col="group_a",
+        )
+
+        assert result.shape[0] == 2
+        assert "value" in result.columns
+        assert "frequency" in result.columns
+        assert result.filter(pl.col("value").eq("X")).select(pl.col("frequency")).item() == 5
+        assert result.filter(pl.col("value").eq("Y")).select(pl.col("frequency")).item() == 5

@@ -102,3 +102,16 @@ class DataFrameAggregationAdapter(
                 results_to_collect,
             )
         return ret.collect()
+
+    def _calculate_frequency(
+        self,
+        df: pl.LazyFrame,
+        group_cols: list[str] | None,
+        value_col: str,
+        result_aliases: list[str] | None = None,
+    ) -> pl.LazyFrame:
+        if group_cols is None:
+            fn = self._get_stat_function_from_name("frequency_table")(value_col)
+            return fn(df).collect()
+        else:
+            raise NotImplementedError("Frequency table calculation with grouping is not implemented yet.")
