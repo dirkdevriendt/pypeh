@@ -139,20 +139,20 @@ observable_properties:
       function_kwargs:
       - mapping_name: year
         contextual_field_reference:
-          dataset_label: SUBJECTUNIQUE
-          field_label: current_year
+          dataset_label: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
+          field_label: peh:current_year
         process_state: clean
         unit: UNITLESS
       - mapping_name: month
         contextual_field_reference:
-          dataset_label: SUBJECTUNIQUE
-          field_label: current_month
+          dataset_label: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
+          field_label: peh:current_month
         process_state: clean
         unit: UNITLESS
       - mapping_name: day
         contextual_field_reference:
-          dataset_label: SUBJECTUNIQUE
-          field_label: current_day
+          dataset_label: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
+          field_label: peh:current_day
         process_state: clean
         unit: UNITLESS
       function_results:
@@ -182,14 +182,14 @@ observable_properties:
       function_kwargs:
       - mapping_name: birth_date
         contextual_field_reference:
-          dataset_label: SUBJECTUNIQUE
-          field_label: N1Birthdate
+          dataset_label: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
+          field_label: peh:N1Birthdate
         process_state: clean
         unit: UNITLESS
       - mapping_name: interview_date
         contextual_field_reference:
-          dataset_label: ENRICH_BASE
-          field_label: Todaysdate
+          dataset_label: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED
+          field_label: peh:Todaysdate
         process_state: clean
         unit: UNITLESS
       function_results:
