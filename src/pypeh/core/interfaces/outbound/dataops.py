@@ -552,7 +552,9 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
             assert isinstance(observation.observation_design, peh.ObservationDesignId)
             observation_design = cache_view.get(observation.observation_design, "ObservationDesign")
             assert isinstance(observation_design, peh.ObservationDesign)
+            assert observation_design.observable_property_specifications is not None
             for observable_property_spec in observation_design.observable_property_specifications:
+                assert isinstance(observable_property_spec, peh.ObservablePropertySpecification)
                 assert isinstance(
                     observable_property_spec.observable_property,
                     (peh.ObservableProperty, peh.ObservablePropertyId, str),
@@ -591,10 +593,17 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
                         assert isinstance(function_kwarg, peh.CalculationKeywordArgument)
                         source_field_ref = function_kwarg.contextual_field_reference
                         assert isinstance(source_field_ref, peh.ContextualFieldReference)
-                        source_dataset_label = source_field_ref.dataset_label
-                        assert source_dataset_label is not None
-                        source_field_label = source_field_ref.field_label
-                        assert source_field_label is not None
+                        source_observation_id = source_field_ref.dataset_label
+                        assert source_observation_id is not None
+                        source_observable_property_id = source_field_ref.field_label
+                        assert source_observable_property_id is not None
+                        source_contextual_field_ref = context_index.context_lookup(
+                            source_observation_id, source_observable_property_id
+                        )
+                        assert (
+                            source_contextual_field_ref is not None
+                        ), f"Source contextual reference could not be found for property {source_observable_property_id} in observation {source_observation_id}."
+                        source_dataset_label, source_field_label = source_contextual_field_ref
                         parent = graph.Node(dataset_label=source_dataset_label, field_label=source_field_label)
                         map_name = function_kwarg.mapping_name
                         assert map_name is not None

@@ -3,7 +3,7 @@ import abc
 import re
 
 from datetime import date
-from typing import Protocol, Any, Generic
+from typing import Protocol, Generic
 from peh_model.peh import (
     DataLayout,
     Observation,
@@ -32,7 +32,6 @@ from pypeh.core.models.validation_dto import (
     ColumnValidation,
     ValidationConfig,
 )
-from pypeh.core.models.settings import LocalFileSettings
 from pypeh.core.models.graph import ExecutionPlan, Graph
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
 from tests.test_utils.dirutils import get_absolute_path
@@ -840,83 +839,6 @@ class TestEnrichment(abc.ABC):
         return DatasetSeries.from_peh_data_import_config(
             data_import_config=data_import_config,
             cache_view=cache_view,
-        )
-
-        return DatasetSeries(
-            label="raw_dataset_series",
-            parts={
-                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED": Dataset(
-                    label="peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
-                    schema=DatasetSchema(
-                        elements={
-                            "peh:id_subject_00": DatasetSchemaElement(
-                                label="peh:id_subject",
-                                observable_property_id="peh:id_subject_00",
-                                data_type=ObservablePropertyValueType.STRING,
-                            ),
-                            "peh:current_year": DatasetSchemaElement(
-                                label="peh:current_year",
-                                observable_property_id="peh:current_year",
-                                data_type=ObservablePropertyValueType.INTEGER,
-                            ),
-                            "peh:current_month": DatasetSchemaElement(
-                                label="peh:current_month",
-                                observable_property_id="peh:current_month",
-                                data_type=ObservablePropertyValueType.INTEGER,
-                            ),
-                            "peh:current_day": DatasetSchemaElement(
-                                label="peh:current_day",
-                                observable_property_id="peh:current_day",
-                                data_type=ObservablePropertyValueType.INTEGER,
-                            ),
-                            "peh:N1Birthdate": DatasetSchemaElement(
-                                label="peh:N1Birthdate",
-                                observable_property_id="peh:N1Birthdate",
-                                data_type=ObservablePropertyValueType.DATETIME,
-                            ),
-                            "peh:N1Birthweight": DatasetSchemaElement(
-                                label="peh:N1Birthweight",
-                                observable_property_id="peh:N1Birthweight",
-                                data_type=ObservablePropertyValueType.INTEGER,
-                            ),
-                        },
-                    ),
-                    observation_ids={"peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED"},
-                ),
-                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED": Dataset(
-                    label="peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
-                    schema=DatasetSchema(
-                        elements={
-                            "peh:id_subject_01": DatasetSchemaElement(
-                                label="peh:id_subject",
-                                observable_property_id="peh:id_subject_01",
-                                data_type=ObservablePropertyValueType.STRING,
-                            ),
-                            "peh:agemonths": DatasetSchemaElement(
-                                label="peh:agemonths",
-                                observable_property_id="peh:agemonths",
-                                data_type=ObservablePropertyValueType.INTEGER,
-                            ),
-                            "peh:Todaysdate": DatasetSchemaElement(
-                                label="peh:Todaysdate",
-                                observable_property_id="peh:Todaysdate",
-                                data_type=ObservablePropertyValueType.DATETIME,
-                            ),
-                        },
-                        primary_keys=set(["peh:id_subject"]),
-                        foreign_keys={
-                            "peh:id_subject": ForeignKey(
-                                element_label="peh:id_subject_01",
-                                reference=ElementReference(
-                                    dataset_label="peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
-                                    element_label="peh:id_subject_00",
-                                ),
-                            )
-                        },
-                    ),
-                    observation_ids={"peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED"},
-                ),
-            },
         )
 
     def test_build_simple_graph(self):
