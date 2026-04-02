@@ -1064,6 +1064,7 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
             target_data = self.group_results(
                 collected_results, strata=stratification_labels
             )
-            target_dataset.add_data(data=target_data)
+            data_labels = self.get_element_labels(target_data)
+            target_dataset.add_data(data=target_data, data_labels=data_labels)
 
         return aggregated_dataset_series
