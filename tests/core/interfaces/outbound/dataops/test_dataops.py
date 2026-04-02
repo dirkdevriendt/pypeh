@@ -44,7 +44,7 @@ class DataOpsProtocol(Protocol, Generic[T_DataType]):
 
     def validate(self, dataset, dependent_dataset_series, cache_view, allow_incomplete) -> ValidationErrorReport: ...
 
-    def build_column_validation(self, dataset_schema_element, type_annotations, cache_view): ...
+    def build_column_validation(self, dataset_schema_element, type_annotations, cache_view) -> ColumnValidation: ...
 
     def build_validation_config(
         self, dataset, dataset_series, cache_view, allow_incomplete=False
@@ -515,6 +515,7 @@ class TestValidation(abc.ABC):
             type_annotations=type_annotations,
             cache_view=cache_view,
         )
+        assert cv.validations is not None
         collect_messages = [vd.error_message for vd in cv.validations if vd.error_message]
         pattern = r"IF matrix IS\s*\([^)]*\)"
         found = any(re.search(pattern, msg) for msg in collect_messages)
@@ -1092,8 +1093,14 @@ class TestAggregation(abc.ABC):
 
         expected_shape_dict = {"TEST_SUMMARY": (2, 5), "TEST_SUMMARY2": (2, 3)}
         expected_labels_dict = {
-            "TEST_SUMMARY": {"current_year", "current_month", "mean_weight", "sem_weight", "mean_length"},
-            "TEST_SUMMARY2": {"current_year", "current_month", "mean_weight"},
+            "TEST_SUMMARY": {
+                "current_year",
+                "current_month",
+                "mean_birthweight",
+                "sem_birthweight",
+                "mean_birthlength",
+            },
+            "TEST_SUMMARY2": {"current_year", "current_month", "mean_birthweight2"},
         }
 
         for result_label, expected_shape in expected_shape_dict.items():
