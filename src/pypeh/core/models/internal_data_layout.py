@@ -537,6 +537,8 @@ class Dataset(Resource, Generic[T_DataType]):
             if self.data is not None:
                 raise NotImplementedError()
 
+        # TODO: FIXME: this is completely wrong!!!!
+        # These are not the data labels but the schema labels!!!!
         if data_labels is None:
             data_labels = self.get_element_labels()
 

@@ -800,16 +800,9 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
                             _, source_element_label = source_dataset_series.context_lookup(
                                 kwarg_source_observation_id, kwarg_source_observable_property_id
                             )
-                    if function_results := calculation_implementation.function_results:
-                        for function_result in function_results:
-                            # there can only be one such name !!!!!
-                            if len(function_results) > 1:
-                                raise NotImplementedError(
-                                    "Only a single function result is currently supported by the AggregationInterface"
-                                )
-                            assert isinstance(function_result, peh.CalculationResult)
-                            mapping_name = function_result.mapping_name
-                            map_fn_result_label_list.append(mapping_name)
+                    target_label = observable_property.ui_label
+                    assert target_label is not None
+                    map_fn_result_label_list.append(target_label)
 
             # LOOKUP STRATIFICATION LABELS
             stratification_labels = None
