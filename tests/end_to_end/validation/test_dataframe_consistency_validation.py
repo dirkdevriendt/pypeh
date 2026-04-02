@@ -7,7 +7,10 @@ from tests.test_utils.dirutils import get_absolute_path
 from pypeh import Session
 from pypeh.core.models.settings import LocalFileConfig
 from pypeh.core.models.internal_data_layout import DatasetSeries
-from pypeh.core.models.validation_errors import ValidationErrorReport, ValidationErrorLevel
+from pypeh.core.models.validation_errors import (
+    ValidationErrorReport,
+    ValidationErrorLevel,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +23,9 @@ class TestDatasetConsistency:
                 LocalFileConfig(
                     label="local_file_validation_config",
                     config_dict={
-                        "root_folder": get_absolute_path("./input/test_06/config"),
+                        "root_folder": get_absolute_path(
+                            "./input/test_06/config"
+                        ),
                     },
                 ),
                 LocalFileConfig(
@@ -34,9 +39,13 @@ class TestDatasetConsistency:
         )
         session.load_persisted_cache()
         data_import_config = session.cache.get(
-            "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataImportConfig"
+            "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA",
+            "DataImportConfig",
         )
-        assert data_import_config.id == "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        assert (
+            data_import_config.id
+            == "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        )
         assert isinstance(data_import_config, peh.DataImportConfig)
         layout_id = data_import_config.layout
         assert layout_id is not None
@@ -57,7 +66,9 @@ class TestDatasetConsistency:
 
         assert isinstance(validation_report_collection, dict)
         assert len(validation_report_collection) == 3
-        assert isinstance(validation_report_collection["SAMPLE"], ValidationErrorReport)
+        assert isinstance(
+            validation_report_collection["SAMPLE"], ValidationErrorReport
+        )
 
         sample_errors = validation_report_collection["SAMPLE"]
         assert sample_errors.total_errors == 2

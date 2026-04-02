@@ -1,8 +1,17 @@
 import pytest
 
-from peh_model.peh import ObservableProperty, Observation, ObservationDesign, EntityList
+from peh_model.peh import (
+    ObservableProperty,
+    Observation,
+    ObservationDesign,
+    EntityList,
+)
 
-from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.containers import (
+    CacheContainer,
+    CacheContainerFactory,
+    CacheContainerView,
+)
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
 
@@ -24,23 +33,38 @@ class TestCache:
         return container
 
     def test_filter_cache(self, container):
-        assert all(isinstance(i, (ObservableProperty, Observation, ObservationDesign)) for i in container.get_all())
+        assert all(
+            isinstance(i, (ObservableProperty, Observation, ObservationDesign))
+            for i in container.get_all()
+        )
         filter = list(container.get_all(entity_type="Observation"))
         assert len(filter) > 1
 
     def test_cache_view(self, container):
         cache_view = CacheContainerView(container)
-        assert cache_view.exists("OBSERVATION_ADULTS_CONSIDERATIONS", "Observation")
+        assert cache_view.exists(
+            "OBSERVATION_ADULTS_CONSIDERATIONS", "Observation"
+        )
 
-        container_subset = ["OBSERVATION_ADULTS_CONSIDERATIONS", "OBSERVATION_ADULTS_BLOOD_QUEST", "adults_id_subject"]
+        container_subset = [
+            "OBSERVATION_ADULTS_CONSIDERATIONS",
+            "OBSERVATION_ADULTS_BLOOD_QUEST",
+            "adults_id_subject",
+        ]
         cache_view = CacheContainerView(container, container_subset)
         ret = list(cache_view.get_all("Observation"))
         assert set(entity.id for entity in ret) == set(
-            ["OBSERVATION_ADULTS_CONSIDERATIONS", "OBSERVATION_ADULTS_BLOOD_QUEST"]
+            [
+                "OBSERVATION_ADULTS_CONSIDERATIONS",
+                "OBSERVATION_ADULTS_BLOOD_QUEST",
+            ]
         )
 
         container_subset = {
-            "Observation": ["OBSERVATION_ADULTS_CONSIDERATIONS", "OBSERVATION_ADULTS_BLOOD_QUEST"],
+            "Observation": [
+                "OBSERVATION_ADULTS_CONSIDERATIONS",
+                "OBSERVATION_ADULTS_BLOOD_QUEST",
+            ],
             "ObservableProperty": ["adults_id_subject"],
         }
         cache_view = CacheContainerView(container, container_subset)

@@ -2,7 +2,11 @@ import pytest
 import peh_model.peh as peh
 import uuid
 
-from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.containers import (
+    CacheContainer,
+    CacheContainerFactory,
+    CacheContainerView,
+)
 from pypeh.core.models.internal_data_layout import (
     Dataset,
     DatasetSeries,
@@ -49,10 +53,14 @@ class TestInternalDataLayout:
         )
         dataset = dataset_series.parts.get("SAMPLETIMEPOINT_BS")
         assert isinstance(dataset, Dataset)
-        result_success = dataset.contained_in_schema(["id_sample", "adults_u_crt"])
+        result_success = dataset.contained_in_schema(
+            ["id_sample", "adults_u_crt"]
+        )
         assert result_success
         with pytest.raises(AssertionError, match=r".* my_imaginary_friend .*"):
-            dataset.contained_in_schema(["id_sample", "adults_u_crt", "my_imaginary_friend"])
+            dataset.contained_in_schema(
+                ["id_sample", "adults_u_crt", "my_imaginary_friend"]
+            )
 
     @pytest.mark.parametrize("use_id_factory", [False, True])
     def test_dataset_series(self, get_cache, use_id_factory):
@@ -67,15 +75,23 @@ class TestInternalDataLayout:
         id_factory = None
         if use_id_factory:
             id_factory = self.get_id_factory()
-        dataset_series = DatasetSeries.from_peh_datalayout(layout, cache_view=cache_view, id_factory=id_factory)
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            layout, cache_view=cache_view, id_factory=id_factory
+        )
         assert isinstance(dataset_series, DatasetSeries)
-        assert dataset_series.described_by == "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        assert (
+            dataset_series.described_by
+            == "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA"
+        )
         for dataset in dataset_series.parts.values():
             assert dataset.described_by in all_sections
 
         schema = dataset_series.get_type_annotations()
         expected_schema = {
-            "SAMPLE": {"id_sample": ObservablePropertyValueType.STRING, "matrix": ObservablePropertyValueType.STRING},
+            "SAMPLE": {
+                "id_sample": ObservablePropertyValueType.STRING,
+                "matrix": ObservablePropertyValueType.STRING,
+            },
             "SAMPLETIMEPOINT_BS": {
                 "id_sample": ObservablePropertyValueType.STRING,
                 "adults_u_crt": ObservablePropertyValueType.DECIMAL,
@@ -105,15 +121,24 @@ class TestInternalDataLayout:
         }
 
         with pytest.raises(AssertionError) as assertion_error:
-            dataset_series.add_data("SAMPLETIMEPOINT_BS", dataset_failure, list(dataset_failure.keys()))
-        assert str(assertion_error.value) == "Data Schema Error: label(s) my_imaginary_friend are undefined"
+            dataset_series.add_data(
+                "SAMPLETIMEPOINT_BS",
+                dataset_failure,
+                list(dataset_failure.keys()),
+            )
+        assert (
+            str(assertion_error.value)
+            == "Data Schema Error: label(s) my_imaginary_friend are undefined"
+        )
 
         dataset_success = {
             "id_sample": [1, 2, 3],
             "adults_u_crt": [0.132, 1.452, 24.51],
         }
 
-        result_success = dataset_series.add_data("SAMPLETIMEPOINT_BS", dataset_success, list(dataset_success.keys()))
+        result_success = dataset_series.add_data(
+            "SAMPLETIMEPOINT_BS", dataset_success, list(dataset_success.keys())
+        )
         assert result_success is None
 
     def test_apply_context(self, get_cache):
@@ -136,19 +161,25 @@ class TestInternalDataLayout:
         dataset_series.apply_context(cache)
         adults_u_crt = cache_view.get("peh:adults_u_crt", "ObservableProperty")
         expression = adults_u_crt.validation_designs[0].validation_expression
-        contextual_field_reference = expression.validation_subject_contextual_field_references[0]
+        contextual_field_reference = (
+            expression.validation_subject_contextual_field_references[0]
+        )
         assert contextual_field_reference.dataset_label == "SAMPLETIMEPOINT_BS"
         assert contextual_field_reference.field_label == "adults_u_crt"
 
     def test_one_observation_to_many_datasets(self):
         ds = DatasetSeries(label="test")
         with pytest.raises(AssertionError, match=r".*obs_test.*"):
-            ds._register_observation(observation_id="obs_test", dataset_label="test")
+            ds._register_observation(
+                observation_id="obs_test", dataset_label="test"
+            )
         d = Dataset(label="test-dataset")
         d2 = Dataset(label="test-dataset-2")
         ds.parts[d.label] = d
         ds.parts[d2.label] = d2
-        ds._register_observation(observation_id="obs_test", dataset_label=d.label)
+        ds._register_observation(
+            observation_id="obs_test", dataset_label=d.label
+        )
         assert len(ds._obs_index) == 1
 
 
@@ -157,12 +188,17 @@ class TestJoinConditions:
         left_schema = DatasetSchema(
             elements={
                 "b_id": DatasetSchemaElement(
-                    label="b_id", observable_property_id="prop", data_type=ObservablePropertyValueType.STRING
+                    label="b_id",
+                    observable_property_id="prop",
+                    data_type=ObservablePropertyValueType.STRING,
                 )
             },
             foreign_keys={
                 "b_id": ForeignKey(
-                    element_label="b_id", reference=ElementReference(dataset_label="B", element_label="id")
+                    element_label="b_id",
+                    reference=ElementReference(
+                        dataset_label="B", element_label="id"
+                    ),
                 )
             },
         )
@@ -170,7 +206,9 @@ class TestJoinConditions:
         right_schema = DatasetSchema(
             elements={
                 "id": DatasetSchemaElement(
-                    label="id", observable_property_id="prop", data_type=ObservablePropertyValueType.STRING
+                    label="id",
+                    observable_property_id="prop",
+                    data_type=ObservablePropertyValueType.STRING,
                 )
             }
         )
@@ -187,7 +225,9 @@ class TestJoinConditions:
         left_schema = DatasetSchema(
             elements={
                 "id": DatasetSchemaElement(
-                    label="id", observable_property_id="prop", data_type=ObservablePropertyValueType.STRING
+                    label="id",
+                    observable_property_id="prop",
+                    data_type=ObservablePropertyValueType.STRING,
                 )
             }
         )
@@ -195,12 +235,17 @@ class TestJoinConditions:
         right_schema = DatasetSchema(
             elements={
                 "a_id": DatasetSchemaElement(
-                    label="a_id", observable_property_id="prop", data_type=ObservablePropertyValueType.STRING
+                    label="a_id",
+                    observable_property_id="prop",
+                    data_type=ObservablePropertyValueType.STRING,
                 )
             },
             foreign_keys={
                 "a_id": ForeignKey(
-                    element_label="a_id", reference=ElementReference(dataset_label="A", element_label="id")
+                    element_label="a_id",
+                    reference=ElementReference(
+                        dataset_label="A", element_label="id"
+                    ),
                 )
             },
         )
@@ -217,12 +262,17 @@ class TestJoinConditions:
         left_schema = DatasetSchema(
             elements={
                 "c_ref": DatasetSchemaElement(
-                    label="c_ref", observable_property_id="c_ref", data_type=ObservablePropertyValueType.STRING
+                    label="c_ref",
+                    observable_property_id="c_ref",
+                    data_type=ObservablePropertyValueType.STRING,
                 )
             },
             foreign_keys={
                 "c_ref": ForeignKey(
-                    element_label="c_ref", reference=ElementReference(dataset_label="C", element_label="id_other")
+                    element_label="c_ref",
+                    reference=ElementReference(
+                        dataset_label="C", element_label="id_other"
+                    ),
                 )
             },
         )
@@ -230,12 +280,17 @@ class TestJoinConditions:
         right_schema = DatasetSchema(
             elements={
                 "c_fk": DatasetSchemaElement(
-                    label="c_fk", observable_property_id="c_fk", data_type=ObservablePropertyValueType.STRING
+                    label="c_fk",
+                    observable_property_id="c_fk",
+                    data_type=ObservablePropertyValueType.STRING,
                 )
             },
             foreign_keys={
                 "c_fk": ForeignKey(
-                    element_label="c_fk", reference=ElementReference(dataset_label="C", element_label="id")
+                    element_label="c_fk",
+                    reference=ElementReference(
+                        dataset_label="C", element_label="id"
+                    ),
                 )
             },
         )
@@ -449,13 +504,17 @@ class TestToTarget:
     def test_add_observation(self, dataset_series_input, cache_view):
         obs = cache_view.get("peh:urine_lab_other", "Observation")
         assert isinstance(obs, peh.Observation)
-        obs_design = cache_view.get(obs.observation_design, "ObservationDesign")
+        obs_design = cache_view.get(
+            obs.observation_design, "ObservationDesign"
+        )
         assert isinstance(obs_design, peh.ObservationDesign)
         source_dataset_series, expected_schema = dataset_series_input
         assert isinstance(source_dataset_series, DatasetSeries)
         labeled_observable_property_specifications = {}
         for spec in obs_design.observable_property_specifications:
-            obsprop = cache_view.get(spec.observable_property, "ObservableProperty")
+            obsprop = cache_view.get(
+                spec.observable_property, "ObservableProperty"
+            )
             spec.observable_property = obsprop
             labeled_observable_property_specifications[obsprop.ui_label] = spec
         source_dataset_series.add_observation(
@@ -473,19 +532,49 @@ class TestToTarget:
         }
         expected_context_index = {
             # analyticalinfo_obs
-            ("peh:analyticalinfo_obs", "peh:id_subject"): ("analyticalinfo", "id_subject"),
-            ("peh:analyticalinfo_obs", "peh:biomarkercode"): ("analyticalinfo", "biomarkercode"),
-            ("peh:analyticalinfo_obs", "peh:matrix"): ("analyticalinfo", "matrix"),
-            ("peh:analyticalinfo_obs", "peh:labinstitution"): ("analyticalinfo", "labinstitution"),
+            ("peh:analyticalinfo_obs", "peh:id_subject"): (
+                "analyticalinfo",
+                "id_subject",
+            ),
+            ("peh:analyticalinfo_obs", "peh:biomarkercode"): (
+                "analyticalinfo",
+                "biomarkercode",
+            ),
+            ("peh:analyticalinfo_obs", "peh:matrix"): (
+                "analyticalinfo",
+                "matrix",
+            ),
+            ("peh:analyticalinfo_obs", "peh:labinstitution"): (
+                "analyticalinfo",
+                "labinstitution",
+            ),
             # partial_urine_lab (this)
-            ("peh:urine_lab_this", "peh:id_subject"): ("partial_urine_lab", "id_subject"),
-            ("peh:urine_lab_this", "peh:matrix"): ("partial_urine_lab", "matrix"),
+            ("peh:urine_lab_this", "peh:id_subject"): (
+                "partial_urine_lab",
+                "id_subject",
+            ),
+            ("peh:urine_lab_this", "peh:matrix"): (
+                "partial_urine_lab",
+                "matrix",
+            ),
             # partial_urine_lab (other)
-            ("peh:urine_lab_other", "peh:id_subject"): ("partial_urine_lab", "id_subject"),
+            ("peh:urine_lab_other", "peh:id_subject"): (
+                "partial_urine_lab",
+                "id_subject",
+            ),
             ("peh:urine_lab_other", "peh:crt"): ("partial_urine_lab", "crt"),
-            ("peh:urine_lab_other", "peh:crt_loq"): ("partial_urine_lab", "crt_loq"),
+            ("peh:urine_lab_other", "peh:crt_loq"): (
+                "partial_urine_lab",
+                "crt_loq",
+            ),
             ("peh:urine_lab_other", "peh:sg"): ("partial_urine_lab", "sg"),
-            ("peh:urine_lab_other", "peh:crt_lod"): ("partial_urine_lab", "crt_lod"),
+            ("peh:urine_lab_other", "peh:crt_lod"): (
+                "partial_urine_lab",
+                "crt_lod",
+            ),
         }
         assert source_dataset_series._obs_index == expected_observation_index
-        assert dict(source_dataset_series._context_index) == expected_context_index
+        assert (
+            dict(source_dataset_series._context_index)
+            == expected_context_index
+        )

@@ -23,7 +23,10 @@ from pypeh.core.models.internal_data_layout import (
     DatasetSchemaElement,
     ObservablePropertyValueType,
 )
-from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.containers import (
+    CacheContainerFactory,
+    CacheContainerView,
+)
 from pypeh.core.cache.utils import load_entities_from_tree
 
 from tests.test_utils.dirutils import get_absolute_path
@@ -39,7 +42,12 @@ class TestPydanticToDto:
                     command="is_greater_than",
                     arg_columns=["col1"],
                 ),
-                {"command": "is_greater_than", "arg_values": None, "subject": None, "arg_columns": ["col1"]},
+                {
+                    "command": "is_greater_than",
+                    "arg_values": None,
+                    "subject": None,
+                    "arg_columns": ["col1"],
+                },
             ),
             (
                 ValidationExpression(
@@ -58,8 +66,18 @@ class TestPydanticToDto:
                 {
                     "check_case": "conjunction",
                     "expressions": [
-                        {"command": "is_greater_than", "arg_values": None, "subject": None, "arg_columns": ["col1"]},
-                        {"command": "is_less_than", "arg_values": None, "subject": None, "arg_columns": ["col2"]},
+                        {
+                            "command": "is_greater_than",
+                            "arg_values": None,
+                            "subject": None,
+                            "arg_columns": ["col1"],
+                        },
+                        {
+                            "command": "is_less_than",
+                            "arg_values": None,
+                            "subject": None,
+                            "arg_columns": ["col2"],
+                        },
                     ],
                 },
             ),
@@ -81,8 +99,18 @@ class TestPydanticToDto:
                 {
                     "check_case": "disjunction",
                     "expressions": [
-                        {"command": "is_greater_than", "arg_values": None, "subject": None, "arg_columns": ["col1"]},
-                        {"command": "is_less_than", "arg_values": [10], "subject": ["col2"], "arg_columns": None},
+                        {
+                            "command": "is_greater_than",
+                            "arg_values": None,
+                            "subject": None,
+                            "arg_columns": ["col1"],
+                        },
+                        {
+                            "command": "is_less_than",
+                            "arg_values": [10],
+                            "subject": ["col2"],
+                            "arg_columns": None,
+                        },
                     ],
                 },
             ),
@@ -125,7 +153,12 @@ class TestPydanticToDto:
                                 },
                             ],
                         },
-                        {"command": "is_equal_to", "arg_values": [5], "subject": None, "arg_columns": None},
+                        {
+                            "command": "is_equal_to",
+                            "arg_values": [5],
+                            "subject": None,
+                            "arg_columns": None,
+                        },
                     ],
                 },
             ),
@@ -141,7 +174,11 @@ class TestPydanticToDto:
             (
                 [
                     ColumnValidation(
-                        unique_name="col1", data_type="string", required=True, nullable=False, validations=[]
+                        unique_name="col1",
+                        data_type="string",
+                        required=True,
+                        nullable=False,
+                        validations=[],
                     )
                 ],
                 [
@@ -321,7 +358,9 @@ class TestPehToDto:
                 container.add(entity)
         return CacheContainerView(container)
 
-    def test_condition(self, get_check_command_cache, get_arg_expression_cache):
+    def test_condition(
+        self, get_check_command_cache, get_arg_expression_cache
+    ):
         """
         Checks whether using a single validation_command leads to the same
         validation configuration as using one validation_arg_expression.
@@ -356,9 +395,13 @@ class TestPehToDto:
         )
 
         check_command_cache_view = get_check_command_cache
-        vc_check = adapter.build_validation_config(dataset=dataset, cache_view=check_command_cache_view)
+        vc_check = adapter.build_validation_config(
+            dataset=dataset, cache_view=check_command_cache_view
+        )
         arg_expression_cache_view = get_arg_expression_cache
-        vc_arg = adapter.build_validation_config(dataset=dataset, cache_view=arg_expression_cache_view)
+        vc_arg = adapter.build_validation_config(
+            dataset=dataset, cache_view=arg_expression_cache_view
+        )
 
         assert len(vc_check.columns) == len(vc_arg.columns)
 
@@ -374,7 +417,9 @@ class TestPehToDto:
         def strip_names(obj):
             """Recursively remove 'name' keys from dicts and lists."""
             if isinstance(obj, dict):
-                return {k: strip_names(v) for k, v in obj.items() if k != "name"}
+                return {
+                    k: strip_names(v) for k, v in obj.items() if k != "name"
+                }
             elif isinstance(obj, list):
                 return [strip_names(item) for item in obj]
             else:

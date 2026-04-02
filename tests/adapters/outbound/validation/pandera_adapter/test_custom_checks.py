@@ -3,7 +3,12 @@ import re
 
 from pypeh.core.interfaces.outbound.dataops import ValidationInterface
 from pypeh.core.models.constants import ValidationErrorLevel
-from pypeh.core.models.validation_dto import ColumnValidation, ValidationConfig, ValidationDesign, ValidationExpression
+from pypeh.core.models.validation_dto import (
+    ColumnValidation,
+    ValidationConfig,
+    ValidationDesign,
+    ValidationExpression,
+)
 from pypeh.core.models.validation_errors import ValidationError
 
 
@@ -24,10 +29,14 @@ class TestCustomChecks:
         # FAKE DATASET
         import polars as pl
         import pandera.polars as pa
-        from pypeh.adapters.outbound.validation.pandera_adapter.check_functions import tukey_range_check_log
+        from pypeh.adapters.outbound.validation.pandera_adapter.check_functions import (
+            tukey_range_check_log,
+        )
 
         df = pl.LazyFrame({"x": fake_data})
-        result = tukey_range_check_log(data=pa.PolarsData(df, key="x"), arg_values=None).collect()
+        result = tukey_range_check_log(
+            data=pa.PolarsData(df, key="x"), arg_values=None
+        ).collect()
         num_outliers = result.select((~pl.col(result.columns[0])).sum()).item()
 
         assert num_outliers == 1

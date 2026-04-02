@@ -23,7 +23,12 @@ class Delayed:
         self.join_specs: list[list[JoinSpec]] = []
         self.output_dtype = output_dtype
 
-    def add_parent(self, parent: Node, map_name: str, join_specs: list[JoinSpec] | None = None):
+    def add_parent(
+        self,
+        parent: Node,
+        map_name: str,
+        join_specs: list[JoinSpec] | None = None,
+    ):
         self.arg_sources[map_name] = parent
         if join_specs is not None:
             self.join_specs.append(join_specs)
@@ -45,7 +50,9 @@ class ExecutionPlan:
 
     def run(self, datasets: dict, base_fields: dict):
         for step in self.steps:
-            result = step.compute(datasets, node=step.node, base_fields=base_fields)
+            result = step.compute(
+                datasets, node=step.node, base_fields=base_fields
+            )
             datasets[step.node.dataset_label] = result
 
     def __len__(self):
@@ -69,15 +76,23 @@ class Graph:
             self.nodes.add(node)
             self.graph[node]
 
-    def _add_computation(self, node: Node, map_fn: Callable, output_dtype: str) -> None:
-        self.delayed_fns[node] = Delayed(map_fn=map_fn, output_dtype=output_dtype)
+    def _add_computation(
+        self, node: Node, map_fn: Callable, output_dtype: str
+    ) -> None:
+        self.delayed_fns[node] = Delayed(
+            map_fn=map_fn, output_dtype=output_dtype
+        )
 
     def add_node(self, node: Node, node_fn: Callable, output_dtype):
         self._add_node(node)
         self._add_computation(node, node_fn, output_dtype)
 
     def add_edge(
-        self, parent: Node, child: Node, map_name: str | None = None, join_spec: list[JoinSpec] | None = None
+        self,
+        parent: Node,
+        child: Node,
+        map_name: str | None = None,
+        join_spec: list[JoinSpec] | None = None,
     ) -> None:
         # TODO: improve map name, refers to kwarg represented by the parent
         self._add_node(parent)
@@ -87,7 +102,9 @@ class Graph:
                 child_delayed = self.delayed_fns[child]
                 child_delayed.add_parent(parent, map_name, join_spec)
             else:
-                raise ValueError("No Delayed function has been defined for node {child}")
+                raise ValueError(
+                    "No Delayed function has been defined for node {child}"
+                )
 
         self.graph[parent].add(child)
         self._reset_execution_plan()
@@ -134,9 +151,13 @@ class Graph:
                     queue.append(child_node)
 
         if len(sorted_nodes) != len(self.nodes):
-            remaining = [node for node in self.nodes if node not in sorted_nodes]
+            remaining = [
+                node for node in self.nodes if node not in sorted_nodes
+            ]
             remaining.sort()
-            raise ValueError(f"Circular dependency detected! Remaining variables: {remaining}")
+            raise ValueError(
+                f"Circular dependency detected! Remaining variables: {remaining}"
+            )
 
         return sorted_nodes
 
@@ -159,4 +180,6 @@ class Graph:
     ):
         child = target
         parent = source
-        self.add_edge(parent, child, map_name=source_mapping_name, join_spec=join_spec)
+        self.add_edge(
+            parent, child, map_name=source_mapping_name, join_spec=join_spec
+        )

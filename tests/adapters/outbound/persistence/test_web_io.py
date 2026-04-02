@@ -30,7 +30,9 @@ class TestWebIO:
         mock_response.content = b'{"key": "value"}'
         mock_response.raise_for_status.return_value = None
 
-        with patch.object(webio_instance.session, "get", return_value=mock_response):
+        with patch.object(
+            webio_instance.session, "get", return_value=mock_response
+        ):
             response = webio_instance.resolve_url(url)
             assert response.status_code == 200
             assert response.headers["Content-Type"] == "application/json"
@@ -39,7 +41,11 @@ class TestWebIO:
         # simple example
         url = "http://maps.googleapis.com/maps/api/directions/json?origin=Chicago,Il&destination=Los+Angeles,CA"
         # resp = requests.get(url=url, params=params)
-        webio_instance = ConnectionManager._create_adapter(settings=None, verify_ssl=False)
+        webio_instance = ConnectionManager._create_adapter(
+            settings=None, verify_ssl=False
+        )
         assert isinstance(webio_instance, WebIO)
-        data = webio_instance.retrieve_data(url, format_type="application/json", target_class=None)
+        data = webio_instance.retrieve_data(
+            url, format_type="application/json", target_class=None
+        )
         assert data

@@ -2,8 +2,14 @@ import pytest
 import re
 
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
-from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface, ValidationInterface
-from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
+from pypeh.core.interfaces.outbound.dataops import (
+    OutDataOpsInterface,
+    ValidationInterface,
+)
+from pypeh.core.cache.containers import (
+    CacheContainerFactory,
+    CacheContainerView,
+)
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.models.constants import ValidationErrorLevel
 from pypeh.core.models.internal_data_layout import DatasetSeries
@@ -28,7 +34,9 @@ class TestBasicValidationConfig:
 
     def get_adapter(self) -> OutDataOpsInterface:
         try:
-            from pypeh.adapters.outbound.validation.pandera_adapter import validation_adapter as dfops
+            from pypeh.adapters.outbound.validation.pandera_adapter import (
+                validation_adapter as dfops,
+            )
 
             return dfops.DataFrameValidationAdapter()  # type: ignore
         except ImportError:
@@ -89,25 +97,44 @@ class TestBasicValidationConfig:
             allow_incomplete=True,
         )
         assert isinstance(sample_config, ValidationConfig)
-        assert [c.unique_name for c in sample_config.columns] == ["id_sample", "matrix"]
-        assert sample_config.columns[1].validations[0].name == "check_categorical"
-        assert sample_config.columns[1].validations[0].expression.command == "is_in"
+        assert [c.unique_name for c in sample_config.columns] == [
+            "id_sample",
+            "matrix",
+        ]
+        assert (
+            sample_config.columns[1].validations[0].name == "check_categorical"
+        )
+        assert (
+            sample_config.columns[1].validations[0].expression.command
+            == "is_in"
+        )
 
-        sample_tp_dataset = dataset_series.parts.get("SAMPLETIMEPOINT_BS", None)
+        sample_tp_dataset = dataset_series.parts.get(
+            "SAMPLETIMEPOINT_BS", None
+        )
         sample_tp_config = validation_adapter.build_validation_config(
             dataset=sample_tp_dataset,
             dataset_series=dataset_series,
             cache_view=cache_view,
         )
         assert isinstance(sample_tp_config, ValidationConfig)
-        assert [c.unique_name for c in sample_tp_config.columns] == ["id_sample", "adults_u_crt"]
+        assert [c.unique_name for c in sample_tp_config.columns] == [
+            "id_sample",
+            "adults_u_crt",
+        ]
         assert sample_tp_config.columns[0].required
         assert not sample_tp_config.columns[0].nullable
         assert len(sample_tp_config.columns[1].validations) == 3
         assert sample_tp_config.columns[1].validations[1].name == "min"
-        assert sample_tp_config.columns[1].validations[1].expression.command == "is_greater_than_or_equal_to"
+        assert (
+            sample_tp_config.columns[1].validations[1].expression.command
+            == "is_greater_than_or_equal_to"
+        )
         assert sample_tp_config.columns[1].validations[2].name == "max"
-        assert sample_tp_config.columns[1].validations[2].expression.command == "is_less_than_or_equal_to"
+        assert (
+            sample_tp_config.columns[1].validations[2].expression.command
+            == "is_less_than_or_equal_to"
+        )
 
     def test_config_from_dataset_allow_incomplete(self, get_cache):
         dataops_adapter_class = ValidationInterface.get_default_adapter_class()
@@ -156,7 +183,9 @@ class TestBasicValidationConfig:
                 data_labels=data_labels,
             )
 
-        sample_tp_dataset = dataset_series.parts.get("SAMPLETIMEPOINT_BS", None)
+        sample_tp_dataset = dataset_series.parts.get(
+            "SAMPLETIMEPOINT_BS", None
+        )
         sample_tp_config = validation_adapter.build_validation_config(
             dataset=sample_tp_dataset,
             dataset_series=dataset_series,
@@ -164,7 +193,10 @@ class TestBasicValidationConfig:
             allow_incomplete=True,
         )
         assert isinstance(sample_tp_config, ValidationConfig)
-        assert [c.unique_name for c in sample_tp_config.columns] == ["id_sample", "adults_u_crt"]
+        assert [c.unique_name for c in sample_tp_config.columns] == [
+            "id_sample",
+            "adults_u_crt",
+        ]
         assert not sample_tp_config.columns[0].required
         assert sample_tp_config.columns[0].nullable
 
@@ -218,14 +250,18 @@ class TestBasicValidationConfig:
         sample_tp_dataset = dataset_series["SAMPLETIMEPOINT_BS"]
 
         allow_incomplete = True
-        sample_tp_config_incomplete = validation_adapter.build_validation_config(
-            dataset=sample_tp_dataset,
-            dataset_series=dataset_series,
-            cache_view=cache_view,
-            allow_incomplete=allow_incomplete,
+        sample_tp_config_incomplete = (
+            validation_adapter.build_validation_config(
+                dataset=sample_tp_dataset,
+                dataset_series=dataset_series,
+                cache_view=cache_view,
+                allow_incomplete=allow_incomplete,
+            )
         )
         assert isinstance(sample_tp_config_incomplete, ValidationConfig)
-        assert [c.unique_name for c in sample_tp_config_incomplete.columns] == ["id_sample", "adults_u_crt"]
+        assert [
+            c.unique_name for c in sample_tp_config_incomplete.columns
+        ] == ["id_sample", "adults_u_crt"]
         ret = validation_adapter.validate(
             dataset=sample_tp_dataset,
             dependent_dataset_series=dataset_series,
@@ -243,7 +279,10 @@ class TestBasicValidationConfig:
             allow_incomplete=allow_incomplete,
         )
         assert isinstance(sample_tp_config_complete, ValidationConfig)
-        assert [c.unique_name for c in sample_tp_config_complete.columns] == ["id_sample", "adults_u_crt"]
+        assert [c.unique_name for c in sample_tp_config_complete.columns] == [
+            "id_sample",
+            "adults_u_crt",
+        ]
 
         ret = validation_adapter.validate(
             dataset=sample_tp_dataset,
@@ -309,14 +348,18 @@ class TestBasicValidationConfig:
         sample_tp_dataset = dataset_series["SAMPLETIMEPOINT_BS"]
 
         allow_incomplete = True
-        sample_tp_config_incomplete = validation_adapter.build_validation_config(
-            dataset=sample_tp_dataset,
-            dataset_series=dataset_series,
-            cache_view=cache_view,
-            allow_incomplete=allow_incomplete,
+        sample_tp_config_incomplete = (
+            validation_adapter.build_validation_config(
+                dataset=sample_tp_dataset,
+                dataset_series=dataset_series,
+                cache_view=cache_view,
+                allow_incomplete=allow_incomplete,
+            )
         )
         assert isinstance(sample_tp_config_incomplete, ValidationConfig)
-        assert [c.unique_name for c in sample_tp_config_incomplete.columns] == ["id_sample", "adults_u_crt"]
+        assert [
+            c.unique_name for c in sample_tp_config_incomplete.columns
+        ] == ["id_sample", "adults_u_crt"]
         assert len(sample_tp_config_incomplete.columns) == 2
         for column in sample_tp_config_incomplete.columns:
             if column.unique_name == "adults_u_crt":
@@ -331,11 +374,16 @@ class TestBasicValidationConfig:
         assert isinstance(ret, ValidationErrorReport)
         # CUSTOM ERROR MESSAGE WAS ADDED
         # CHECK IF EACH VALIDATIONERROR HAS GOT A PROPER MESSAGE
-        patterns = [r"IF matrix IS\s*\([^)]*\)", r"^The column\(s\) under validation"]
+        patterns = [
+            r"IF matrix IS\s*\([^)]*\)",
+            r"^The column\(s\) under validation",
+        ]
         compiled = [re.compile(p) for p in patterns]
         groups = ret.groups
         for group in groups:
             for error in group.errors:
                 message = error.message
-                assert any(p.search(message) for p in compiled), f"Unexpected error message: {message}"
+                assert any(
+                    p.search(message) for p in compiled
+                ), f"Unexpected error message: {message}"
         assert ret.error_counts[ValidationErrorLevel.ERROR] == 2

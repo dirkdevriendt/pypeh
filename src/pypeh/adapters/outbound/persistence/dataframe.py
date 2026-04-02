@@ -18,7 +18,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-DATAFRAME_TYPE_MAPPING: dict[ObservablePropertyValueType, DataType | DataTypeClass] = {
+DATAFRAME_TYPE_MAPPING: dict[
+    ObservablePropertyValueType, DataType | DataTypeClass
+] = {
     ObservablePropertyValueType.DATE: pl.Date,
     ObservablePropertyValueType.DATETIME: pl.Datetime,
     ObservablePropertyValueType.BOOLEAN: pl.Boolean,
@@ -31,7 +33,9 @@ DATAFRAME_TYPE_MAPPING: dict[ObservablePropertyValueType, DataType | DataTypeCla
 
 
 class CsvIOImpl(IOAdapter):
-    def load(self, source: Union[str, Path, IO[str], IO[bytes]], **kwargs) -> pl.DataFrame:
+    def load(
+        self, source: Union[str, Path, IO[str], IO[bytes]], **kwargs
+    ) -> pl.DataFrame:
         try:
             if hasattr(source, "read") and not isinstance(source, (str, Path)):
                 encoding = kwargs.get("encoding", None)
@@ -67,7 +71,9 @@ class ExcelIOImpl(IOAdapter):
             )
         elif hasattr(source, "read") and not isinstance(source, (str, Path)):
             # Handle file-like objects
-            if isinstance(source, IO) and "b" not in getattr(source, "mode", "b"):
+            if isinstance(source, IO) and "b" not in getattr(
+                source, "mode", "b"
+            ):
                 raise ValueError("Excel source must be opened in binary mode")
             data = source.read()  # type: ignore
             result = pl.read_excel(  # type: ignore
@@ -82,10 +88,14 @@ class ExcelIOImpl(IOAdapter):
             )
         return result
 
-    def _read_source_data(self, source: Union[str, Path, IO[str], IO[bytes]]) -> bytes | None:
+    def _read_source_data(
+        self, source: Union[str, Path, IO[str], IO[bytes]]
+    ) -> bytes | None:
         """Read data from source once and cache it"""
         if hasattr(source, "read") and not isinstance(source, (str, Path)):
-            if isinstance(source, IO) and "b" not in getattr(source, "mode", "b"):
+            if isinstance(source, IO) and "b" not in getattr(
+                source, "mode", "b"
+            ):
                 raise ValueError("Excel source must be opened in binary mode")
             ret = source.read()
             assert isinstance(ret, bytes)
@@ -105,8 +115,12 @@ class ExcelIOImpl(IOAdapter):
             for key, value in data_schema.items():
                 polars_type = DATAFRAME_TYPE_MAPPING.get(value, None)
                 if polars_type is None:
-                    logger.debug(f"Cound not find {value} in DATAFRAME_TYPE_MAPPING")
-                    raise KeyError(f"Could not find {value} in DATAFRAME_TYPE_MAPPING")
+                    logger.debug(
+                        f"Cound not find {value} in DATAFRAME_TYPE_MAPPING"
+                    )
+                    raise KeyError(
+                        f"Could not find {value} in DATAFRAME_TYPE_MAPPING"
+                    )
                 typed_schema[key] = polars_type
 
         default = {
@@ -136,7 +150,9 @@ class ExcelIOImpl(IOAdapter):
                 assert cached_data is not None
                 result = {}
                 for section_name, typing_dict in data_schema.items():
-                    result[section_name] = self.load_section(cached_data, section_name, typing_dict)
+                    result[section_name] = self.load_section(
+                        cached_data, section_name, typing_dict
+                    )
 
             else:
                 default = {

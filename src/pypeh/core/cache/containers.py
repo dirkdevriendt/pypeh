@@ -43,12 +43,16 @@ class CacheContainer(ABC, Generic[T_Container]):
         pass
 
     @abstractmethod
-    def get(self, entity_id: str, entity_type: str | None = None) -> T_NamedThingLike:
+    def get(
+        self, entity_id: str, entity_type: str | None = None
+    ) -> T_NamedThingLike:
         """Retrieve an entity"""
         pass
 
     @abstractmethod
-    def get_all(self, entity_type: str | None = None) -> Generator[T_NamedThingLike, None, None]:
+    def get_all(
+        self, entity_type: str | None = None
+    ) -> Generator[T_NamedThingLike, None, None]:
         """Retrieve all entities"""
         pass
 
@@ -91,7 +95,11 @@ class CacheContainer(ABC, Generic[T_Container]):
 class CacheContainerView(Generic[T_Container]):
     """Immutable view of any CacheContainer that only exposes read operations."""
 
-    def __init__(self, container: CacheContainer[T_Container], container_subset: list | dict | None = None):
+    def __init__(
+        self,
+        container: CacheContainer[T_Container],
+        container_subset: list | dict | None = None,
+    ):
         self._container = container
 
         if isinstance(container_subset, list):
@@ -107,10 +115,14 @@ class CacheContainerView(Generic[T_Container]):
     def exists(self, entity_id: str, entity_type: str) -> bool:
         return self._container.exists(entity_id, entity_type)
 
-    def get(self, entity_id: str, entity_type: str | None = None) -> Optional[T_NamedThingLike]:
+    def get(
+        self, entity_id: str, entity_type: str | None = None
+    ) -> Optional[T_NamedThingLike]:
         return self._container.get(entity_id, entity_type)
 
-    def get_all(self, entity_type: str | None = None) -> Generator[T_NamedThingLike, None, None]:
+    def get_all(
+        self, entity_type: str | None = None
+    ) -> Generator[T_NamedThingLike, None, None]:
         if self.container_subset is not None:
             if entity_type is None:
                 entity_types = self.container_subset.keys()
@@ -122,7 +134,9 @@ class CacheContainerView(Generic[T_Container]):
                     if ret is not None:
                         yield ret
                     else:
-                        logger.debug(f"Entity with id {entity_id} not found in cache")
+                        logger.debug(
+                            f"Entity with id {entity_id} not found in cache"
+                        )
         else:
             yield from self._container.get_all(entity_type)
 
@@ -141,14 +155,18 @@ class MappingContainer(CacheContainer[Dict]):
         self._storage: Dict[str, T_NamedThingLike] = dict()
         self._class_index: Dict[str, Set[str]] = defaultdict(set)
 
-    def _add_object(self, entity: T_NamedThingLike, entity_id: str, entity_type: str) -> None:
+    def _add_object(
+        self, entity: T_NamedThingLike, entity_id: str, entity_type: str
+    ) -> None:
         self._storage[entity_id] = entity
         self._class_index[entity_type].add(entity_id)
 
     def exists(self, entity_id: str, entity_type: str | None = None) -> bool:
         return entity_id in self._storage.keys()
 
-    def _get(self, entity_id: str, entity_type: str | None = None) -> Optional[T_NamedThingLike]:
+    def _get(
+        self, entity_id: str, entity_type: str | None = None
+    ) -> Optional[T_NamedThingLike]:
         if self.exists(entity_id, entity_type):
             return self._storage[entity_id]
 
@@ -162,7 +180,9 @@ class MappingContainer(CacheContainer[Dict]):
                 return
         return self._add_object(entity, entity.id, class_name)
 
-    def get(self, entity_id: str, entity_type: str | None = None) -> Optional[T_NamedThingLike]:
+    def get(
+        self, entity_id: str, entity_type: str | None = None
+    ) -> Optional[T_NamedThingLike]:
         ret = self._get(entity_id, entity_type)
         if ret is None:
             message = f"Storage error: Object of class '{entity_type}' with id '{entity_id}' not found."
@@ -173,12 +193,16 @@ class MappingContainer(CacheContainer[Dict]):
         self._storage.clear()
         self._class_index.clear()
 
-    def pop(self, entity_id: str, entity_type: str) -> Optional[T_NamedThingLike]:
+    def pop(
+        self, entity_id: str, entity_type: str
+    ) -> Optional[T_NamedThingLike]:
         if entity_type in self._class_index:
             self._class_index[entity_type].remove(entity_id)
         return self._storage.pop(entity_id, None)
 
-    def get_all(self, entity_type: str | None = None) -> Generator[T_NamedThingLike, None, None]:
+    def get_all(
+        self, entity_type: str | None = None
+    ) -> Generator[T_NamedThingLike, None, None]:
         if entity_type is None:
             for entity_id in self._storage.keys():
                 yield self._storage[entity_id]
@@ -204,5 +228,7 @@ class CacheContainerFactory:
     @classmethod
     def new(cls, container_type: str | None = None) -> CacheContainer:
         if container_type is not None:
-            raise ValueError("Only a single Cachecontainer adapter has been implemented")
+            raise ValueError(
+                "Only a single Cachecontainer adapter has been implemented"
+            )
         return cls._default_container()

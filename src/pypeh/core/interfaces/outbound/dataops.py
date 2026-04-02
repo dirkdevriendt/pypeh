@@ -18,7 +18,12 @@ from typing import TYPE_CHECKING, Callable, Generic
 
 from pypeh.core.cache.containers import CacheContainerView
 from pypeh.core.models.constants import ObservablePropertyValueType
-from pypeh.core.models.internal_data_layout import Dataset, DatasetSchemaElement, DatasetSeries, ContextIndexProtocol
+from pypeh.core.models.internal_data_layout import (
+    Dataset,
+    DatasetSchemaElement,
+    DatasetSeries,
+    ContextIndexProtocol,
+)
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models import graph, validation_dto
 from pypeh.core.utils.function_utils import _extract_callable
@@ -43,10 +48,14 @@ class OutDataOpsInterface(Generic[T_DataType]):
     @classmethod
     def get_default_adapter_class(cls):
         try:
-            adapter_module = importlib.import_module("pypeh.adapters.outbound.dataops.dataframe_adapter")
+            adapter_module = importlib.import_module(
+                "pypeh.adapters.outbound.dataops.dataframe_adapter"
+            )
             adapter_class = getattr(adapter_module, "DataFrameAdapter")
         except Exception as e:
-            logger.error("Exception encountered while attempting to import dataops DataFrameAdapter")
+            logger.error(
+                "Exception encountered while attempting to import dataops DataFrameAdapter"
+            )
             raise e
         return adapter_class
 
@@ -69,15 +78,21 @@ class OutDataOpsInterface(Generic[T_DataType]):
         raise NotImplementedError
 
     @abstractmethod
-    def get_element_values(self, data: T_DataType, element_label: str, as_list=True) -> set[str] | list[str]:
+    def get_element_values(
+        self, data: T_DataType, element_label: str, as_list=True
+    ) -> set[str] | list[str]:
         raise NotImplementedError
 
     @abstractmethod
-    def check_element_has_empty_values(self, data: T_DataType, element_label: str) -> bool:
+    def check_element_has_empty_values(
+        self, data: T_DataType, element_label: str
+    ) -> bool:
         raise NotImplementedError
 
     @abstractmethod
-    def check_element_has_only_empty_values(self, data: T_DataType, element_label: str) -> bool:
+    def check_element_has_only_empty_values(
+        self, data: T_DataType, element_label: str
+    ) -> bool:
         raise NotImplementedError
 
     @abstractmethod
@@ -89,7 +104,9 @@ class OutDataOpsInterface(Generic[T_DataType]):
         identifying_elements: list[str] | None = None,
     ) -> T_DataType: ...
 
-    def relabel(self, data: T_DataType, element_mapping: dict[str, str]) -> T_DataType: ...
+    def relabel(
+        self, data: T_DataType, element_mapping: dict[str, str]
+    ) -> T_DataType: ...
 
     @abstractmethod
     def collect(self, datasets: dict):
@@ -105,22 +122,33 @@ class OutDataOpsInterface(Generic[T_DataType]):
         ret = {}
         observation_design_id = observation.observation_design
         assert isinstance(observation_design_id, str)
-        observation_design = cache_view.get(observation_design_id, "ObservationDesign")
+        observation_design = cache_view.get(
+            observation_design_id, "ObservationDesign"
+        )
         assert observation_design is not None
-        observable_property_specs = observation_design.observable_property_specifications
+        observable_property_specs = (
+            observation_design.observable_property_specifications
+        )
         assert observable_property_specs is not None
         for observable_property_spec in observable_property_specs:
-            observable_property = cache_view.get(observable_property_spec.observable_property, "ObservableProperty")
+            observable_property = cache_view.get(
+                observable_property_spec.observable_property,
+                "ObservableProperty",
+            )
             assert isinstance(observable_property, peh.ObservableProperty)
             ret[observable_property.ui_label] = observable_property_spec
         return ret
 
-    def get_dataset_by_observation_id(self, dataset_series: DatasetSeries, observation_id: str) -> Dataset:
+    def get_dataset_by_observation_id(
+        self, dataset_series: DatasetSeries, observation_id: str
+    ) -> Dataset:
         gen = dataset_series.get_datasets_by_observation(observation_id)
         dataset = next(gen)
         try:
             _ = next(gen)
-            raise AssertionError("Expected only one dataset, but generator yielded more")
+            raise AssertionError(
+                "Expected only one dataset, but generator yielded more"
+            )
         except StopIteration:
             pass
         return dataset
@@ -133,7 +161,9 @@ class OutDataOpsInterface(Generic[T_DataType]):
 class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
     @abstractmethod
     def _validate(
-        self, data: dict[str, Sequence] | T_DataType, config: validation_dto.ValidationConfig
+        self,
+        data: dict[str, Sequence] | T_DataType,
+        config: validation_dto.ValidationConfig,
     ) -> ValidationErrorReport:
         raise NotImplementedError
 
@@ -143,9 +173,13 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
             adapter_module = importlib.import_module(
                 "pypeh.adapters.outbound.validation.pandera_adapter.validation_adapter"
             )
-            adapter_class = getattr(adapter_module, "DataFrameValidationAdapter")
+            adapter_class = getattr(
+                adapter_module, "DataFrameValidationAdapter"
+            )
         except Exception as e:
-            logger.error("Exception encountered while attempting to import a Pandera-based DataFrameAdapter")
+            logger.error(
+                "Exception encountered while attempting to import a Pandera-based DataFrameAdapter"
+            )
             raise e
         return adapter_class
 
@@ -171,7 +205,9 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
 
         validations = []
         observable_property_id = dataset_schema_element.observable_property_id
-        observable_property = cache_view.get(observable_property_id, "ObservableProperty")
+        observable_property = cache_view.get(
+            observable_property_id, "ObservableProperty"
+        )
         assert isinstance(
             observable_property, peh.ObservableProperty
         ), f"ObservableProperty with id {observable_property_id} not found"
@@ -182,33 +218,50 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
             required = False
 
         if apply_nullable_check:
-            nullable = not required  # required and nullable are now checking the same thing
+            nullable = (
+                not required
+            )  # required and nullable are now checking the same thing
         else:
             nullable = True
 
         if apply_property_validation:
-            if validation_designs := getattr(observable_property, "validation_designs", None):
+            if validation_designs := getattr(
+                observable_property, "validation_designs", None
+            ):
                 validations.extend(
                     [
                         validation_dto.ValidationDesign.from_peh(
-                            vd, type_annotations=type_annotations, dataset_label=dataset_label
+                            vd,
+                            type_annotations=type_annotations,
+                            dataset_label=dataset_label,
                         )
                         for vd in validation_designs
                     ]
                 )
-            if value_metadata := getattr(observable_property, "value_metadata", None):
+            if value_metadata := getattr(
+                observable_property, "value_metadata", None
+            ):
                 validations.extend(
                     validation_dto.ValidationDesign.list_from_metadata(
-                        value_metadata, type_annotations=type_annotations, dataset_label=dataset_label
+                        value_metadata,
+                        type_annotations=type_annotations,
+                        dataset_label=dataset_label,
                     )
                 )
             if getattr(observable_property, "categorical", None):
-                value_options = getattr(observable_property, "value_options", None)
+                value_options = getattr(
+                    observable_property, "value_options", None
+                )
                 assert (
                     value_options is not None
                 ), f"ObservableProperty {observable_property} lacks `value_options` for categorical type"
-                assert dataset_schema_element.data_type == ObservablePropertyValueType.STRING
-                validation_arg_values: list[str] = [str(vo.key) for vo in value_options]
+                assert (
+                    dataset_schema_element.data_type
+                    == ObservablePropertyValueType.STRING
+                )
+                validation_arg_values: list[str] = [
+                    str(vo.key) for vo in value_options
+                ]
                 # TODO: ADD CUSTOM CHECKS ON CATEGORICAL VARIABLES HERE
                 expr = validation_dto.ValidationExpression(
                     command="is_in",
@@ -264,15 +317,19 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         column_labels = dataset.get_element_labels()
         assert column_labels is not None
         for column_label in column_labels:
-            dataset_schema_element = dataset.get_schema_element_by_label(column_label)
+            dataset_schema_element = dataset.get_schema_element_by_label(
+                column_label
+            )
             assert dataset_schema_element is not None
             # Check whether the dataset has data in the column
             if dataset.data is None:
                 column_has_only_empty_values = True
             else:
-                column_has_only_empty_values = self.check_element_has_only_empty_values(
-                    data=dataset.data,
-                    element_label=column_label,
+                column_has_only_empty_values = (
+                    self.check_element_has_only_empty_values(
+                        data=dataset.data,
+                        element_label=column_label,
+                    )
                 )
             column_validation = self.build_column_validation(
                 dataset_schema_element=dataset_schema_element,
@@ -309,11 +366,15 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         if layout_section.validation_designs:
             for vd in layout_section.validation_designs:
                 assert isinstance(vd, peh.ValidationDesign)
-                dataset_validation = validation_dto.ValidationDesign.from_peh(vd, type_annotations)
+                dataset_validation = validation_dto.ValidationDesign.from_peh(
+                    vd, type_annotations
+                )
                 # For an expression that relies on a field reference spec for its arguments, set the validation arguments
                 # as the actual values from the dataset (e.g. for an "is_in" check on a foreign key relation)
                 validation_expression = vd.validation_expression
-                assert isinstance(validation_expression, peh.ValidationExpression)
+                assert isinstance(
+                    validation_expression, peh.ValidationExpression
+                )
                 if validation_expression.validation_arg_contextual_field_references:
                     arg_values = validation_expression.validation_arg_values
                     assert isinstance(arg_values, list)
@@ -330,7 +391,9 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
                             dependent_dataset = dataset_series[dataset_label]
                         assert dependent_dataset is not None
                         # fix this at the Interface level
-                        column_arg_values = self.get_element_values(dependent_dataset.data, field_label, as_list=True)
+                        column_arg_values = self.get_element_values(
+                            dependent_dataset.data, field_label, as_list=True
+                        )
                         arg_values.extend(column_arg_values)
                     dataset_validation.expression.arg_values = arg_values
                     dataset_validation.expression.arg_columns = None
@@ -346,10 +409,14 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         for column_validation in column_validations:
             if column_validation.validations is not None:
                 for validation_design in column_validation.validations:
-                    dependency_dict = validation_design.dependent_contextual_field_references
+                    dependency_dict = (
+                        validation_design.dependent_contextual_field_references
+                    )
                     if dependency_dict is not None:
                         for ds, fields in dependency_dict.items():
-                            dependent_contextual_field_references[ds].update(fields)
+                            dependent_contextual_field_references[ds].update(
+                                fields
+                            )
 
         return dependent_contextual_field_references
 
@@ -363,7 +430,9 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         column_validations = []
         dataset_validations = []
         if cache_view is None:
-            raise NotImplementedError("The absence of a CacheView is currently not supported")
+            raise NotImplementedError(
+                "The absence of a CacheView is currently not supported"
+            )
 
         identifying_column_names = dataset.get_primary_keys()
         if identifying_column_names is not None:
@@ -379,7 +448,11 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
             cache_view=cache_view,
             allow_incomplete=allow_incomplete,
         )
-        dependent_contextual_field_references = self.merge_contextual_field_reference_dependencies(column_validations)
+        dependent_contextual_field_references = (
+            self.merge_contextual_field_reference_dependencies(
+                column_validations
+            )
+        )
         dataset_validations = self.build_dataset_level_validations(
             dataset=dataset,
             dataset_series=dataset_series,
@@ -414,7 +487,9 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         )
         # check whether data requires join to perform validation (cross DataLayoutSection validation)
         join_required = False
-        dependent_contextual_field_references = validation_config.dependent_contextual_field_references
+        dependent_contextual_field_references = (
+            validation_config.dependent_contextual_field_references
+        )
         if dependent_contextual_field_references is not None:
             join_required = len(dependent_contextual_field_references) > 0
 
@@ -433,13 +508,19 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
                 all_other_data = []
                 subset_fields_other = []
 
-                for dataset_label, dependent_field_labels in dependent_contextual_field_references.items():
+                for (
+                    dataset_label,
+                    dependent_field_labels,
+                ) in dependent_contextual_field_references.items():
                     other_dataset = dependent_dataset_series[dataset_label]
                     assert other_dataset is not None
                     other_data = other_dataset.data
                     assert other_data is not None
                     all_other_data.append(other_data)
-                    field_subset = [*identifying_field_labels, *dependent_field_labels]
+                    field_subset = [
+                        *identifying_field_labels,
+                        *dependent_field_labels,
+                    ]
                     subset_fields_other.append(field_subset)
                     to_validate = self._join_data(
                         data=to_validate,
@@ -457,10 +538,16 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
     @classmethod
     def get_default_adapter_class(cls):
         try:
-            adapter_module = importlib.import_module("pypeh.adapters.outbound.enrichment.dataframe_adapter")
-            adapter_class = getattr(adapter_module, "DataFrameEnrichmentAdapter")
+            adapter_module = importlib.import_module(
+                "pypeh.adapters.outbound.enrichment.dataframe_adapter"
+            )
+            adapter_class = getattr(
+                adapter_module, "DataFrameEnrichmentAdapter"
+            )
         except Exception as e:
-            logger.error("Exception encountered while attempting to import enrichment DataFrameAdapter")
+            logger.error(
+                "Exception encountered while attempting to import enrichment DataFrameAdapter"
+            )
             raise e
         return adapter_class
 
@@ -468,7 +555,9 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
     def apply_joins(self, datasets, join_specs, node): ...
 
     @abstractmethod
-    def apply_map(self, dataset, map_fn, field_label, output_dtype, base_fields, **kwargs): ...
+    def apply_map(
+        self, dataset, map_fn, field_label, output_dtype, base_fields, **kwargs
+    ): ...
 
     @abstractmethod
     def map_type(self, peh_value_type: str): ...
@@ -502,14 +591,23 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
             # Apply the map
             base_fields_subset = base_fields.get(node.dataset_label, None)
             assert base_fields_subset is not None
-            out = self.apply_map(ds, map_fn, node.field_label, output_dtype, base_fields_subset, **kwargs)
+            out = self.apply_map(
+                ds,
+                map_fn,
+                node.field_label,
+                output_dtype,
+                base_fields_subset,
+                **kwargs,
+            )
             base_fields_subset.append(node.field_label)
 
             return out
 
         return _apply
 
-    def compile_dependency_graph(self, dependency_graph: graph.Graph) -> graph.ExecutionPlan:
+    def compile_dependency_graph(
+        self, dependency_graph: graph.Graph
+    ) -> graph.ExecutionPlan:
         sorted_nodes = dependency_graph.topological_sort()
         steps: list[graph.ExecutionStep] = []
 
@@ -526,12 +624,21 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
 
         return ret
 
-    def compute_with_dependency_graph(self, dependency_graph: graph.Graph, datasets: dict[str, Dataset]):
+    def compute_with_dependency_graph(
+        self, dependency_graph: graph.Graph, datasets: dict[str, Dataset]
+    ):
         if dependency_graph.execution_plan is None:
-            raise AssertionError("A dependency graph needs to be compiled first to set up an execution plan")
+            raise AssertionError(
+                "A dependency graph needs to be compiled first to set up an execution plan"
+            )
 
-        raw_datasets = {label: dataset.data for label, dataset in datasets.items()}
-        base_fields = {label: dataset.get_element_labels() for label, dataset in datasets.items()}
+        raw_datasets = {
+            label: dataset.data for label, dataset in datasets.items()
+        }
+        base_fields = {
+            label: dataset.get_element_labels()
+            for label, dataset in datasets.items()
+        }
 
         dependency_graph.execution_plan.run(raw_datasets, base_fields)
         self.collect(datasets)
@@ -549,71 +656,134 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
         # the source_observations also need to be added to the dependency graph!!!!!
         for observation in observations:
             assert observation.observation_design is not None
-            assert isinstance(observation.observation_design, peh.ObservationDesignId)
-            observation_design = cache_view.get(observation.observation_design, "ObservationDesign")
+            assert isinstance(
+                observation.observation_design, peh.ObservationDesignId
+            )
+            observation_design = cache_view.get(
+                observation.observation_design, "ObservationDesign"
+            )
             assert isinstance(observation_design, peh.ObservationDesign)
-            assert observation_design.observable_property_specifications is not None
-            for observable_property_spec in observation_design.observable_property_specifications:
-                assert isinstance(observable_property_spec, peh.ObservablePropertySpecification)
+            assert (
+                observation_design.observable_property_specifications
+                is not None
+            )
+            for (
+                observable_property_spec
+            ) in observation_design.observable_property_specifications:
+                assert isinstance(
+                    observable_property_spec,
+                    peh.ObservablePropertySpecification,
+                )
                 assert isinstance(
                     observable_property_spec.observable_property,
                     (peh.ObservableProperty, peh.ObservablePropertyId, str),
                 )
-                if isinstance(observable_property_spec.observable_property, (peh.ObservablePropertyId, str)):
+                if isinstance(
+                    observable_property_spec.observable_property,
+                    (peh.ObservablePropertyId, str),
+                ):
                     observable_property = cache_view.get(
-                        observable_property_spec.observable_property, "ObservableProperty"
+                        observable_property_spec.observable_property,
+                        "ObservableProperty",
                     )
-                elif isinstance(observable_property_spec.observable_property, peh.ObservableProperty):
-                    observable_property = observable_property_spec.observable_property
+                elif isinstance(
+                    observable_property_spec.observable_property,
+                    peh.ObservableProperty,
+                ):
+                    observable_property = (
+                        observable_property_spec.observable_property
+                    )
                 assert observable_property is not None
                 assert isinstance(observable_property, peh.ObservableProperty)
-                target_contextual_field_ref = context_index.context_lookup(observation.id, observable_property.id)
+                target_contextual_field_ref = context_index.context_lookup(
+                    observation.id, observable_property.id
+                )
                 assert (
                     target_contextual_field_ref is not None
                 ), f"Target contextual reference could not be found for property {observable_property.id} in observation {observation.id}."
-                target_dataset_label, target_field_label = target_contextual_field_ref
+                target_dataset_label, target_field_label = (
+                    target_contextual_field_ref
+                )
                 if observable_property.calculation_design is not None:
                     # EXTRA INFO FROM CALCULATION DESIGN AND UPDATE DEPENDENCY GRAPH
                     calculation_design = observable_property.calculation_design
-                    assert isinstance(calculation_design, peh.CalculationDesign)
-                    calculation_implementation = calculation_design.calculation_implementation
-                    assert isinstance(calculation_implementation, peh.CalculationImplementation)
+                    assert isinstance(
+                        calculation_design, peh.CalculationDesign
+                    )
+                    calculation_implementation = (
+                        calculation_design.calculation_implementation
+                    )
+                    assert isinstance(
+                        calculation_implementation,
+                        peh.CalculationImplementation,
+                    )
                     function_name = calculation_implementation.function_name
                     assert isinstance(function_name, str)
                     output_dtype = observable_property.value_type
                     assert output_dtype is not None
 
-                    child = graph.Node(dataset_label=target_dataset_label, field_label=target_field_label)
-                    dependency_graph.add_calculation_target(
-                        child, function_name=function_name, result_dtype=output_dtype
+                    child = graph.Node(
+                        dataset_label=target_dataset_label,
+                        field_label=target_field_label,
                     )
-                    function_kwargs = calculation_implementation.function_kwargs
+                    dependency_graph.add_calculation_target(
+                        child,
+                        function_name=function_name,
+                        result_dtype=output_dtype,
+                    )
+                    function_kwargs = (
+                        calculation_implementation.function_kwargs
+                    )
                     assert function_kwargs is not None
                     for function_kwarg in function_kwargs:
-                        assert isinstance(function_kwarg, peh.CalculationKeywordArgument)
-                        source_field_ref = function_kwarg.contextual_field_reference
-                        assert isinstance(source_field_ref, peh.ContextualFieldReference)
+                        assert isinstance(
+                            function_kwarg, peh.CalculationKeywordArgument
+                        )
+                        source_field_ref = (
+                            function_kwarg.contextual_field_reference
+                        )
+                        assert isinstance(
+                            source_field_ref, peh.ContextualFieldReference
+                        )
                         source_observation_id = source_field_ref.dataset_label
                         assert source_observation_id is not None
-                        source_observable_property_id = source_field_ref.field_label
+                        source_observable_property_id = (
+                            source_field_ref.field_label
+                        )
                         assert source_observable_property_id is not None
-                        source_contextual_field_ref = context_index.context_lookup(
-                            source_observation_id, source_observable_property_id
+                        source_contextual_field_ref = (
+                            context_index.context_lookup(
+                                source_observation_id,
+                                source_observable_property_id,
+                            )
                         )
                         assert (
                             source_contextual_field_ref is not None
                         ), f"Source contextual reference could not be found for property {source_observable_property_id} in observation {source_observation_id}."
-                        source_dataset_label, source_field_label = source_contextual_field_ref
-                        parent = graph.Node(dataset_label=source_dataset_label, field_label=source_field_label)
+                        source_dataset_label, source_field_label = (
+                            source_contextual_field_ref
+                        )
+                        parent = graph.Node(
+                            dataset_label=source_dataset_label,
+                            field_label=source_field_label,
+                        )
                         map_name = function_kwarg.mapping_name
                         assert map_name is not None
                         join_spec = None
                         if join_spec_mapping is not None:
                             join_spec = join_spec_mapping.get(
-                                frozenset([target_dataset_label, source_dataset_label]), None
+                                frozenset(
+                                    [
+                                        target_dataset_label,
+                                        source_dataset_label,
+                                    ]
+                                ),
+                                None,
                             )
                             if join_spec is not None:
-                                assert len(join_spec) == 1, "Complex JoinSpecs are not supported yet."
+                                assert (
+                                    len(join_spec) == 1
+                                ), "Complex JoinSpecs are not supported yet."
                         dependency_graph.add_calculation_source(
                             parent,
                             child,
@@ -631,15 +801,20 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
         cache_view: CacheContainerView,
     ) -> DatasetSeries:
         # ADD TARGET OBSERVATION TO SOURCE_DATASET_SERIES
-        for source_obs, target_observation in zip(target_derived_from, target_observations):
+        for source_obs, target_observation in zip(
+            target_derived_from, target_observations
+        ):
             # TODO: ENSURE PREREQUISTE IS MET: DATASETSERIES SPLIT INTO OBSERVATIONS
             source_dataset = self.get_dataset_by_observation_id(
-                dataset_series=source_dataset_series, observation_id=source_obs.id
+                dataset_series=source_dataset_series,
+                observation_id=source_obs.id,
             )
             assert source_dataset is not None
             source_dataset_label = source_dataset.label
-            labeled_observable_property_specifications = self.extract_labeled_observable_property_specifications(
-                target_observation, cache_view=cache_view
+            labeled_observable_property_specifications = (
+                self.extract_labeled_observable_property_specifications(
+                    target_observation, cache_view=cache_view
+                )
             )
             source_dataset_series.add_observation(
                 source_dataset_label,
@@ -675,7 +850,12 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
 class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
     @abstractmethod
     def _calculate_for_stratum(
-        self, df: T_DataType, group_cols: list[str] | None, value_col: str, stat_builders: list, **kwargs
+        self,
+        df: T_DataType,
+        group_cols: list[str] | None,
+        value_col: str,
+        stat_builders: list,
+        **kwargs,
     ) -> T_DataType:
         raise NotImplementedError
 
@@ -691,7 +871,11 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
         raise NotImplementedError
 
     @abstractmethod
-    def group_results(self, results_to_collect: list[T_DataType], strata: list[str] | None = None) -> T_DataType:
+    def group_results(
+        self,
+        results_to_collect: list[T_DataType],
+        strata: list[str] | None = None,
+    ) -> T_DataType:
         raise NotImplementedError
 
     @classmethod
@@ -701,9 +885,13 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
                 "pypeh.adapters.outbound.aggregation.polars_adapter.dataframe_adapter"
             )
 
-            adapter_class = getattr(adapter_module, "DataFrameAggregationAdapter")
+            adapter_class = getattr(
+                adapter_module, "DataFrameAggregationAdapter"
+            )
         except Exception as e:
-            logger.error("Exception encountered while attempting to import a Polars-based DataFrameAggregationAdapter")
+            logger.error(
+                "Exception encountered while attempting to import a Polars-based DataFrameAggregationAdapter"
+            )
             raise e
         return adapter_class
 
@@ -717,23 +905,29 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
     ) -> DatasetSeries:
         # ADD TARGET OBSERVATION TO A NEW DATASET_SERIES
         aggregated_dataset_series: DatasetSeries = DatasetSeries(
-            label=f"{source_dataset_series.label}_aggregated", id_factory=id_factory
+            label=f"{source_dataset_series.label}_aggregated",
+            id_factory=id_factory,
         )
         assert len(target_observations) == len(target_derived_from)
 
-        for source_obs, target_observation in zip(target_derived_from, target_observations):
+        for source_obs, target_observation in zip(
+            target_derived_from, target_observations
+        ):
             collected_results = []
             # FOR LOOP COMPUTES ALL SUMMARY STATS ASSOCIATED WITH A SINGLE SOURCE OBSERVABLE PROPERTY
             source_dataset = self.get_dataset_by_observation_id(
-                dataset_series=source_dataset_series, observation_id=source_obs.id
+                dataset_series=source_dataset_series,
+                observation_id=source_obs.id,
             )
             source_data = source_dataset.data
             assert source_data is not None
 
             # COMPILE LIST OF LABELED OBSERVABLE PROPERTIES FOR TARGET
             if label := target_observation.ui_label:
-                labeled_observable_property_specifications = self.extract_labeled_observable_property_specifications(
-                    target_observation, cache_view=cache_view
+                labeled_observable_property_specifications = (
+                    self.extract_labeled_observable_property_specifications(
+                        target_observation, cache_view=cache_view
+                    )
                 )
                 target_dataset = aggregated_dataset_series.add_observation(
                     label,
@@ -752,22 +946,38 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
             map_fn_list = []
             map_fn_result_label_list = []
             # LOOP OVER ALL OBSERVABLE PROPERTY SPECIFICATIONS
-            target_observation_design_id = target_observation.observation_design
+            target_observation_design_id = (
+                target_observation.observation_design
+            )
             assert isinstance(target_observation_design_id, str)
-            target_observation_design = cache_view.get(target_observation_design_id, "ObservationDesign")
+            target_observation_design = cache_view.get(
+                target_observation_design_id, "ObservationDesign"
+            )
             assert isinstance(target_observation_design, peh.ObservationDesign)
-            observable_property_specs = target_observation_design.observable_property_specifications
+            observable_property_specs = (
+                target_observation_design.observable_property_specifications
+            )
             assert observable_property_specs is not None
             for observable_property_spec in observable_property_specs:
-                assert isinstance(observable_property_spec, peh.ObservablePropertySpecification)
-                observable_property_id = observable_property_spec.observable_property
+                assert isinstance(
+                    observable_property_spec,
+                    peh.ObservablePropertySpecification,
+                )
+                observable_property_id = (
+                    observable_property_spec.observable_property
+                )
                 assert isinstance(observable_property_id, str)
-                observable_property = cache_view.get(observable_property_id, "ObservableProperty")
+                observable_property = cache_view.get(
+                    observable_property_id, "ObservableProperty"
+                )
                 assert isinstance(observable_property, peh.ObservableProperty)
-                specification_category = observable_property_spec.specification_category
+                specification_category = (
+                    observable_property_spec.specification_category
+                )
                 assert specification_category is not None
                 identifying = (
-                    str(specification_category) == peh.ObservablePropertySpecificationCategory.identifying.text
+                    str(specification_category)
+                    == peh.ObservablePropertySpecificationCategory.identifying.text
                 )
                 if identifying:
                     stratification_ids.append(observable_property_id)
@@ -775,30 +985,57 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
                 # EXTRACT CALCULATION DESIGN
                 if observable_property.calculation_design is not None:
                     calculation_design = observable_property.calculation_design
-                    assert isinstance(calculation_design, peh.CalculationDesign)
-                    calculation_implementation = calculation_design.calculation_implementation
-                    assert isinstance(calculation_implementation, peh.CalculationImplementation)
-                    output_dtype = ObservablePropertyValueType(getattr(observable_property, "value_type", "string"))
+                    assert isinstance(
+                        calculation_design, peh.CalculationDesign
+                    )
+                    calculation_implementation = (
+                        calculation_design.calculation_implementation
+                    )
+                    assert isinstance(
+                        calculation_implementation,
+                        peh.CalculationImplementation,
+                    )
+                    output_dtype = ObservablePropertyValueType(
+                        getattr(observable_property, "value_type", "string")
+                    )
                     assert output_dtype is not None
                     function_name = calculation_implementation.function_name
                     assert function_name is not None
                     map_fn = _extract_callable(function_name)
                     map_fn_list.append(map_fn)
-                    if function_kwargs := calculation_implementation.function_kwargs:
+                    if (
+                        function_kwargs
+                        := calculation_implementation.function_kwargs
+                    ):
                         for function_kwarg in function_kwargs:
-                            assert isinstance(function_kwarg, peh.CalculationKeywordArgument)
-                            source_field_ref = function_kwarg.contextual_field_reference
-                            assert isinstance(source_field_ref, peh.ContextualFieldReference)
-                            kwarg_source_observation_id = source_field_ref.dataset_label
+                            assert isinstance(
+                                function_kwarg, peh.CalculationKeywordArgument
+                            )
+                            source_field_ref = (
+                                function_kwarg.contextual_field_reference
+                            )
+                            assert isinstance(
+                                source_field_ref, peh.ContextualFieldReference
+                            )
+                            kwarg_source_observation_id = (
+                                source_field_ref.dataset_label
+                            )
                             assert kwarg_source_observation_id is not None
                             if kwarg_source_observation_id != source_obs.id:
                                 raise ValueError(
                                     f"All CalculationKeywordArguments should refer to specified source observation: {source_obs.id}"
                                 )
-                            kwarg_source_observable_property_id = source_field_ref.field_label
-                            assert kwarg_source_observable_property_id is not None
-                            _, source_element_label = source_dataset_series.context_lookup(
-                                kwarg_source_observation_id, kwarg_source_observable_property_id
+                            kwarg_source_observable_property_id = (
+                                source_field_ref.field_label
+                            )
+                            assert (
+                                kwarg_source_observable_property_id is not None
+                            )
+                            _, source_element_label = (
+                                source_dataset_series.context_lookup(
+                                    kwarg_source_observation_id,
+                                    kwarg_source_observable_property_id,
+                                )
                             )
                     target_label = observable_property.ui_label
                     assert target_label is not None
@@ -809,7 +1046,9 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
             if len(stratification_ids) > 0:
                 stratification_labels = []
                 for strat_id in stratification_ids:
-                    _, element_label = source_dataset_series.context_lookup(source_obs.id, strat_id)
+                    _, element_label = source_dataset_series.context_lookup(
+                        source_obs.id, strat_id
+                    )
                     stratification_labels.append(element_label)
             # COMPUTE SUMMARY STAT FOR SINGLE SOURCE ELEMENT
             assert source_element_label is not None
@@ -822,7 +1061,9 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
             )
             collected_results.append(target_data)
 
-            target_data = self.group_results(collected_results, strata=stratification_labels)
+            target_data = self.group_results(
+                collected_results, strata=stratification_labels
+            )
             target_dataset.add_data(data=target_data)
 
         return aggregated_dataset_series

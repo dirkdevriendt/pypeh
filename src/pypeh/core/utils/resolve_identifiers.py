@@ -23,7 +23,9 @@ def validate_uri(input):
 
 
 def validate_uri_reference(input):
-    return uri_regex.uri_validator.match(input) or uri_regex.uri_relative_ref_validator.match(input)
+    return uri_regex.uri_validator.match(
+        input
+    ) or uri_regex.uri_relative_ref_validator.match(input)
 
 
 def validate_curie(input):
@@ -48,13 +50,17 @@ def _resolve_local_path(path: str, base_path: Optional[Path] = None) -> bool:
         full_path = base_path / path
 
     if not full_path.exists():
-        logger.error(f"Provided path {full_path} could not be resolved. No such file or directory.")
+        logger.error(
+            f"Provided path {full_path} could not be resolved. No such file or directory."
+        )
         raise FileNotFoundError()
 
     return True
 
 
-def identifier_to_locator(identifier: str, identifier_type: LocationEnum) -> str:
+def identifier_to_locator(
+    identifier: str, identifier_type: LocationEnum
+) -> str:
     if identifier_type == LocationEnum.PID:
         url = f"{DomainNameEnum.RESOLVE_PID.value}/{identifier}"
     else:
@@ -63,10 +69,14 @@ def identifier_to_locator(identifier: str, identifier_type: LocationEnum) -> str
     return url
 
 
-def _resolve_response_code(response_code: int, identifier: str, identifier_type: LocationEnum) -> bool:
+def _resolve_response_code(
+    response_code: int, identifier: str, identifier_type: LocationEnum
+) -> bool:
     if identifier_type == LocationEnum.PID:
         if response_code == 2:
-            raise ValueError(f"Something unexpected went wrong during handle resolution of {identifier}.")
+            raise ValueError(
+                f"Something unexpected went wrong during handle resolution of {identifier}."
+            )
         elif response_code == 100:
             raise ValueError(f"Handle {identifier} Not Found.")
         elif response_code == 200:
@@ -110,7 +120,9 @@ def resolve_curie(input_str: str, namespaces: Mapping[str, str | None]) -> str:
     prefix, suffix = input_str.split(":")
     resolved_prefix = namespaces.get(prefix, None)
     if resolved_prefix is None:
-        raise ValueError("Namespace of provided CURIE {input_str} not part of context.")
+        raise ValueError(
+            "Namespace of provided CURIE {input_str} not part of context."
+        )
     return f"{resolved_prefix} / {suffix}"
 
 

@@ -28,7 +28,9 @@ def is_dataclass_type(cls: Any) -> bool:
     return dataclasses.is_dataclass(cls) and isinstance(cls, type)
 
 
-def validate_dataclass(data: dict, target_class: Type[T_Dataclass] | Any) -> T_Dataclass | Any:
+def validate_dataclass(
+    data: dict, target_class: Type[T_Dataclass] | Any
+) -> T_Dataclass | Any:
     if not dataclasses.is_dataclass(target_class):
         raise TypeError(f"{target_class} is not a dataclass")
 
@@ -54,7 +56,10 @@ def validate_dataclass(data: dict, target_class: Type[T_Dataclass] | Any) -> T_D
             # Handle list/tuple of dataclasses
             assert value is not None
             processed_data[field_name] = [
-                validate_dataclass(item, field_type.__args__[0]) if isinstance(item, dict) else item for item in value
+                validate_dataclass(item, field_type.__args__[0])
+                if isinstance(item, dict)
+                else item
+                for item in value
             ]
         else:
             # Use Pydantic to validate scalar or complex non-dataclass field
@@ -112,7 +117,9 @@ class JsonIO(IOAdapter):
     Assuming jsonfiles can be directly loaded by linkml
     """
 
-    def _validate(self, data_dict: dict, target_class: Type[T_Dataclass] | Any | None) -> T_Dataclass | Any | dict:
+    def _validate(
+        self, data_dict: dict, target_class: Type[T_Dataclass] | Any | None
+    ) -> T_Dataclass | Any | dict:
         if target_class is None:
             return data_dict  # return plain dict
         if issubclass(target_class, EntityList):
@@ -140,7 +147,9 @@ class JsonIO(IOAdapter):
         data_dict = json.load(stream)
         return self._validate(data_dict, target_class)
 
-    def _loads(self, data: Union[str, bytes], target_class: Type[T_Dataclass] | None) -> dict | T_Dataclass | Any:
+    def _loads(
+        self, data: Union[str, bytes], target_class: Type[T_Dataclass] | None
+    ) -> dict | T_Dataclass | Any:
         if isinstance(data, bytes):
             data = data.decode("utf-8")
         try:
@@ -178,10 +187,14 @@ class JsonIO(IOAdapter):
             elif isinstance(source, (bytes, str)):
                 return self._loads(source, target_class)
             else:
-                raise TypeError(f"Unsupported source type for JSON loading: {type(source)}")
+                raise TypeError(
+                    f"Unsupported source type for JSON loading: {type(source)}"
+                )
 
         except ValueError as e:
-            logger.error(f"Could not validate the provided data at {source} as {target_class}")
+            logger.error(
+                f"Could not validate the provided data at {source} as {target_class}"
+            )
             raise e
         except Exception as e:
             logger.error(f"Error in JsonIO adapter: {e}")
@@ -201,7 +214,9 @@ class YamlIO(IOAdapter):
     Assuming yaml files can be directly loaded by linkml
     """
 
-    def _validate(self, data_dict: dict, target_class: Type[T_Dataclass] | Any | None) -> T_Dataclass | Any | dict:
+    def _validate(
+        self, data_dict: dict, target_class: Type[T_Dataclass] | Any | None
+    ) -> T_Dataclass | Any | dict:
         if target_class is None:
             return data_dict  # return plain dict
         if issubclass(target_class, EntityList):
@@ -229,7 +244,9 @@ class YamlIO(IOAdapter):
         data_dict = yaml.safe_load(stream)
         return self._validate(data_dict, target_class)
 
-    def _loads(self, data: Union[str, bytes], target_class: Type[T_Dataclass] | None) -> dict | T_Dataclass | Any:
+    def _loads(
+        self, data: Union[str, bytes], target_class: Type[T_Dataclass] | None
+    ) -> dict | T_Dataclass | Any:
         if isinstance(data, bytes):
             data = data.decode("utf-8")
         try:
@@ -267,10 +284,14 @@ class YamlIO(IOAdapter):
             elif isinstance(source, (bytes, str)):
                 return self._loads(source, target_class)
             else:
-                raise TypeError(f"Unsupported source type for YAML loading: {type(source)}")
+                raise TypeError(
+                    f"Unsupported source type for YAML loading: {type(source)}"
+                )
 
         except ValueError as e:
-            logger.error(f"Could not validate the provided data at {source} as {target_class}")
+            logger.error(
+                f"Could not validate the provided data at {source} as {target_class}"
+            )
             raise e
         except Exception as e:
             logger.error(f"Error in YamlIO adapter: {e}")
@@ -314,18 +335,31 @@ class ExcelIO(IOAdapter):
     # source = StringIO(response.text)
     # df = pd.read_csv(source)
 
-    def load_section(self, source: Union[str, Path, IO[str], IO[bytes]], section_name: str, **kwargs) -> Any:
+    def load_section(
+        self,
+        source: Union[str, Path, IO[str], IO[bytes]],
+        section_name: str,
+        **kwargs,
+    ) -> Any:
         try:
-            from pypeh.adapters.outbound.persistence.dataframe import ExcelIOImpl
+            from pypeh.adapters.outbound.persistence.dataframe import (
+                ExcelIOImpl,
+            )
         except ImportError:
             message = "The ExcelIO class requires the 'dataframe_adapter' module. Please install it."
             logging.error(message)
             raise
-        return ExcelIOImpl().load_section(source, section_name=section_name, **kwargs)
+        return ExcelIOImpl().load_section(
+            source, section_name=section_name, **kwargs
+        )
 
-    def load(self, source: Union[str, Path, IO[str], IO[bytes]], **kwargs) -> dict:
+    def load(
+        self, source: Union[str, Path, IO[str], IO[bytes]], **kwargs
+    ) -> dict:
         try:
-            from pypeh.adapters.outbound.persistence.dataframe import ExcelIOImpl
+            from pypeh.adapters.outbound.persistence.dataframe import (
+                ExcelIOImpl,
+            )
         except ImportError:
             message = "The ExcelIO class requires the 'dataframe_adapter' module. Please install it."
             logging.error(message)
@@ -337,7 +371,9 @@ class RdfIO(IOAdapter):
     read_mode: str = "r"
     write_mode: str = "wb"
 
-    def _validate(self, graph: Graph, target_class: Type[Union[BaseModel, YAMLRoot]]):
+    def _validate(
+        self, graph: Graph, target_class: Type[Union[BaseModel, YAMLRoot]]
+    ):
         schema_view = get_schema_view()
         # extract info from graph and transform to relevant dataclass
         rdf_loader = RDFLibLoader()
@@ -391,7 +427,9 @@ class TurtleIO(RdfIO):
         return super().load(source, format="ttl", **kwargs)
 
     def dump(self, source: EntityList, file_obj: IO[bytes], **kwargs):
-        return super().dump(source, file_obj=file_obj, format="turtle", **kwargs)
+        return super().dump(
+            source, file_obj=file_obj, format="turtle", **kwargs
+        )
 
 
 class IOAdapterFactory:
@@ -410,7 +448,9 @@ class IOAdapterFactory:
     }
 
     @classmethod
-    def register_adapter(cls, format: str, adapter_class: Type[IOAdapter]) -> None:
+    def register_adapter(
+        cls, format: str, adapter_class: Type[IOAdapter]
+    ) -> None:
         cls._adapters[format.lower()] = adapter_class
 
     @classmethod

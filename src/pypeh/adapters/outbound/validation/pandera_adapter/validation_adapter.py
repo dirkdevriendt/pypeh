@@ -16,9 +16,15 @@ from polars import DataFrame
 from typing import TYPE_CHECKING
 
 from pypeh.core.interfaces.outbound.dataops import ValidationInterface
-from pypeh.core.models.validation_errors import ValidationErrorReport, EntityLocation
+from pypeh.core.models.validation_errors import (
+    ValidationErrorReport,
+    EntityLocation,
+)
 from pypeh.core.models.validation_dto import ValidationConfig
-from pypeh.adapters.outbound.validation.pandera_adapter.parsers import parse_config, parse_error_report
+from pypeh.adapters.outbound.validation.pandera_adapter.parsers import (
+    parse_config,
+    parse_error_report,
+)
 from pypeh.adapters.outbound.dataops.dataframe_adapter import DataFrameAdapter
 
 if TYPE_CHECKING:
@@ -27,7 +33,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class DataFrameValidationAdapter(DataFrameAdapter, ValidationInterface[DataFrame]):
+class DataFrameValidationAdapter(
+    DataFrameAdapter, ValidationInterface[DataFrame]
+):
     data_format = DataFrame
 
     def parse_configuration(self, config: ValidationConfig) -> Mapping:
@@ -41,9 +49,13 @@ class DataFrameValidationAdapter(DataFrameAdapter, ValidationInterface[DataFrame
         finally:
             collector.clear_errors()
 
-    def _validate(self, data: dict[str, list] | DataFrame, config: ValidationConfig) -> ValidationErrorReport:
+    def _validate(
+        self, data: dict[str, list] | DataFrame, config: ValidationConfig
+    ) -> ValidationErrorReport:
         config_map = self.parse_configuration(config)
-        validator = Validator.config_from_mapping(config=config_map, logger=logger)
+        validator = Validator.config_from_mapping(
+            config=config_map, logger=logger
+        )
         _ = validator.validate(data)
 
         with self.get_error_collector() as error_collector:
@@ -66,7 +78,10 @@ class DataFrameValidationAdapter(DataFrameAdapter, ValidationInterface[DataFrame
                     column_names = getattr(location, "column_names", None)
                     if row_ids and key_columns:
                         entity_ids = [
-                            tuple(get_data_item(data, row_id, id_obs_prop) for id_obs_prop in key_columns)
+                            tuple(
+                                get_data_item(data, row_id, id_obs_prop)
+                                for id_obs_prop in key_columns
+                            )
                             for row_id in row_ids
                         ]
                         new_location_list.append(

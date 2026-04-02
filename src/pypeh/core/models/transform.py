@@ -40,12 +40,23 @@ class FieldMapping:
 
         # Auto-populate reverse mapping if not provided
         if not self.target_to_source and self.source_to_target:
-            self.target_to_source = {v: k for k, v in self.source_to_target.items()}
+            self.target_to_source = {
+                v: k for k, v in self.source_to_target.items()
+            }
 
-    def transform_to_target(self, source_data: Dict[str, Any]) -> Dict[str, Any]:
-        return self._transform(source_data, self.source_to_target, self.transformers, self.include_unmapped_fields)
+    def transform_to_target(
+        self, source_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return self._transform(
+            source_data,
+            self.source_to_target,
+            self.transformers,
+            self.include_unmapped_fields,
+        )
 
-    def transform_to_source(self, target_data: Dict[str, Any]) -> Dict[str, Any]:
+    def transform_to_source(
+        self, target_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         return self._transform(
             target_data,
             self.target_to_source,
@@ -54,7 +65,11 @@ class FieldMapping:
         )
 
     def _transform(
-        self, data: Dict[str, Any], mapping: Dict[str, str], transformers: Dict[str, Callable], include_unmapped: bool
+        self,
+        data: Dict[str, Any],
+        mapping: Dict[str, str],
+        transformers: Dict[str, Callable],
+        include_unmapped: bool,
     ) -> Dict[str, Any]:
         result = {}
 

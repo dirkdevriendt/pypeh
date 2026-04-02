@@ -18,7 +18,9 @@ class DataFrameLocation(ValidationErrorLocation):
     """Location information for DataFrame-based validation errors"""
 
     location_type: Literal["dataframe"] = "dataframe"
-    key_columns: List[str]  # List of column names that jointly identifies a dataframe entry.
+    key_columns: List[
+        str
+    ]  # List of column names that jointly identifies a dataframe entry.
     column_names: Optional[List[str]] = None
     row_ids: List[int] = []
 
@@ -57,7 +59,9 @@ class ValidationError(BaseModel):
     type: str = Field(description="Machine-readable error code")
     level: ValidationErrorLevel
 
-    locations: Optional[List[LocationUnion]] = Field(default_factory=list, description="Where the error occurred")
+    locations: Optional[List[LocationUnion]] = Field(
+        default_factory=list, description="Where the error occurred"
+    )
     context: Optional[list[str]] = None
     check_name: Optional[str] = None
     traceback: Optional[str] = None
@@ -85,10 +89,14 @@ class ValidationErrorReport(BaseModel):
     total_errors: int
     error_counts: Dict[ValidationErrorLevel, int] = Field(default_factory=dict)
     groups: List[ValidationErrorGroup] = Field(default_factory=list)
-    unexpected_errors: List[ValidationError | RuntimeError] = Field(default_factory=list)
+    unexpected_errors: List[ValidationError | RuntimeError] = Field(
+        default_factory=list
+    )
 
     @field_serializer("error_counts")
-    def serialize_error_counts(self, error_counts: Dict[ValidationErrorLevel, int]):
+    def serialize_error_counts(
+        self, error_counts: Dict[ValidationErrorLevel, int]
+    ):
         return {k.name: v for k, v in error_counts.items()}
 
     @classmethod
@@ -112,6 +120,9 @@ class ValidationErrorReportCollection(dict[str, ValidationErrorReport]):
     """Collection of validation reports mapped by observation"""
 
     def model_dump_json(self, indent: int = 2) -> str:
-        json_dict = {observation_id: report.model_dump() for observation_id, report in self.items()}
+        json_dict = {
+            observation_id: report.model_dump()
+            for observation_id, report in self.items()
+        }
 
         return json.dumps(json_dict, indent=indent)

@@ -7,7 +7,12 @@ from rdflib.namespace import RDF, DCTERMS, XSD, PROV
 from typing import Iterable, Type
 from ulid import ULID
 
-from pypeh.core.models.internal_data_layout import Resource, Dataset, DatasetSeries, DatasetSchema
+from pypeh.core.models.internal_data_layout import (
+    Resource,
+    Dataset,
+    DatasetSeries,
+    DatasetSchema,
+)
 from pypeh.core.models.constants import ObservablePropertyValueType
 
 PEH = Namespace("https://w3id.org/peh/terms#")
@@ -31,7 +36,9 @@ class SemanticDatasetSchema(DatasetSchema):
         raise NotImplementedError
 
     @classmethod
-    def from_dataset_schema(cls, dataset_schema: DatasetSchema) -> SemanticDatasetSchema:
+    def from_dataset_schema(
+        cls, dataset_schema: DatasetSchema
+    ) -> SemanticDatasetSchema:
         return cls(
             elements=dataset_schema.elements,
             primary_keys=dataset_schema.primary_keys,
@@ -69,7 +76,8 @@ class CSVWDatasetSchema(SemanticDatasetSchema):
             xsd_type = XSD_TYPE_MAP.get(element.data_type)
             if xsd_type is None:
                 raise ValueError(
-                    f"No XSD type mapping for {element.data_type!r} " f"on column '{label}'. Add it to XSD_TYPE_MAP."
+                    f"No XSD type mapping for {element.data_type!r} "
+                    f"on column '{label}'. Add it to XSD_TYPE_MAP."
                 )
             yield (col_node, CSVW.datatype, xsd_type)
 
@@ -91,8 +99,16 @@ class CSVWDatasetSchema(SemanticDatasetSchema):
             yield (schema_node, CSVW.foreignKey, fk_node)
             yield (fk_node, CSVW.columnReference, Literal(fk.element_label))
             yield (fk_node, CSVW.reference, ref_node)
-            yield (ref_node, CSVW.resource, Literal(fk.reference.dataset_label))
-            yield (ref_node, CSVW.columnReference, Literal(fk.reference.element_label))
+            yield (
+                ref_node,
+                CSVW.resource,
+                Literal(fk.reference.dataset_label),
+            )
+            yield (
+                ref_node,
+                CSVW.columnReference,
+                Literal(fk.reference.element_label),
+            )
 
 
 @dataclass(kw_only=True)
@@ -105,16 +121,28 @@ class SemanticResource(Resource):
     label: str
     identifier: str = field(default_factory=lambda: str(ULID()))
 
-    was_attributed_to: str | None = field(default=None, metadata={"id": "prov:wasAttributedTo"})
-    creator: str | None = field(default=None, metadata={"id": "dcterms:creator"})
-    created: str | None = field(default=None, metadata={"id": "dcterms:created"})
-    modified: str | None = field(default=None, metadata={"id": "dcterms:modified"})
+    was_attributed_to: str | None = field(
+        default=None, metadata={"id": "prov:wasAttributedTo"}
+    )
+    creator: str | None = field(
+        default=None, metadata={"id": "dcterms:creator"}
+    )
+    created: str | None = field(
+        default=None, metadata={"id": "dcterms:created"}
+    )
+    modified: str | None = field(
+        default=None, metadata={"id": "dcterms:modified"}
+    )
     issued: str | None = field(default=None, metadata={"id": "dcterms:issued"})
-    description: str | None = field(default=None, metadata={"id": "dcterms:description"})
+    description: str | None = field(
+        default=None, metadata={"id": "dcterms:description"}
+    )
 
     @classmethod
     def from_resource(cls, resource: Resource, **kwargs):
-        return cls(label=resource.label, identifier=resource.identifier, **kwargs)
+        return cls(
+            label=resource.label, identifier=resource.identifier, **kwargs
+        )
 
     def to_rdf(self) -> Iterable[tuple]:
         s = URIRef(self.identifier)
@@ -125,11 +153,23 @@ class SemanticResource(Resource):
         if self.description:
             yield (s, DCTERMS.description, Literal(self.description))
         if self.issued:
-            yield (s, DCTERMS.issued, Literal(self.issued, datatype=XSD.dateTime))
+            yield (
+                s,
+                DCTERMS.issued,
+                Literal(self.issued, datatype=XSD.dateTime),
+            )
         if self.modified:
-            yield (s, DCTERMS.modified, Literal(self.modified, datatype=XSD.dateTime))
+            yield (
+                s,
+                DCTERMS.modified,
+                Literal(self.modified, datatype=XSD.dateTime),
+            )
         if self.created:
-            yield (s, DCTERMS.created, Literal(self.created, datatype=XSD.dateTime))
+            yield (
+                s,
+                DCTERMS.created,
+                Literal(self.created, datatype=XSD.dateTime),
+            )
         if self.creator:
             yield (s, DCTERMS.creator, URIRef(self.creator))
         if self.was_attributed_to:
@@ -143,17 +183,30 @@ class SemanticDataset(SemanticResource):
     Observations link out to the peh ontology.
     """
 
-    schema: SemanticDatasetSchema = field(default_factory=SemanticDatasetSchema)
+    schema: SemanticDatasetSchema = field(
+        default_factory=SemanticDatasetSchema
+    )
     data: str | None = field(default=None)
     part_of: SemanticDatasetSeries | DatasetSeries | None = field(default=None)
-    observation_ids: set[str] = field(default_factory=set)  # URIs of peh:Observation instances
+    observation_ids: set[str] = field(
+        default_factory=set
+    )  # URIs of peh:Observation instances
 
     # PROV — explicit typed fields
-    was_generated_by: str | None = field(default=None)  # prov:wasGeneratedBy   (activity URI)
-    was_derived_from: str | None = field(default=None)  # prov:wasDerivedFrom   (entity URI)
+    was_generated_by: str | None = field(
+        default=None
+    )  # prov:wasGeneratedBy   (activity URI)
+    was_derived_from: str | None = field(
+        default=None
+    )  # prov:wasDerivedFrom   (entity URI)
 
     @classmethod
-    def from_dataset(cls, dataset: Dataset, schema_profile: Type[SemanticDatasetSchema], **kwargs):
+    def from_dataset(
+        cls,
+        dataset: Dataset,
+        schema_profile: Type[SemanticDatasetSchema],
+        **kwargs,
+    ):
         return cls(
             label=dataset.label,
             identifier=dataset.identifier,
@@ -203,7 +256,9 @@ class SemanticDatasetSeries(SemanticResource):
         return cls(
             label=dataset_series.label,
             identifier=dataset_series.identifier,
-            parts=list(dataset.identifier for dataset in dataset_series.parts.values()),
+            parts=list(
+                dataset.identifier for dataset in dataset_series.parts.values()
+            ),
             **kwargs,
         )
 

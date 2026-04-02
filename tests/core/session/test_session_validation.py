@@ -1,6 +1,11 @@
 import pytest
 
-from peh_model.peh import DataImportConfig, DataImportSectionMapping, DataImportSectionMappingLink, DataLayout
+from peh_model.peh import (
+    DataImportConfig,
+    DataImportSectionMapping,
+    DataImportSectionMappingLink,
+    DataLayout,
+)
 
 from pypeh import Session
 from pypeh.core.models.internal_data_layout import Dataset, DatasetSeries
@@ -16,28 +21,45 @@ class TestSessionValidation:
     @pytest.mark.skip(reason="ObservableProperty info is lacking")
     def test_invalid_file(self, monkeypatch):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
-        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input"))
+        monkeypatch.setenv(
+            "DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input")
+        )
         excel_path = "validation_files/invalid_excel.xlsx"
 
         session = Session()
         session.load_persisted_cache(source="validation_config")
-        data_import_config = session.cache.get("peh:IMPORT_CONFIG_TEST_DATA_LAYOUT", "DataImportConfig")
+        data_import_config = session.cache.get(
+            "peh:IMPORT_CONFIG_TEST_DATA_LAYOUT", "DataImportConfig"
+        )
         assert isinstance(data_import_config, DataImportConfig)
-        with pytest.raises(Exception, match="calamine error: Cannot detect file format.*"):
-            session.load_tabular_dataset_series(source=excel_path, data_import_config=data_import_config)
+        with pytest.raises(
+            Exception, match="calamine error: Cannot detect file format.*"
+        ):
+            session.load_tabular_dataset_series(
+                source=excel_path, data_import_config=data_import_config
+            )
 
     @pytest.mark.skip(reason="ObservableProperty info is lacking")
     def test_valid_file(self, monkeypatch):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
-        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input"))
+        monkeypatch.setenv(
+            "DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input")
+        )
         excel_path = "validation_files/valid_excel_wrong_format.xlsx"
 
         session = Session()
         session.load_persisted_cache(source="validation_config")
-        data_import_config = session.cache.get("peh:IMPORT_CONFIG_TEST_DATA_LAYOUT", "DataImportConfig")
+        data_import_config = session.cache.get(
+            "peh:IMPORT_CONFIG_TEST_DATA_LAYOUT", "DataImportConfig"
+        )
         assert isinstance(data_import_config, DataImportConfig)
-        with pytest.raises(Exception, match=r"Sheet name\(s\) Template do not correspond with provided data layout"):
-            session.load_tabular_dataset_series(source=excel_path, data_import_config=data_import_config)
+        with pytest.raises(
+            Exception,
+            match=r"Sheet name\(s\) Template do not correspond with provided data layout",
+        ):
+            session.load_tabular_dataset_series(
+                source=excel_path, data_import_config=data_import_config
+            )
 
     @pytest.mark.parametrize("use_namespace_manager", [True, False])
     def test_load_dataset_series_from_layout(self, use_namespace_manager):
@@ -48,7 +70,9 @@ class TestSessionValidation:
                 LocalFileConfig(
                     label="local_file",
                     config_dict={
-                        "root_folder": get_absolute_path("./input/load_data_collection_basic"),
+                        "root_folder": get_absolute_path(
+                            "./input/load_data_collection_basic"
+                        ),
                     },
                 ),
             ],
@@ -62,11 +86,15 @@ class TestSessionValidation:
                 section_mapping_links=[
                     DataImportSectionMappingLink(
                         section="SAMPLE_METADATA_SECTION_SAMPLE",
-                        observation_id_list=["peh:VALIDATION_TEST_SAMPLE_METADATA"],
+                        observation_id_list=[
+                            "peh:VALIDATION_TEST_SAMPLE_METADATA"
+                        ],
                     ),
                     DataImportSectionMappingLink(
                         section="SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS",
-                        observation_id_list=["peh:VALIDATION_TEST_SAMPLE_TIMEPOINT"],
+                        observation_id_list=[
+                            "peh:VALIDATION_TEST_SAMPLE_TIMEPOINT"
+                        ],
                     ),
                 ]
             ),
@@ -113,7 +141,9 @@ class TestSessionValidation:
                 LocalFileConfig(
                     label="local_file",
                     config_dict={
-                        "root_folder": get_absolute_path("./input/load_data_collection_basic"),
+                        "root_folder": get_absolute_path(
+                            "./input/load_data_collection_basic"
+                        ),
                     },
                 ),
             ],
@@ -127,17 +157,23 @@ class TestSessionValidation:
                 section_mapping_links=[
                     DataImportSectionMappingLink(
                         section="SAMPLE_METADATA_SECTION_SAMPLE",
-                        observation_id_list=["peh:VALIDATION_TEST_SAMPLE_METADATA"],
+                        observation_id_list=[
+                            "peh:VALIDATION_TEST_SAMPLE_METADATA"
+                        ],
                     ),
                     DataImportSectionMappingLink(
                         section="SAMPLE_METADATA_SECTION_SAMPLETIMEPOINT_BSS",
-                        observation_id_list=["peh:VALIDATION_TEST_SAMPLE_TIMEPOINT"],
+                        observation_id_list=[
+                            "peh:VALIDATION_TEST_SAMPLE_TIMEPOINT"
+                        ],
                     ),
                 ]
             ),
         )
         result = session.load_tabular_dataset_series(
-            source="validation_test_03_data.xlsx", data_import_config=data_import_config, connection_label="local_file"
+            source="validation_test_03_data.xlsx",
+            data_import_config=data_import_config,
+            connection_label="local_file",
         )
         assert isinstance(result, DatasetSeries)
         assert "SAMPLETIMEPOINT_BSS" in result
@@ -152,15 +188,21 @@ class TestSessionValidation:
     @pytest.mark.skip(reason="ObservableProperty info is lacking")
     def test_invalid_sheets(self, monkeypatch):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
-        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input"))
+        monkeypatch.setenv(
+            "DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input")
+        )
         excel_path = "validation_files/valid_excel_wrong_format.xlsx"
 
         session = Session()
         session.load_persisted_cache(source="validation_config")
-        data_import_config = session.cache.get("peh:IMPORT_CONFIG_TEST_DATA_LAYOUT", "DataImportConfig")
+        data_import_config = session.cache.get(
+            "peh:IMPORT_CONFIG_TEST_DATA_LAYOUT", "DataImportConfig"
+        )
         assert isinstance(data_import_config, DataImportConfig)
         # with pytest.raises(Exception, match=r"Sheet name\(s\) Template do not correspond with provided data layout"):
-        session.load_tabular_dataset_series(source=excel_path, data_import_config=data_import_config)
+        session.load_tabular_dataset_series(
+            source=excel_path, data_import_config=data_import_config
+        )
 
     @pytest.mark.skip("ObservableProperty info is lacking")
     def test_multiple_connections(self):
@@ -169,22 +211,30 @@ class TestSessionValidation:
                 LocalFileConfig(
                     label="local_file_validation_config",
                     config_dict={
-                        "root_folder": get_absolute_path("./input/default_localfile_data"),
+                        "root_folder": get_absolute_path(
+                            "./input/default_localfile_data"
+                        ),
                     },
                 ),
                 LocalFileConfig(
                     label="local_file_validation_files",
                     config_dict={
-                        "root_folder": get_absolute_path("./input/validation_files"),
+                        "root_folder": get_absolute_path(
+                            "./input/validation_files"
+                        ),
                     },
                 ),
             ],
             default_connection="local_file_validation_config",
         )
         session.load_persisted_cache()
-        observation = session.cache.get("peh:OBSERVATION_ADULTS_ANALYTICALINFO", "Observation")
+        observation = session.cache.get(
+            "peh:OBSERVATION_ADULTS_ANALYTICALINFO", "Observation"
+        )
         assert observation.id == "peh:OBSERVATION_ADULTS_ANALYTICALINFO"
-        data_import_config = session.cache.get("peh:IMPORT_CONFIG_TEST_DATA_LAYOUT", "DataImportConfig")
+        data_import_config = session.cache.get(
+            "peh:IMPORT_CONFIG_TEST_DATA_LAYOUT", "DataImportConfig"
+        )
         assert isinstance(data_import_config, DataImportConfig)
         data = session.load_tabular_dataset_series(
             source="multi_connection_valid_excel.xlsx",
@@ -203,7 +253,9 @@ class TestBuildConfigs:
                 LocalFileConfig(
                     label="local_file",
                     config_dict={
-                        "root_folder": get_absolute_path("./input/load_data_collection_basic"),
+                        "root_folder": get_absolute_path(
+                            "./input/load_data_collection_basic"
+                        ),
                     },
                 ),
             ],

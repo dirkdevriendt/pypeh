@@ -22,15 +22,21 @@ class DataFrameAdapter(OutDataOpsInterface[pl.DataFrame]):
     def get_element_labels(self, data: pl.DataFrame) -> list[str]:
         return data.columns
 
-    def get_element_values(self, data: pl.DataFrame, element_label: str, as_list=False) -> list[str] | set[str]:
+    def get_element_values(
+        self, data: pl.DataFrame, element_label: str, as_list=False
+    ) -> list[str] | set[str]:
         if as_list:
             return data.get_column(element_label).to_list()
         return set(data.get_column(element_label))
 
-    def check_element_has_empty_values(self, data: pl.DataFrame, element_label: str) -> bool:
+    def check_element_has_empty_values(
+        self, data: pl.DataFrame, element_label: str
+    ) -> bool:
         return data.select(pl.col(element_label).is_null().any()).item()
 
-    def check_element_has_only_empty_values(self, data: pl.DataFrame, element_label: str) -> bool:
+    def check_element_has_only_empty_values(
+        self, data: pl.DataFrame, element_label: str
+    ) -> bool:
         return data.select(pl.col(element_label).is_null().all()).item()
 
     def subset(
@@ -44,14 +50,20 @@ class DataFrameAdapter(OutDataOpsInterface[pl.DataFrame]):
             ret = data.select(element_group)
         else:
             assert identifying_elements is not None
-            ret = data.filter(pl.struct(identifying_elements).is_in(id_group)).select(element_group)
+            ret = data.filter(
+                pl.struct(identifying_elements).is_in(id_group)
+            ).select(element_group)
 
         return ret
 
-    def relabel(self, data: pl.DataFrame, element_mapping: dict[str, str]) -> pl.DataFrame:
+    def relabel(
+        self, data: pl.DataFrame, element_mapping: dict[str, str]
+    ) -> pl.DataFrame:
         return data.rename(element_mapping)
 
-    def type_mapper(self, peh_value_type: str | ObservablePropertyValueType) -> type[DataType]:
+    def type_mapper(
+        self, peh_value_type: str | ObservablePropertyValueType
+    ) -> type[DataType]:
         if isinstance(peh_value_type, Enum):
             peh_value_type = peh_value_type.value
 

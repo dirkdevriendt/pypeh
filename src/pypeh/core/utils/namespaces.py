@@ -114,11 +114,17 @@ class ImportMap:
 
 class NamespaceManager:
     def __init__(self, default_base_uri: str | None = None):
-        self._default_base_uri = self._validate_and_normalize_base(default_base_uri)
+        self._default_base_uri = self._validate_and_normalize_base(
+            default_base_uri
+        )
         self.namespaces: dict[str, str] = {}  # namespace_label -> base_uri
-        self.dataclass_namespace_map: dict[Type, str] = {}  # dataclass → namespace_label
+        self.dataclass_namespace_map: dict[
+            Type, str
+        ] = {}  # dataclass → namespace_label
         self.suffix_strategy: Callable[[], str] = self.generate_ulid()
-        self.resource_type_strategy: Callable[[Type], str] = default_resource_type
+        self.resource_type_strategy: Callable[[Type], str] = (
+            default_resource_type
+        )
 
     @property
     def default_base_uri(self):
@@ -143,7 +149,9 @@ class NamespaceManager:
         if not is_dataclass(cls):
             raise TypeError(f"{cls} is not a dataclass")
         if namespace not in self.namespaces:
-            raise ValueError(f"Namespace {namespace} not bound to NamespaceManager")
+            raise ValueError(
+                f"Namespace {namespace} not bound to NamespaceManager"
+            )
         self.dataclass_namespace_map[cls] = namespace
 
     @classmethod
@@ -154,12 +162,18 @@ class NamespaceManager:
 
         return _generate_ulid
 
-    def _resolve_base(self, resource_class: Type | None = None, namespace_key: str | None = None) -> str | None:
+    def _resolve_base(
+        self,
+        resource_class: Type | None = None,
+        namespace_key: str | None = None,
+    ) -> str | None:
         # Explicit namespace overrides everything
         if namespace_key is not None:
             base = self.namespaces.get(namespace_key)
             if base is None:
-                raise ValueError(f"No registered base URI for namespace {namespace_key}")
+                raise ValueError(
+                    f"No registered base URI for namespace {namespace_key}"
+                )
             return base
 
         resource_type = None
@@ -192,7 +206,12 @@ class NamespaceManager:
         suffix = self.suffix_strategy()
         return f"{base}{suffix}"
 
-    def mint_and_set(self, obj, namespace_key: str | None = None, identifying_field: str = "id") -> str:
+    def mint_and_set(
+        self,
+        obj,
+        namespace_key: str | None = None,
+        identifying_field: str = "id",
+    ) -> str:
         uri = self.mint(
             resource_class=obj.__class__,
             namespace_key=namespace_key,
@@ -203,9 +222,13 @@ class NamespaceManager:
         return uri
 
     def get_id_factory(
-        self, namespace_key: str | None = None, suffix_strategy: Callable[[], str] | None = None
+        self,
+        namespace_key: str | None = None,
+        suffix_strategy: Callable[[], str] | None = None,
     ) -> Callable[[], str] | None:
-        base = self._resolve_base(resource_class=None, namespace_key=namespace_key)
+        base = self._resolve_base(
+            resource_class=None, namespace_key=namespace_key
+        )
         if base is None:
             return None
         if suffix_strategy is None:

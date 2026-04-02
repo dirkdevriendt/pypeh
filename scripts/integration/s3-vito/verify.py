@@ -34,7 +34,9 @@ def verify():
     )
 
     try:
-        response = client.list_objects_v2(Bucket=bucket, Prefix="cache/parc-aligned/")
+        response = client.list_objects_v2(
+            Bucket=bucket, Prefix="cache/parc-aligned/"
+        )
         print("Objects found:")
         for obj in response.get("Contents", []):
             print(f"  - {obj['Key']}")

@@ -54,7 +54,12 @@ CLASS_REFERENCES = {
 
 
 class TypedLazyProxy:
-    def __init__(self, identifier: str, expected_type: Type[peh.NamedThing], loader: Callable | None):
+    def __init__(
+        self,
+        identifier: str,
+        expected_type: Type[peh.NamedThing],
+        loader: Callable | None,
+    ):
         self._id: str = identifier
         self._expected_type = expected_type
         self._loader = loader
@@ -69,7 +74,9 @@ class TypedLazyProxy:
         return self._expected_type
 
     @classmethod
-    def create_proxy(cls, entity: str, loader: Callable | None) -> "TypedLazyProxy":
+    def create_proxy(
+        cls, entity: str, loader: Callable | None
+    ) -> "TypedLazyProxy":
         name = entity.__class__.__name__
         expected_type = CLASS_REFERENCES.get(name, None)
         if expected_type is None:
@@ -86,8 +93,12 @@ class TypedLazyProxy:
         if self._target is None:
             if self._loader is not None:
                 self._target = self._loader()
-                if self._expected_type and not isinstance(self._target, self._expected_type):
-                    raise TypeError(f"Loaded object is not of expected type {self._expected_type}")
+                if self._expected_type and not isinstance(
+                    self._target, self._expected_type
+                ):
+                    raise TypeError(
+                        f"Loaded object is not of expected type {self._expected_type}"
+                    )
 
     def __getattr__(self, name):
         if self._loader is not None:
@@ -98,7 +109,9 @@ class TypedLazyProxy:
 
     def __repr__(self):
         if self._target is None:
-            return f"TypedLazyProxy: type: {self._expected_type}, id: {self._id}"
+            return (
+                f"TypedLazyProxy: type: {self._expected_type}, id: {self._id}"
+            )
         else:
             return repr(self._target)
 
