@@ -80,8 +80,3 @@ class DataFrameEnrichmentAdapter(
                 unique_fields.append(f)
 
         return ds2.select(unique_fields)
-
-    def collect(self, datasets: dict[str, pl.LazyFrame]):
-        for dataset in datasets.values():
-            if isinstance(dataset, pl.LazyFrame):
-                dataset = dataset.collect()

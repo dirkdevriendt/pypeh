@@ -87,3 +87,10 @@ class DataFrameAdapter(OutDataOpsInterface[pl.DataFrame]):
 
     def normalize_input(self, data: pl.DataFrame) -> pl.LazyFrame:
         return data.lazy()
+
+    def normalize_output(
+        self, data: pl.DataFrame | pl.LazyFrame
+    ) -> pl.DataFrame:
+        if isinstance(data, pl.LazyFrame):
+            return data.collect()
+        return data
