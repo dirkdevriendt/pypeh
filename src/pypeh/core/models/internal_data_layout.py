@@ -529,10 +529,15 @@ class Dataset(Resource, Generic[T_DataType]):
                 ]
                 assert observation_design is not None
                 assert isinstance(observation_design, peh.ObservationDesign)
-                for (
-                    observable_property_specification
-                ) in observation_design.observable_property_specifications:
-                    assert observable_property_specification is not None
+                obs_prop_specs = (
+                    observation_design.observable_property_specifications
+                )
+                assert obs_prop_specs is not None
+                for observable_property_specification in obs_prop_specs:
+                    assert isinstance(
+                        observable_property_specification,
+                        peh.ObservablePropertySpecification,
+                    )
                     assert (
                         observable_property_specification.observable_property
                         is not None

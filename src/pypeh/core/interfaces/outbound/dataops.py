@@ -157,6 +157,10 @@ class OutDataOpsInterface(Generic[T_DataType]):
     def normalize_input(self, data: T_DataType) -> T_DataType:
         raise NotImplementedError
 
+    @abstractmethod
+    def normalize_output(self, data: T_DataType) -> T_DataType:
+        raise NotImplementedError
+
 
 class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
     @abstractmethod
@@ -632,18 +636,20 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
                 "A dependency graph needs to be compiled first to set up an execution plan"
             )
 
-        raw_datasets = {
-            label: dataset.data for label, dataset in datasets.items()
-        }
         base_fields = {
             label: dataset.get_element_labels()
             for label, dataset in datasets.items()
         }
-
+        raw_datasets = {
+            label: self.normalize_input(dataset.data)
+            for label, dataset in datasets.items()
+        }
         dependency_graph.execution_plan.run(raw_datasets, base_fields)
-        self.collect(datasets)
+
         for dataset_label in datasets:
-            datasets[dataset_label].data = raw_datasets[dataset_label]
+            datasets[dataset_label].data = self.normalize_output(
+                raw_datasets[dataset_label]
+            )
 
     def build_dependency_graph(
         self,
