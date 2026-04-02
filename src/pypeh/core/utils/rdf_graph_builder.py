@@ -29,9 +29,14 @@ class GraphBuilder:
         return g
 
     def build_series(
-        self, series: DatasetSeries, provenance_info: dict, schema_profile: Type[SemanticDatasetSchema]
+        self,
+        series: DatasetSeries,
+        provenance_info: dict,
+        schema_profile: Type[SemanticDatasetSchema],
     ) -> Graph:
-        semantic_series = SemanticDatasetSeries.from_dataset_series(series, **provenance_info)
+        semantic_series = SemanticDatasetSeries.from_dataset_series(
+            series, **provenance_info
+        )
         g = self._base_graph()
 
         for triple in semantic_series.to_rdf():
@@ -39,7 +44,9 @@ class GraphBuilder:
 
         for dataset in series.parts.values():
             assert isinstance(dataset, Dataset)
-            semantic_dataset = SemanticDataset.from_dataset(dataset, schema_profile=schema_profile)
+            semantic_dataset = SemanticDataset.from_dataset(
+                dataset, schema_profile=schema_profile
+            )
             self._add_dataset(g, semantic_dataset)
 
         return g

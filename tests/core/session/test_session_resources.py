@@ -18,7 +18,9 @@ def get_session() -> Session:
             LocalFileConfig(
                 label="local_file",
                 config_dict={
-                    "root_folder": get_absolute_path("./input/default_localfile_data"),
+                    "root_folder": get_absolute_path(
+                        "./input/default_localfile_data"
+                    ),
                 },
             ),
         ],
@@ -35,7 +37,9 @@ class TestSessionResource:
         resource_type = "Observation"
         resource_path = "observations.yaml"
         connection_label = "local_file"
-        ret = session.load_resource(resource_identifier, resource_type, resource_path, connection_label)
+        ret = session.load_resource(
+            resource_identifier, resource_type, resource_path, connection_label
+        )
         assert isinstance(ret, Observation)
 
 
@@ -44,7 +48,9 @@ class TestSessionDump:
     def test_dump_entity_list(self, get_session, tmp_path):
         session = get_session
         assert isinstance(session, Session)
-        session.load_persisted_cache(source="observations.yaml", connection_label="local_file")
+        session.load_persisted_cache(
+            source="observations.yaml", connection_label="local_file"
+        )
         dest = tmp_path / "out.yaml"
         session.dump_cache(
             output_path=dest,
@@ -65,7 +71,9 @@ class TestSessionMint:
         namespace_manager = NamespaceManager()
         namespace_manager.bind("test", "www.example.com")
         session.bind_namespace_manager(namespace_manager=namespace_manager)
-        ret = session.mint_and_cache(ObservableProperty, namespace_key="test", ui_label="test")
+        ret = session.mint_and_cache(
+            ObservableProperty, namespace_key="test", ui_label="test"
+        )
         next_instance = next(session.cache.get_all("ObservableProperty"))
         assert isinstance(next_instance, ObservableProperty)
         assert next_instance.id == ret.id
@@ -73,11 +81,15 @@ class TestSessionMint:
     def test_mint_and_cache_resource(self, get_session):
         session = get_session
         assert isinstance(session, Session)
-        namespace_manager = NamespaceManager(default_base_uri="https://w3id.org/example/id/")
+        namespace_manager = NamespaceManager(
+            default_base_uri="https://w3id.org/example/id/"
+        )
         session.bind_namespace_manager(namespace_manager=namespace_manager)
         ret = session.mint_and_cache(ObservableProperty, ui_label="test")
         next_instance = next(session.cache.get_all("ObservableProperty"))
         assert isinstance(next_instance, ObservableProperty)
         assert next_instance.id == ret.id
         pattern = r"^https://w3id\.org/example/id/observable-property/[0-9A-HJKMNP-TV-Z]{26}$"
-        assert re.match(pattern, ret.id), f"IRI did not match expected pattern: {ret.id}"
+        assert re.match(
+            pattern, ret.id
+        ), f"IRI did not match expected pattern: {ret.id}"

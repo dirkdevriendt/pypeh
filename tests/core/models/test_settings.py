@@ -17,7 +17,9 @@ class TestS3Env:
 
     def test_override_env(self, monkeypatch):
         monkeypatch.setenv("MYBUCKET_BUCKET_NAME", "my-test-bucket")
-        monkeypatch.setenv("MYBUCKET_ENDPOINT_URL", "http://endpoint-example.local")
+        monkeypatch.setenv(
+            "MYBUCKET_ENDPOINT_URL", "http://endpoint-example.local"
+        )
         override = {"aws_region": "eu-central-1"}
 
         config_base = S3Config(env_prefix="MYBUCKET_", config_dict=override)
@@ -39,6 +41,8 @@ class TestLocalFileEnv:
     def test_override_env(self, monkeypatch):
         monkeypatch.setenv("MY_DEFAULT_ROOT_FOLDER", "here/it/is")
         override = {"root_folder": "actually/it/is/here"}
-        config_base = LocalFileConfig(env_prefix="MY_DEFAULT_ROOT_FOLDER_", config_dict=override)
+        config_base = LocalFileConfig(
+            env_prefix="MY_DEFAULT_ROOT_FOLDER_", config_dict=override
+        )
         settings = config_base.make_settings()
         assert settings.root_folder == "actually/it/is/here"

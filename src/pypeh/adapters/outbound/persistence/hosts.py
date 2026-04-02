@@ -118,9 +118,16 @@ class DirectoryIO(HostAdapter):
 
     supported_formats = serializations.IOAdapterFactory._adapters.keys()
 
-    def __init__(self, root: str | None = None, protocol: str = "file", **storage_options):
+    def __init__(
+        self,
+        root: str | None = None,
+        protocol: str = "file",
+        **storage_options,
+    ):
         self.protocol = protocol
-        self.file_system: fsspec.AbstractFileSystem = fsspec.filesystem(protocol, **storage_options)
+        self.file_system: fsspec.AbstractFileSystem = fsspec.filesystem(
+            protocol, **storage_options
+        )
         self.root = self._normalize_root(root)
 
     def _strip_protocol(self, path: str) -> str:
@@ -186,7 +193,9 @@ class DirectoryIO(HostAdapter):
         base_path = self._normalize_path(source)
         file_io = FileIO(file_system=self.file_system)
 
-        for root, _, files in self.file_system.walk(base_path, maxdepth=maxdepth):
+        for root, _, files in self.file_system.walk(
+            base_path, maxdepth=maxdepth
+        ):
             for name in files:
                 file_path = self.file_system.sep.join(map(str, (root, name)))
                 inferred_format = FileIO.get_format(file_path)
@@ -197,7 +206,9 @@ class DirectoryIO(HostAdapter):
                 if inferred_format not in self.supported_formats:
                     continue
 
-                yield file_io.load(file_path, format=inferred_format, **load_options)
+                yield file_io.load(
+                    file_path, format=inferred_format, **load_options
+                )
 
     def load(
         self,
@@ -213,7 +224,9 @@ class DirectoryIO(HostAdapter):
         if not self.file_system.exists(path):
             raise ValueError(f"Path does not exist: {path}")
         if self.file_system.isfile(path):
-            return FileIO(file_system=self.file_system).load(path, format=format, **load_options)
+            return FileIO(file_system=self.file_system).load(
+                path, format=format, **load_options
+            )
 
         if self.file_system.isdir(path):
             return list(
@@ -225,9 +238,18 @@ class DirectoryIO(HostAdapter):
                 )
             )
 
-        raise ValueError(f"Path does not exist: {source!r} was resolved as {path}")
+        raise ValueError(
+            f"Path does not exist: {source!r} was resolved as {path}"
+        )
 
-    def dump(self, source: EntityList, destination: str, *, format: str = "yaml", **kwargs) -> None:
+    def dump(
+        self,
+        source: EntityList,
+        destination: str,
+        *,
+        format: str = "yaml",
+        **kwargs,
+    ) -> None:
         """
         Persist entities to the filesystem.
         """
@@ -254,9 +276,17 @@ class LocalStorageProvider(DirectoryIO):
 class S3StorageProvider(DirectoryIO):
     def __init__(self, settings: S3Settings, **storage_options):
         s3_conf = settings.to_s3fs()
-        session_kwargs = {"use_listings_cache": False, **storage_options, **s3_conf}
+        session_kwargs = {
+            "use_listings_cache": False,
+            **storage_options,
+            **s3_conf,
+        }
 
-        root = f"{settings.bucket_name}/{settings.prefix}" if settings.prefix else settings.bucket_name
+        root = (
+            f"{settings.bucket_name}/{settings.prefix}"
+            if settings.prefix
+            else settings.bucket_name
+        )
 
         super().__init__(
             protocol="s3",
@@ -300,7 +330,9 @@ class WebIO(HostAdapter):
         self.user_agent = user_agent
 
         # Dictionary to store format adapters
-        self.adapters: Dict[str, Callable] = serializations.IOAdapterFactory._adapters
+        self.adapters: Dict[str, Callable] = (
+            serializations.IOAdapterFactory._adapters
+        )
         self.verify_ssl = verify_ssl
         # Create a session with retry strategy
         self.session = self._create_session()
@@ -339,7 +371,11 @@ class WebIO(HostAdapter):
         return
 
     def resolve_url(
-        self, url: str, format_type: str | None = None, follow_redirects: bool = True, max_redirects: int = 5
+        self,
+        url: str,
+        format_type: str | None = None,
+        follow_redirects: bool = True,
+        max_redirects: int = 5,
     ) -> requests.Response:
         try:
             headers = None
@@ -355,7 +391,13 @@ class WebIO(HostAdapter):
             )
 
             # OPTIONAL: Check for manual redirect handling if needed
-            if not follow_redirects and response.status_code in [301, 302, 303, 307, 308]:
+            if not follow_redirects and response.status_code in [
+                301,
+                302,
+                303,
+                307,
+                308,
+            ]:
                 redirect_url = response.headers.get("Location")
                 if redirect_url:
                     # Handle relative redirects
@@ -363,10 +405,14 @@ class WebIO(HostAdapter):
                     logger.info(f"Redirect detected: {url} -> {redirect_url}")
                     if max_redirects > 0:
                         return self.resolve_url(
-                            redirect_url, follow_redirects=follow_redirects, max_redirects=max_redirects - 1
+                            redirect_url,
+                            follow_redirects=follow_redirects,
+                            max_redirects=max_redirects - 1,
                         )
                     else:
-                        raise requests.exceptions.TooManyRedirects("Maximum redirects exceeded")
+                        raise requests.exceptions.TooManyRedirects(
+                            "Maximum redirects exceeded"
+                        )
 
             response.raise_for_status()
             return response
@@ -375,7 +421,9 @@ class WebIO(HostAdapter):
             logger.error(f"Failed to resolve URL {url}: {e}")
             raise
 
-    def retrieve_data(self, url: str, format_type: Optional[str] = None, **adapter_kwargs) -> Any:
+    def retrieve_data(
+        self, url: str, format_type: Optional[str] = None, **adapter_kwargs
+    ) -> Any:
         logger.info(f"Retrieving data from: {url}")
 
         # Resolve the URL
@@ -397,10 +445,14 @@ class WebIO(HostAdapter):
         # Check if we have an adapter for this format
         if format_type is not None:
             if format_type not in self.adapters:
-                raise ValueError(f"No adapter registered for format: {format_type}")
+                raise ValueError(
+                    f"No adapter registered for format: {format_type}"
+                )
 
             else:
-                result = serializations.IOAdapterFactory.create(format_type).load(content, target_class=None)
+                result = serializations.IOAdapterFactory.create(
+                    format_type
+                ).load(content, target_class=None)
         else:
             raise ValueError("Could not detect format type of request")
         logger.info(f"Successfully processed data with {format_type} adapter")
@@ -448,7 +500,12 @@ class WebIO(HostAdapter):
 
 
 class DatabaseAdapter(HostAdapter, Generic[T_Dataclass]):
-    def __init__(self, registry: ResourceRegistry, connection: Optional[Any] = None, **kwargs):
+    def __init__(
+        self,
+        registry: ResourceRegistry,
+        connection: Optional[Any] = None,
+        **kwargs,
+    ):
         self.config = kwargs
         self.conn = connection
 
@@ -469,7 +526,9 @@ class DatabaseAdapter(HostAdapter, Generic[T_Dataclass]):
             self.disconnect()
 
     @abstractmethod
-    def query(self, resource_type: str, query_params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def query(
+        self, resource_type: str, query_params: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         pass
 
     @abstractmethod
@@ -481,16 +540,25 @@ class DatabaseAdapter(HostAdapter, Generic[T_Dataclass]):
         pass
 
     @abstractmethod
-    def update(self, resource_type: str, resource_id: str, data: Dict[str, Any]) -> None:
+    def update(
+        self, resource_type: str, resource_id: str, data: Dict[str, Any]
+    ) -> None:
         pass
 
     @abstractmethod
     def delete(self, resource_type: str, resource_id: str) -> None:
         pass
 
-    def load(self, source: str, target_class: Optional[Type[T_Dataclass]] = None, **kwargs) -> T_Dataclass:
+    def load(
+        self,
+        source: str,
+        target_class: Optional[Type[T_Dataclass]] = None,
+        **kwargs,
+    ) -> T_Dataclass:
         if "/" not in source:
-            raise ValueError(f"Invalid source format: {source}. Expected 'resource_type/resource_id'")
+            raise ValueError(
+                f"Invalid source format: {source}. Expected 'resource_type/resource_id'"
+            )
 
         resource_type, resource_id = source.split("/", 1)
         data = self.get(resource_type, resource_id)
@@ -503,7 +571,10 @@ class DatabaseAdapter(HostAdapter, Generic[T_Dataclass]):
             return target_class.model_validate(data)  # type: ignore
         else:
             # Fall back to your existing validation methods
-            from pypeh.adapters.outbound.persistence.serializations import validate_dataclass, validate_pydantic
+            from pypeh.adapters.outbound.persistence.serializations import (
+                validate_dataclass,
+                validate_pydantic,
+            )
             from dataclasses import is_dataclass
 
             if is_dataclass(target_class):
@@ -511,7 +582,12 @@ class DatabaseAdapter(HostAdapter, Generic[T_Dataclass]):
             else:
                 return validate_pydantic(json.dumps(data), target_class)  # type: ignore
 
-    def dump(self, destination: str, entity: Union[Dict[str, Any], BaseModel], **kwargs) -> None:
+    def dump(
+        self,
+        destination: str,
+        entity: Union[Dict[str, Any], BaseModel],
+        **kwargs,
+    ) -> None:
         raise NotImplementedError
 
 

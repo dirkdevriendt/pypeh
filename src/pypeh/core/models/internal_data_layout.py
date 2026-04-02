@@ -7,7 +7,14 @@ import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
 from peh_model import peh
-from typing import TYPE_CHECKING, Callable, Generator, Generic, Sequence, Protocol
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Generator,
+    Generic,
+    Sequence,
+    Protocol,
+)
 from ulid import ULID
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerView
@@ -23,7 +30,9 @@ logger = logging.getLogger(__name__)
 
 
 class ContextIndexProtocol(Protocol):
-    def context_lookup(self, observation_id: str, observable_property_id: str) -> tuple[str, str]: ...
+    def context_lookup(
+        self, observation_id: str, observable_property_id: str
+    ) -> tuple[str, str]: ...
 
 
 @dataclass
@@ -64,7 +73,9 @@ class DatasetSchema:
 
     def __post_init__(self):
         self._type = self.get_type_annotations()
-        self._elements_by_observable_property: dict[str, set[str]] = self.build_observable_property_index()
+        self._elements_by_observable_property: dict[str, set[str]] = (
+            self.build_observable_property_index()
+        )
 
     def get_type_annotations(self) -> dict[str, ObservablePropertyValueType]:
         ret: dict[str, ObservablePropertyValueType] = dict()
@@ -79,26 +90,35 @@ class DatasetSchema:
         # TODO: fix this, a single dataset can contain multiple occurrences of the same observable property
         elements_by_observable_property = defaultdict(set)
         for element_label, element in self.elements.items():
-            elements_by_observable_property[element.observable_property_id].add(element_label)
+            elements_by_observable_property[
+                element.observable_property_id
+            ].add(element_label)
         return elements_by_observable_property
 
     def get_type(self, element_label: str) -> ObservablePropertyValueType:
         return self._type[element_label]
 
-    def get_element_by_label(self, element_label: str) -> DatasetSchemaElement | None:
+    def get_element_by_label(
+        self, element_label: str
+    ) -> DatasetSchemaElement | None:
         return self.elements.get(element_label, None)
 
     def yield_elements_by_observable_property_id(
         self, observable_property_id: str
     ) -> Generator[DatasetSchemaElement, None, None]:
-        element_labels = self._elements_by_observable_property[observable_property_id]
+        element_labels = self._elements_by_observable_property[
+            observable_property_id
+        ]
         for element in element_labels:
             ret = self.get_element_by_label(element_label=element)
             assert ret is not None
             yield ret
 
     def get_observable_property_ids(self) -> list[str]:
-        return [element.observable_property_id for element in self.elements.values()]
+        return [
+            element.observable_property_id
+            for element in self.elements.values()
+        ]
 
     def get_element_labels(self) -> list[str]:
         return list(self.elements.keys())
@@ -113,7 +133,9 @@ class DatasetSchema:
         if element_label is None:
             element_label = observable_property_id
         if element_label in self.elements:
-            raise ValueError(f"DatasetSchema already contains an Element with label {element_label}")
+            raise ValueError(
+                f"DatasetSchema already contains an Element with label {element_label}"
+            )
         assert isinstance(data_type, ObservablePropertyValueType)
         new_element = DatasetSchemaElement(
             label=element_label,
@@ -123,8 +145,12 @@ class DatasetSchema:
         self.elements[element_label] = new_element
         self._type[element_label] = data_type
         if observable_property_id in self._elements_by_observable_property:
-            raise ValueError(f"ObservableProperty with id {observable_property_id} already in schema")
-        self._elements_by_observable_property[observable_property_id].add(element_label)
+            raise ValueError(
+                f"ObservableProperty with id {observable_property_id} already in schema"
+            )
+        self._elements_by_observable_property[observable_property_id].add(
+            element_label
+        )
         if is_primary_key:
             self.primary_keys.add(element_label)
 
@@ -158,7 +184,9 @@ class DatasetSchema:
             assert isinstance(expression, peh.ValidationExpression)
             conditional_expression = expression.validation_condition_expression
             if conditional_expression is not None:
-                assert isinstance(conditional_expression, peh.ValidationExpression)
+                assert isinstance(
+                    conditional_expression, peh.ValidationExpression
+                )
                 expression_stack.append(conditional_expression)
             arg_expressions = expression.validation_arg_expressions
             if arg_expressions is not None:
@@ -167,7 +195,9 @@ class DatasetSchema:
                     expression_stack.append(arg_expression)
 
             # apply context
-            arg_field_references = expression.validation_arg_contextual_field_references
+            arg_field_references = (
+                expression.validation_arg_contextual_field_references
+            )
             if arg_field_references is not None:
                 for arg_ref in arg_field_references:
                     assert isinstance(arg_ref, peh.ContextualFieldReference)
@@ -182,10 +212,14 @@ class DatasetSchema:
                         arg_ref.dataset_label = new_dataset_label
                         arg_ref.field_label = new_field_label
 
-            subject_field_references = expression.validation_subject_contextual_field_references
+            subject_field_references = (
+                expression.validation_subject_contextual_field_references
+            )
             if subject_field_references is not None:
                 for subject_field_ref in subject_field_references:
-                    assert isinstance(subject_field_ref, peh.ContextualFieldReference)
+                    assert isinstance(
+                        subject_field_ref, peh.ContextualFieldReference
+                    )
                     field_label = subject_field_ref.field_label
                     if field_label in context:
                         retrieved_context = context[field_label]
@@ -210,7 +244,9 @@ class DatasetSchema:
         """
         for schema_element in self.elements.values():
             observable_property_id = schema_element.observable_property_id
-            observable_property = cache.get(observable_property_id, "ObservableProperty")
+            observable_property = cache.get(
+                observable_property_id, "ObservableProperty"
+            )
             assert isinstance(observable_property, peh.ObservableProperty)
             validation_designs = observable_property.validation_designs
             if validation_designs is not None:
@@ -218,7 +254,9 @@ class DatasetSchema:
                     assert isinstance(validation_design, peh.ValidationDesign)
                     expression = validation_design.validation_expression
                     assert isinstance(expression, peh.ValidationExpression)
-                    self.apply_context_to_expression(expression, context, this_dataset=this_dataset)
+                    self.apply_context_to_expression(
+                        expression, context, this_dataset=this_dataset
+                    )
 
             # CALCULATION DESIGN EXCLUDED FOR NOW
             # if observable_property.calculation_design is not None:
@@ -233,7 +271,9 @@ class DatasetSchema:
 
         for element_label in element_group:
             element = self.get_element_by_label(element_label)
-            assert element is not None, f"Element with label {element_label} not found in schema"
+            assert (
+                element is not None
+            ), f"Element with label {element_label} not found in schema"
             elements[element_label] = element
             if element_label in self.foreign_keys:
                 foreign_keys[element_label] = self.foreign_keys[element_label]
@@ -266,9 +306,13 @@ class DatasetSchema:
 
             # _elements_by_observable_property
             observable_property_id = schema_element.observable_property_id
-            element_labels = self._elements_by_observable_property.pop(observable_property_id)
+            element_labels = self._elements_by_observable_property.pop(
+                observable_property_id
+            )
             for element_label in element_labels:
-                elements_by_observable_property[observable_property_id].add(element_label)
+                elements_by_observable_property[observable_property_id].add(
+                    element_label
+                )
 
             # primary_keys
             if self.primary_keys is not None:
@@ -284,7 +328,9 @@ class DatasetSchema:
         if len(self.elements) > 0:
             for element in self.elements:
                 if element in elements:
-                    raise ValueError("Schema element label {element} is non unique")
+                    raise ValueError(
+                        "Schema element label {element} is non unique"
+                    )
             elements = {**elements, **self.elements}
             all_type_info = {**all_type_info, **self._type}
             elements_by_observable_property = {
@@ -347,11 +393,17 @@ class DatasetSchema:
 
         # Case 3: shared third dataset: requires two `JoinSpec`
         refs_a = {
-            fk.reference.dataset_label: (fk.element_label, fk.reference.element_label)
+            fk.reference.dataset_label: (
+                fk.element_label,
+                fk.reference.element_label,
+            )
             for fk in self.foreign_keys.values()
         }
         refs_b = {
-            fk.reference.dataset_label: (fk.element_label, fk.reference.element_label)
+            fk.reference.dataset_label: (
+                fk.element_label,
+                fk.reference.element_label,
+            )
             for fk in other_schema.foreign_keys.values()
         }
 
@@ -368,7 +420,12 @@ class DatasetSchema:
                     right_element=a_other,
                     right_dataset=shared_label,
                 ),
-                JoinSpec(left_element=b_col_local, left_dataset="", right_element=b_other, right_dataset=shared_label),
+                JoinSpec(
+                    left_element=b_col_local,
+                    left_dataset="",
+                    right_element=b_other,
+                    right_dataset=shared_label,
+                ),
             ]
 
         return None
@@ -392,7 +449,9 @@ class Resource:
 
     def add_metadata(self, metadata_key: str, metadata_value: Any) -> bool:
         if metadata_key in self.metadata:
-            raise KeyError(f"{metadata_key} key already used in metadata mapping")
+            raise KeyError(
+                f"{metadata_key} key already used in metadata mapping"
+            )
         self.metadata[metadata_key] = metadata_value
 
         return True
@@ -417,13 +476,17 @@ class Dataset(Resource, Generic[T_DataType]):
     def get_element_labels(self) -> list[str]:
         return self.schema.get_element_labels()
 
-    def get_schema_element_by_label(self, element_label: str) -> DatasetSchemaElement | None:
+    def get_schema_element_by_label(
+        self, element_label: str
+    ) -> DatasetSchemaElement | None:
         return self.schema.get_element_by_label(element_label)
 
     def get_schema_element_by_observable_property_id(
         self, observable_property_id: str
     ) -> Generator[DatasetSchemaElement, None, None]:
-        yield from self.schema.yield_elements_by_observable_property_id(observable_property_id)
+        yield from self.schema.yield_elements_by_observable_property_id(
+            observable_property_id
+        )
 
     def get_observable_property_ids(self) -> list[str]:
         return self.schema.get_observable_property_ids()
@@ -434,7 +497,11 @@ class Dataset(Resource, Generic[T_DataType]):
     def resolve_join(self, other: Dataset) -> list[JoinSpec] | None:
         schema = self.schema
         assert schema is not None
-        return schema.detect_join(dataset_label=self.label, other_schema=other.schema, other_dataset_label=other.label)
+        return schema.detect_join(
+            dataset_label=self.label,
+            other_schema=other.schema,
+            other_dataset_label=other.label,
+        )
 
     #### RESTRUCTURE DATASET ####
 
@@ -457,17 +524,32 @@ class Dataset(Resource, Generic[T_DataType]):
                 selected_observation_ids.add(observation.id)
                 observation_design_id = str(observation.observation_design)
                 assert observation_design_id in observation_design_dict.keys()
-                observation_design = observation_design_dict[observation_design_id]
+                observation_design = observation_design_dict[
+                    observation_design_id
+                ]
                 assert observation_design is not None
                 assert isinstance(observation_design, peh.ObservationDesign)
-                for observable_property_specification in observation_design.observable_property_specifications:
+                for (
+                    observable_property_specification
+                ) in observation_design.observable_property_specifications:
                     assert observable_property_specification is not None
-                    assert observable_property_specification.observable_property is not None
-                    observable_property_ids.add(str(observable_property_specification.observable_property))
+                    assert (
+                        observable_property_specification.observable_property
+                        is not None
+                    )
+                    observable_property_ids.add(
+                        str(
+                            observable_property_specification.observable_property
+                        )
+                    )
 
             element_group = []
             for observable_property_id in observable_property_ids:
-                elements = self.schema.yield_elements_by_observable_property_id(observable_property_id)
+                elements = (
+                    self.schema.yield_elements_by_observable_property_id(
+                        observable_property_id
+                    )
+                )
                 for element in elements:
                     element_group.append(element.label)
             assert len(element_group) > 0
@@ -491,10 +573,16 @@ class Dataset(Resource, Generic[T_DataType]):
 
         return ret
 
-    def relabel(self, element_mapping: dict[str, str], dataops_adapter: OutDataOpsInterface) -> bool:
+    def relabel(
+        self,
+        element_mapping: dict[str, str],
+        dataops_adapter: OutDataOpsInterface,
+    ) -> bool:
         # uniqueness check
         if len(set(element_mapping.values())) != len(element_mapping):
-            raise ValueError("Not all values in the element_mapping are unique")
+            raise ValueError(
+                "Not all values in the element_mapping are unique"
+            )
         # relabel schema
         _ = self.schema.relabel(element_mapping)
         # relabel dataset
@@ -562,7 +650,9 @@ class Dataset(Resource, Generic[T_DataType]):
         schema_labels = set(self.get_element_labels())
         label_diff = raw_data_labels.difference(schema_labels)
         if len(label_diff) != 0:
-            raise AssertionError(f"Data Schema Error: label(s) {', '.join(label_diff)} not in schema")
+            raise AssertionError(
+                f"Data Schema Error: label(s) {', '.join(label_diff)} not in schema"
+            )
         return len(label_diff) == 0
 
     def matches_schema(self, element_labels: list[str]) -> bool:
@@ -574,18 +664,24 @@ class Dataset(Resource, Generic[T_DataType]):
         error_str = []
         undefined_diff = raw_data_labels.difference(schema_labels)
         if len(undefined_diff) > 0:
-            error_str.append(f"label(s) {', '.join(undefined_diff)} are undefined")
+            error_str.append(
+                f"label(s) {', '.join(undefined_diff)} are undefined"
+            )
         missing_diff = schema_labels.difference(raw_data_labels)
         if len(missing_diff) > 0:
             error_str.append(f"labels {', '.join(missing_diff)} are missing")
-        assert raw_data_labels == schema_labels, f"Data Schema Error: {', '.join(error_str)}"
+        assert (
+            raw_data_labels == schema_labels
+        ), f"Data Schema Error: {', '.join(error_str)}"
         return True
 
 
 @dataclass(kw_only=True)
 class DatasetSeries(Resource, Generic[T_DataType]):
     parts: dict[str, Dataset[T_DataType]] = field(default_factory=dict)
-    _obs_index: dict[str, set[str]] = field(default_factory=lambda: defaultdict(set))
+    _obs_index: dict[str, set[str]] = field(
+        default_factory=lambda: defaultdict(set)
+    )
     _context_index: dict[tuple[str, str], tuple[str, str]] = field(
         default_factory=dict
     )  # {(observation_id, observable_property_id): (dataset_label, dataset_element_label}}
@@ -606,7 +702,11 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         ), f"Failed to register observation with id {observation_id}. Could not find dataset with label {dataset_label}"
         self._obs_index[observation_id].add(dataset_label)
 
-    def _unregister_observation(self, observation_id: str, observable_property_ids: list[str] | None = None):
+    def _unregister_observation(
+        self,
+        observation_id: str,
+        observable_property_ids: list[str] | None = None,
+    ):
         self._obs_index.pop(observation_id, None)
         if observable_property_ids is not None:
             for obs_prop_id in observable_property_ids:
@@ -619,7 +719,10 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         dataset_label: str,
         element_label: str,
     ):
-        self._context_index[(observation_id, observable_property_id)] = (dataset_label, element_label)
+        self._context_index[(observation_id, observable_property_id)] = (
+            dataset_label,
+            element_label,
+        )
 
     def _unregister_observable_property(
         self,
@@ -670,7 +773,9 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         for dataset_label in self:
             dataset = self.get(dataset_label)
             assert dataset is not None
-            dataset.schema.apply_context(context, cache, this_dataset=self.label)
+            dataset.schema.apply_context(
+                context, cache, this_dataset=self.label
+            )
 
     @classmethod
     def from_peh_datalayout(
@@ -689,7 +794,9 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         dataset_series_label = data_layout.ui_label
         assert dataset_series_label is not None
         ret = DatasetSeries(
-            label=dataset_series_label, id_factory=id_factory, metadata={"described_by": data_layout.id}
+            label=dataset_series_label,
+            id_factory=id_factory,
+            metadata={"described_by": data_layout.id},
         )
         sections = getattr(data_layout, "sections")
         if sections is None:
@@ -697,7 +804,9 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         for section in sections:
             dataset_label = getattr(section, "ui_label")
             dataset = ret.add_empty_dataset(
-                dataset_label=dataset_label, id_factory=id_factory, metadata={"described_by": section.id}
+                dataset_label=dataset_label,
+                id_factory=id_factory,
+                metadata={"described_by": section.id},
             )
             assert isinstance(section, peh.DataLayoutSection)
             section_elements = section.elements
@@ -708,13 +817,19 @@ class DatasetSeries(Resource, Generic[T_DataType]):
                 assert element_label is not None
                 observable_property_id = element.observable_property
                 assert observable_property_id is not None
-                identifying = getattr(element, "is_observable_entity_key", False)
+                identifying = getattr(
+                    element, "is_observable_entity_key", False
+                )
                 observation_id = str(ULID())
                 if id_factory is not None:
                     observation_id = id_factory()
-                observable_property = cache_view.get(observable_property_id, "ObservableProperty")
+                observable_property = cache_view.get(
+                    observable_property_id, "ObservableProperty"
+                )
                 assert isinstance(observable_property, peh.ObservableProperty)
-                data_type = ObservablePropertyValueType(getattr(observable_property, "value_type", "string"))
+                data_type = ObservablePropertyValueType(
+                    getattr(observable_property, "value_type", "string")
+                )
                 ret.add_observable_property(
                     observation_id=observation_id,
                     observable_property_id=observable_property_id,
@@ -732,7 +847,9 @@ class DatasetSeries(Resource, Generic[T_DataType]):
                     foreign_key_element_label = foreign_key.label
                     assert foreign_key_element_label is not None
                     section = cache_view.get(section_id, "DataLayoutSection")
-                    assert section is not None, f"section with id {section_id} cannot be found"
+                    assert (
+                        section is not None
+                    ), f"section with id {section_id} cannot be found"
                     foreign_key_dataset_label = section.ui_label
                     assert (
                         foreign_key_dataset_label is not None
@@ -762,7 +879,11 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         layout_label = data_layout.ui_label
         if layout_label is None:
             layout_label = str(ULID())
-        ret = DatasetSeries(label=layout_label, id_factory=id_factory, metadata={"described_by": data_layout_id})
+        ret = DatasetSeries(
+            label=layout_label,
+            id_factory=id_factory,
+            metadata={"described_by": data_layout_id},
+        )
 
         # add Observation links
         section_mapping = data_import_config.section_mapping
@@ -790,14 +911,22 @@ class DatasetSeries(Resource, Generic[T_DataType]):
                 observation = cache_view.get(observation_id, "Observation")
                 assert isinstance(observation, peh.Observation)
                 observation_design_id = observation.observation_design
-                assert isinstance(observation_design_id, peh.ObservationDesignId)
-                observation_design = cache_view.get(observation_design_id, "ObservationDesign")
+                assert isinstance(
+                    observation_design_id, peh.ObservationDesignId
+                )
+                observation_design = cache_view.get(
+                    observation_design_id, "ObservationDesign"
+                )
                 assert isinstance(observation_design, peh.ObservationDesign)
                 obs_prop_spec_dict = {}
-                obs_prop_specs = observation_design.observable_property_specifications
+                obs_prop_specs = (
+                    observation_design.observable_property_specifications
+                )
                 assert obs_prop_specs is not None
                 for obs_prop_spec in obs_prop_specs:
-                    assert isinstance(obs_prop_spec, peh.ObservablePropertySpecification)
+                    assert isinstance(
+                        obs_prop_spec, peh.ObservablePropertySpecification
+                    )
                     obs_prop_id = str(obs_prop_spec.observable_property)
                     obs_prop_spec_dict[obs_prop_id] = obs_prop_spec
                 # data_layout_section_observable_properties
@@ -807,26 +936,41 @@ class DatasetSeries(Resource, Generic[T_DataType]):
                 labeled_observable_property_specifications = {}
                 for element in elements:
                     assert isinstance(element, peh.DataLayoutElement)
-                    if element.observable_property in obs_prop_spec_dict.keys():
+                    if (
+                        element.observable_property
+                        in obs_prop_spec_dict.keys()
+                    ):
                         element_label = element.label
                         assert element_label is not None
                         obs_prop_id = element.observable_property
                         assert isinstance(obs_prop_id, str)
-                        obs_prop = cache_view.get(obs_prop_id, "ObservableProperty")
+                        obs_prop = cache_view.get(
+                            obs_prop_id, "ObservableProperty"
+                        )
                         assert isinstance(obs_prop, peh.ObservableProperty)
                         obs_prop_spec = obs_prop_spec_dict[obs_prop_id]
-                        assert isinstance(obs_prop_spec, peh.ObservablePropertySpecification)
-                        labeled_observable_property_specifications[element_label] = obs_prop_spec
+                        assert isinstance(
+                            obs_prop_spec, peh.ObservablePropertySpecification
+                        )
+                        labeled_observable_property_specifications[
+                            element_label
+                        ] = obs_prop_spec
                         # process foreign keys
                         foreign_key = element.foreign_key_link
                         if foreign_key is not None:
-                            assert isinstance(foreign_key, peh.DataLayoutElementLink)
+                            assert isinstance(
+                                foreign_key, peh.DataLayoutElementLink
+                            )
                             section_id = foreign_key.section
                             assert isinstance(section_id, str)
                             foreign_key_element_label = foreign_key.label
                             assert foreign_key_element_label is not None
-                            section = cache_view.get(section_id, "DataLayoutSection")
-                            assert section is not None, f"section with id {section_id} cannot be found"
+                            section = cache_view.get(
+                                section_id, "DataLayoutSection"
+                            )
+                            assert (
+                                section is not None
+                            ), f"section with id {section_id} cannot be found"
                             foreign_key_dataset_label = section.ui_label
                             assert (
                                 foreign_key_dataset_label is not None
@@ -896,7 +1040,10 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         )
 
     def add_empty_dataset(
-        self, dataset_label: str, id_factory: Callable[[], str] | None = None, metadata: dict | None = None
+        self,
+        dataset_label: str,
+        id_factory: Callable[[], str] | None = None,
+        metadata: dict | None = None,
     ) -> Dataset:
         dataset = Dataset(label=dataset_label, id_factory=id_factory)
         if metadata is not None:
@@ -909,7 +1056,9 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         self,
         dataset_label: str,
         observation: peh.Observation,
-        labeled_observable_property_specifications: dict[str, peh.ObservablePropertySpecification],
+        labeled_observable_property_specifications: dict[
+            str, peh.ObservablePropertySpecification
+        ],
         cache_view: CacheContainerView,
         data: T_DataType | None = None,
     ) -> Dataset:
@@ -922,17 +1071,27 @@ class DatasetSeries(Resource, Generic[T_DataType]):
             dataset = self[dataset_label]
         assert dataset is not None
         dataset.add_observation_to_index(observation.id)
-        for element_label, observable_property_specification in labeled_observable_property_specifications.items():
+        for (
+            element_label,
+            observable_property_specification,
+        ) in labeled_observable_property_specifications.items():
             identifying = (
                 str(observable_property_specification.specification_category)
                 == peh.ObservablePropertySpecificationCategory.identifying.text
             )
-            observable_property_id = observable_property_specification.observable_property
+            observable_property_id = (
+                observable_property_specification.observable_property
+            )
             assert isinstance(observable_property_id, str)
-            observable_property = cache_view.get(observable_property_id, "ObservableProperty")
+            observable_property = cache_view.get(
+                observable_property_id, "ObservableProperty"
+            )
             assert isinstance(observable_property, peh.ObservableProperty)
             if identifying:
-                if observable_property.id in dataset.schema._elements_by_observable_property:
+                if (
+                    observable_property.id
+                    in dataset.schema._elements_by_observable_property
+                ):
                     self._register_observable_property(
                         observable_property_id=observable_property.id,
                         observation_id=observation.id,
@@ -943,7 +1102,9 @@ class DatasetSeries(Resource, Generic[T_DataType]):
             _ = self.add_observable_property(
                 observation_id=observation.id,
                 observable_property_id=observable_property.id,
-                data_type=ObservablePropertyValueType(getattr(observable_property, "value_type", "string")),
+                data_type=ObservablePropertyValueType(
+                    getattr(observable_property, "value_type", "string")
+                ),
                 dataset_label=dataset_label,
                 element_label=element_label,
                 is_primary_key=identifying,
@@ -971,19 +1132,29 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         dataset = self.get(dataset_label)
         assert dataset is not None
         return dataset.subset(
-            new_dataset_series_label, observation_groups, observation_designs, dataops_adapter=dataops_adapter
+            new_dataset_series_label,
+            observation_groups,
+            observation_designs,
+            dataops_adapter=dataops_adapter,
         )
 
     def relabel_dataset(
-        self, dataset_label: str, element_mapping: dict[str, str], dataops_adapter: OutDataOpsInterface
+        self,
+        dataset_label: str,
+        element_mapping: dict[str, str],
+        dataops_adapter: OutDataOpsInterface,
     ):
         dataset = self.get(dataset_label)
         assert dataset is not None
-        return dataset.relabel(element_mapping, dataops_adapter=dataops_adapter)
+        return dataset.relabel(
+            element_mapping, dataops_adapter=dataops_adapter
+        )
 
     #### EXTRACT INFO FROM DATASETSERIES ####
 
-    def get_type_annotations(self) -> dict[str, dict[str, ObservablePropertyValueType]]:
+    def get_type_annotations(
+        self,
+    ) -> dict[str, dict[str, ObservablePropertyValueType]]:
         ret: dict[str, dict[str, ObservablePropertyValueType]] = dict()
         for dataset in self.parts.values():
             label = dataset.label
@@ -991,7 +1162,9 @@ class DatasetSeries(Resource, Generic[T_DataType]):
 
         return ret
 
-    def resolve_join(self, left_dataset_label: str, right_dataset_label: str) -> list[JoinSpec] | None:
+    def resolve_join(
+        self, left_dataset_label: str, right_dataset_label: str
+    ) -> list[JoinSpec] | None:
         left = self.get(left_dataset_label)
         assert left is not None
         right = self.get(right_dataset_label)
@@ -1005,7 +1178,11 @@ class DatasetSeries(Resource, Generic[T_DataType]):
             ret[key] = self.resolve_join(*combo)
         return ret
 
-    def matches_schema(self, raw_data_dict: dict[str, T_DataType], adapter: OutDataOpsInterface) -> bool:
+    def matches_schema(
+        self,
+        raw_data_dict: dict[str, T_DataType],
+        adapter: OutDataOpsInterface,
+    ) -> bool:
         ret = True
         for dataset_label in self.parts:
             if dataset_label not in raw_data_dict:
@@ -1028,29 +1205,44 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         for dataset_label in self:
             dataset = self.get(dataset_label)
             assert dataset is not None
-            for observable_property_id, element_labels in dataset.schema._elements_by_observable_property.items():
+            for (
+                observable_property_id,
+                element_labels,
+            ) in dataset.schema._elements_by_observable_property.items():
                 assert (
                     len(element_labels) == 1
                 ), "TEMPORARY RESTRICTION observable_properties should be unique within a dataset"
                 element_label = next(iter(element_labels))
-                field_ref_dict[observable_property_id][dataset_label] = element_label
+                field_ref_dict[observable_property_id][dataset_label] = (
+                    element_label
+                )
 
         return field_ref_dict
 
-    def get_contextual_field_reference_index(self) -> dict[str, tuple[str, str] | None]:
+    def get_contextual_field_reference_index(
+        self,
+    ) -> dict[str, tuple[str, str] | None]:
         field_ref_dict = {}
         for dataset_label in self:
             dataset = self.get(dataset_label)
             assert dataset is not None
-            for observable_property_id, element_label in dataset.schema._elements_by_observable_property.items():
+            for (
+                observable_property_id,
+                element_label,
+            ) in dataset.schema._elements_by_observable_property.items():
                 if observable_property_id in field_ref_dict:
                     field_ref_dict[observable_property_id] = None
                 else:
-                    field_ref_dict[observable_property_id] = (dataset_label, element_label)
+                    field_ref_dict[observable_property_id] = (
+                        dataset_label,
+                        element_label,
+                    )
 
         return field_ref_dict
 
-    def get_datasets_by_observation(self, observation_id: str) -> Generator[Dataset, None, None]:
+    def get_datasets_by_observation(
+        self, observation_id: str
+    ) -> Generator[Dataset, None, None]:
         dataset_labels = self._obs_index.get(observation_id, None)
         if dataset_labels is None:
             return
@@ -1059,10 +1251,18 @@ class DatasetSeries(Resource, Generic[T_DataType]):
             assert ret is not None
             yield ret
 
-    def context_lookup(self, observation_id: str, observable_property_id: str) -> tuple[str, str]:
-        assert self._obs_index is not None, "Cannot perform lookup without observation index"
-        assert self._context_index is not None, "Cannot perform lookup without context index"
-        ret = self._context_index.get((observation_id, observable_property_id), None)
+    def context_lookup(
+        self, observation_id: str, observable_property_id: str
+    ) -> tuple[str, str]:
+        assert (
+            self._obs_index is not None
+        ), "Cannot perform lookup without observation index"
+        assert (
+            self._context_index is not None
+        ), "Cannot perform lookup without context index"
+        ret = self._context_index.get(
+            (observation_id, observable_property_id), None
+        )
         if ret is None:
             raise ValueError(
                 f"Could not find DatasetElement linked to observation with id {observation_id} and observable property with id {observable_property_id}"
@@ -1104,7 +1304,10 @@ class DatasetSeries(Resource, Generic[T_DataType]):
     def update(self, *args, **kwargs):
         if args:
             if len(args) > 1:
-                raise TypeError("update expected at most 1 arguments, " "got %d" % len(args))
+                raise TypeError(
+                    "update expected at most 1 arguments, "
+                    "got %d" % len(args)
+                )
             assert len(args) == 1
             other = dict(args[0])
             for key in other:

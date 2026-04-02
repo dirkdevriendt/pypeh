@@ -13,9 +13,16 @@ from peh_model.peh import (
     ObservablePropertySpecificationCategory,
 )
 
-from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.containers import (
+    CacheContainerFactory,
+    CacheContainerView,
+)
 from pypeh.core.cache.utils import load_entities_from_tree
-from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface, T_DataType, ValidationInterface
+from pypeh.core.interfaces.outbound.dataops import (
+    OutDataOpsInterface,
+    T_DataType,
+    ValidationInterface,
+)
 from pypeh.core.models.internal_data_layout import (
     Dataset,
     DatasetSchema,
@@ -25,7 +32,10 @@ from pypeh.core.models.internal_data_layout import (
     ForeignKey,
 )
 from pypeh.core.models.validation_errors import ValidationErrorReport
-from pypeh.core.models.constants import ObservablePropertyValueType, ValidationErrorLevel
+from pypeh.core.models.constants import (
+    ObservablePropertyValueType,
+    ValidationErrorLevel,
+)
 from pypeh.core.models.validation_dto import (
     ValidationExpression,
     ValidationDesign,
@@ -42,23 +52,41 @@ class DataOpsProtocol(Protocol, Generic[T_DataType]):
 
     def _validate(self, data, config) -> ValidationErrorReport: ...
 
-    def validate(self, dataset, dependent_dataset_series, cache_view, allow_incomplete) -> ValidationErrorReport: ...
+    def validate(
+        self, dataset, dependent_dataset_series, cache_view, allow_incomplete
+    ) -> ValidationErrorReport: ...
 
-    def build_column_validation(self, dataset_schema_element, type_annotations, cache_view) -> ColumnValidation: ...
+    def build_column_validation(
+        self, dataset_schema_element, type_annotations, cache_view
+    ) -> ColumnValidation: ...
 
     def build_validation_config(
         self, dataset, dataset_series, cache_view, allow_incomplete=False
     ) -> ValidationConfig: ...
 
-    def build_dependency_graph(self, observations, context_index, cache_view, join_spec_mapping): ...
+    def build_dependency_graph(
+        self, observations, context_index, cache_view, join_spec_mapping
+    ): ...
 
     def compile_dependency_graph(self, dependency_graph) -> ExecutionPlan: ...
 
     def compute_with_dependency_graph(self, dependency_graph, datasets): ...
 
-    def enrich(self, source_dataset_series, target_observations, target_derived_from, cache_view): ...
+    def enrich(
+        self,
+        source_dataset_series,
+        target_observations,
+        target_derived_from,
+        cache_view,
+    ): ...
 
-    def summarize(self, source_dataset_series, target_observations, target_derived_from, cache_view): ...
+    def summarize(
+        self,
+        source_dataset_series,
+        target_observations,
+        target_derived_from,
+        cache_view,
+    ): ...
 
 
 class TestValidation(abc.ABC):
@@ -484,7 +512,9 @@ class TestValidation(abc.ABC):
     def test_build_validation_config(self):
         adapter = self.get_adapter()
         cache_view = self.get_container_validation_example_03()
-        data_layout = cache_view.get("peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataLayout")
+        data_layout = cache_view.get(
+            "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataLayout"
+        )
         assert isinstance(data_layout, DataLayout)
         dataset_series = DatasetSeries.from_peh_datalayout(
             data_layout=data_layout, cache_view=cache_view, apply_context=True
@@ -501,7 +531,9 @@ class TestValidation(abc.ABC):
     def test_build_column_validation_with_custom_message(self):
         adapter = self.get_adapter()
         cache_view = self.get_container_validation_example_03()
-        data_layout = cache_view.get("peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataLayout")
+        data_layout = cache_view.get(
+            "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataLayout"
+        )
         assert isinstance(data_layout, DataLayout)
         dataset_series = DatasetSeries.from_peh_datalayout(
             data_layout=data_layout, cache_view=cache_view, apply_context=True
@@ -516,7 +548,9 @@ class TestValidation(abc.ABC):
             cache_view=cache_view,
         )
         assert cv.validations is not None
-        collect_messages = [vd.error_message for vd in cv.validations if vd.error_message]
+        collect_messages = [
+            vd.error_message for vd in cv.validations if vd.error_message
+        ]
         pattern = r"IF matrix IS\s*\([^)]*\)"
         found = any(re.search(pattern, msg) for msg in collect_messages)
         assert found
@@ -553,7 +587,9 @@ class TestDatasetSeriesMods(abc.ABC):
     def verify_dataset_subset(self, dataset: Dataset, num_elements: int):
         raise NotImplementedError
 
-    def verify_dataset_relabel(self, dataset: Dataset, expected_labels: list[str]):
+    def verify_dataset_relabel(
+        self, dataset: Dataset, expected_labels: list[str]
+    ):
         raise NotImplementedError
 
     @pytest.fixture(scope="function")
@@ -762,10 +798,16 @@ class TestDatasetSeriesMods(abc.ABC):
 
         return series
 
-    def test_subset_dataset(self, dataset_series, observation_designs, observations):
-        urine_this_design, urine_other_design = observation_designs["urine_lab"]
+    def test_subset_dataset(
+        self, dataset_series, observation_designs, observations
+    ):
+        urine_this_design, urine_other_design = observation_designs[
+            "urine_lab"
+        ]
         urine_this, urine_other = observations["urine_lab"]
-        num_primary_keys_urine_lab = len(dataset_series["urine_lab"].schema.primary_keys)
+        num_primary_keys_urine_lab = len(
+            dataset_series["urine_lab"].schema.primary_keys
+        )
         ret = dataset_series.subset_dataset(
             dataset_label="urine_lab",
             new_dataset_series_label="urine_split",
@@ -787,7 +829,9 @@ class TestDatasetSeriesMods(abc.ABC):
             assert len(schema) == dataset_schema_size[dataset_label]
             assert len(schema.primary_keys) == num_primary_keys_urine_lab
 
-            self.verify_dataset_subset(dataset, num_elements=dataset_schema_size[dataset_label])
+            self.verify_dataset_subset(
+                dataset, num_elements=dataset_schema_size[dataset_label]
+            )
 
     def test_relabel_dataset(self, dataset_series):
         element_mapping = {
@@ -799,7 +843,9 @@ class TestDatasetSeriesMods(abc.ABC):
             "sg": "sg_new",
         }
         _ = dataset_series.relabel_dataset(
-            "urine_lab", element_mapping=element_mapping, dataops_adapter=self.get_adapter()
+            "urine_lab",
+            element_mapping=element_mapping,
+            dataops_adapter=self.get_adapter(),
         )
         dataset = dataset_series.get("urine_lab")
         for _, new_label in element_mapping.items():
@@ -807,7 +853,9 @@ class TestDatasetSeriesMods(abc.ABC):
             assert schema_element is not None
             assert schema_element.label == new_label
 
-        self.verify_dataset_relabel(dataset, expected_labels=list(element_mapping.values()))
+        self.verify_dataset_relabel(
+            dataset, expected_labels=list(element_mapping.values())
+        )
 
 
 class TestEnrichment(abc.ABC):
@@ -834,8 +882,12 @@ class TestEnrichment(abc.ABC):
     def raw_data(self):
         raise NotImplementedError
 
-    def raw_dataset_series(self, data_import_config_id: str, cache_view: CacheContainerView) -> DatasetSeries:
-        data_import_config = cache_view.get(data_import_config_id, "DataImportConfig")
+    def raw_dataset_series(
+        self, data_import_config_id: str, cache_view: CacheContainerView
+    ) -> DatasetSeries:
+        data_import_config = cache_view.get(
+            data_import_config_id, "DataImportConfig"
+        )
         assert isinstance(data_import_config, DataImportConfig)
         return DatasetSeries.from_peh_data_import_config(
             data_import_config=data_import_config,
@@ -846,13 +898,18 @@ class TestEnrichment(abc.ABC):
         data_import_config_id = "peh:ENRICHMENT_TEST_IMPORT_CONFIG"
         src_path = "./input/ProcessingExamples/Enrichment_03_MULTI_STEP"
         cache_view = self.container(src_path)
-        dataset_series = self.raw_dataset_series(data_import_config_id=data_import_config_id, cache_view=cache_view)
+        dataset_series = self.raw_dataset_series(
+            data_import_config_id=data_import_config_id, cache_view=cache_view
+        )
         adapter = self.get_adapter()
 
         observations_dict = dataset_series.observations
         observations = []
         for observation_set in observations_dict.values():
-            temp = [cache_view.get(obs_id, "Observation") for obs_id in observation_set]
+            temp = [
+                cache_view.get(obs_id, "Observation")
+                for obs_id in observation_set
+            ]
             observations.extend(temp)
         join_spec_mapping = dataset_series.resolve_all_joins()
         dependency_graph = adapter.build_dependency_graph(
@@ -862,14 +919,18 @@ class TestEnrichment(abc.ABC):
             cache_view=cache_view,
         )
         assert isinstance(dependency_graph, Graph)
-        ret = adapter.compile_dependency_graph(dependency_graph=dependency_graph)
+        ret = adapter.compile_dependency_graph(
+            dependency_graph=dependency_graph
+        )
         assert isinstance(ret, ExecutionPlan)
 
     def test_dependency_graph_compilation(self):
         data_import_config_id = "peh:ENRICHMENT_TEST_IMPORT_CONFIG"
         src_path = "./input/ProcessingExamples/Enrichment_03_MULTI_STEP"
         cache_view = self.container(src_path)
-        dataset_series = self.raw_dataset_series(data_import_config_id=data_import_config_id, cache_view=cache_view)
+        dataset_series = self.raw_dataset_series(
+            data_import_config_id=data_import_config_id, cache_view=cache_view
+        )
         adapter = self.get_adapter()
         assert isinstance(adapter, OutDataOpsInterface)
         datasets = self.raw_data()
@@ -882,9 +943,17 @@ class TestEnrichment(abc.ABC):
             )
         _ = adapter.enrich(
             source_dataset_series=dataset_series,
-            target_observations=[cache_view.get("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "Observation")],
+            target_observations=[
+                cache_view.get(
+                    "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
+                    "Observation",
+                )
+            ],
             target_derived_from=[
-                cache_view.get("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE", "Observation")
+                cache_view.get(
+                    "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE",
+                    "Observation",
+                )
             ],
             cache_view=cache_view,
         )
@@ -897,18 +966,24 @@ class TestEnrichment(abc.ABC):
             enriched_data[dataset_label] = raw_data
             dataset_element_labels = dataset.get_element_labels()
             for element_label in dataset_element_labels:
-                values = adapter.get_element_values(raw_data, element_label=element_label, as_list=True)
+                values = adapter.get_element_values(
+                    raw_data, element_label=element_label, as_list=True
+                )
                 assert len(values) > 0
         assert dataset_series.matches_schema(enriched_data, adapter)
 
 
 @pytest.mark.dataframe
-class TestDataFrameDataOps(TestValidation, TestDataImport, TestDatasetSeriesMods):
+class TestDataFrameDataOps(
+    TestValidation, TestDataImport, TestDatasetSeriesMods
+):
     __test__ = True
 
     def get_adapter(self) -> DataOpsProtocol:
         try:
-            from pypeh.adapters.outbound.validation.pandera_adapter import validation_adapter as dfops
+            from pypeh.adapters.outbound.validation.pandera_adapter import (
+                validation_adapter as dfops,
+            )
 
             return dfops.DataFrameValidationAdapter()  # type: ignore
         except ImportError:
@@ -941,14 +1016,33 @@ class TestDataFrameDataOps(TestValidation, TestDataImport, TestDatasetSeriesMods
 
         layout["urine_lab"] = pl.DataFrame(
             [
-                {"id_subject": "001", "matrix": "urine", "crt": 1.2, "crt_lod": 0.1, "crt_loq": 0.2, "sg": 1.015},
-                {"id_subject": "002", "matrix": "urine", "crt": 1.5, "crt_lod": 0.1, "crt_loq": 0.2, "sg": 1.020},
+                {
+                    "id_subject": "001",
+                    "matrix": "urine",
+                    "crt": 1.2,
+                    "crt_lod": 0.1,
+                    "crt_loq": 0.2,
+                    "sg": 1.015,
+                },
+                {
+                    "id_subject": "002",
+                    "matrix": "urine",
+                    "crt": 1.5,
+                    "crt_lod": 0.1,
+                    "crt_loq": 0.2,
+                    "sg": 1.020,
+                },
             ]
         )
 
         layout["analyticalinfo"] = pl.DataFrame(
             [
-                {"id_subject": "001", "biomarkercode": "B001", "matrix": "urine", "labinstitution": "LabCorp"},
+                {
+                    "id_subject": "001",
+                    "biomarkercode": "B001",
+                    "matrix": "urine",
+                    "labinstitution": "LabCorp",
+                },
                 {
                     "id_subject": "002",
                     "biomarkercode": "B002",
@@ -965,7 +1059,9 @@ class TestDataFrameDataOps(TestValidation, TestDataImport, TestDatasetSeriesMods
         assert data is not None
         assert data.shape[-1] == num_elements
 
-    def verify_dataset_relabel(self, dataset: Dataset, expected_labels: list[str]):
+    def verify_dataset_relabel(
+        self, dataset: Dataset, expected_labels: list[str]
+    ):
         data = dataset.data
         assert data is not None
         labels = data.columns
@@ -978,7 +1074,9 @@ class TestDataFrameEnrichment(TestEnrichment):
 
     def get_adapter(self) -> DataOpsProtocol:
         try:
-            from pypeh.adapters.outbound.enrichment import dataframe_adapter as dfops
+            from pypeh.adapters.outbound.enrichment import (
+                dataframe_adapter as dfops,
+            )
 
             return dfops.DataFrameEnrichmentAdapter()  # type: ignore
         except ImportError:
@@ -1046,8 +1144,12 @@ class TestAggregation(abc.ABC):
     def raw_data(self):
         raise NotImplementedError
 
-    def raw_dataset_series(self, data_import_config_id: str, cache_view: CacheContainerView) -> DatasetSeries:
-        data_import_config = cache_view.get(data_import_config_id, "DataImportConfig")
+    def raw_dataset_series(
+        self, data_import_config_id: str, cache_view: CacheContainerView
+    ) -> DatasetSeries:
+        data_import_config = cache_view.get(
+            data_import_config_id, "DataImportConfig"
+        )
         assert isinstance(data_import_config, DataImportConfig)
         return DatasetSeries.from_peh_data_import_config(
             data_import_config=data_import_config,
@@ -1058,7 +1160,9 @@ class TestAggregation(abc.ABC):
         data_import_config_id = "peh:ENRICHMENT_TEST_IMPORT_CONFIG"
         src_path = "./input/AggregationExamples/Aggregation"
         cache_view = self.container(src_path)
-        dataset_series = self.raw_dataset_series(data_import_config_id=data_import_config_id, cache_view=cache_view)
+        dataset_series = self.raw_dataset_series(
+            data_import_config_id=data_import_config_id, cache_view=cache_view
+        )
         adapter = self.get_adapter()
         assert isinstance(adapter, OutDataOpsInterface)
         datasets = self.raw_data()
@@ -1072,13 +1176,21 @@ class TestAggregation(abc.ABC):
         target_observations = []
         target_derived_from = []
         for target_obs_id, derived_from_obs_id in [
-            ("peh:TEST_SUMMARY", "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED"),
-            ("peh:TEST_SUMMARY2", "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE"),
+            (
+                "peh:TEST_SUMMARY",
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
+            ),
+            (
+                "peh:TEST_SUMMARY2",
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE",
+            ),
         ]:
             target_observation = cache_view.get(target_obs_id, "Observation")
             assert target_observation is not None
             target_observations.append(target_observation)
-            derived_from_observation = cache_view.get(derived_from_obs_id, "Observation")
+            derived_from_observation = cache_view.get(
+                derived_from_obs_id, "Observation"
+            )
             assert derived_from_observation is not None
             target_derived_from.append(derived_from_observation)
 
@@ -1100,7 +1212,11 @@ class TestAggregation(abc.ABC):
                 "sem_birthweight",
                 "mean_birthlength",
             },
-            "TEST_SUMMARY2": {"current_year", "current_month", "mean_birthweight2"},
+            "TEST_SUMMARY2": {
+                "current_year",
+                "current_month",
+                "mean_birthweight2",
+            },
         }
 
         for result_label, expected_shape in expected_shape_dict.items():
@@ -1108,7 +1224,9 @@ class TestAggregation(abc.ABC):
             assert result_dataset is not None
             assert result_dataset.data.shape == expected_shape
             # function function_kwarg.mapping_name is used as column name for the result of the stat builder, so we check that it is present in the resulting dataset, along with the stratification columns
-            observed_labels = set(adapter.get_element_labels(result_dataset.data))
+            observed_labels = set(
+                adapter.get_element_labels(result_dataset.data)
+            )
             assert observed_labels == expected_labels_dict[result_label]
 
 
@@ -1118,7 +1236,9 @@ class TestDataFrameAggregation(TestAggregation):
 
     def get_adapter(self) -> DataOpsProtocol:
         try:
-            from pypeh.adapters.outbound.aggregation.polars_adapter import dataframe_adapter as dfops
+            from pypeh.adapters.outbound.aggregation.polars_adapter import (
+                dataframe_adapter as dfops,
+            )
 
             return dfops.DataFrameAggregationAdapter()  # type: ignore
         except ImportError:

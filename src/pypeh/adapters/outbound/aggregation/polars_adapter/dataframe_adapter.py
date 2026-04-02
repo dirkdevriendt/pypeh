@@ -9,7 +9,9 @@ from pypeh.adapters.outbound.dataops.dataframe_adapter import DataFrameAdapter
 import pypeh.adapters.outbound.aggregation.polars_adapter.statistics as stats
 
 
-class DataFrameAggregationAdapter(DataFrameAdapter, AggregationInterface[pl.DataFrame]):
+class DataFrameAggregationAdapter(
+    DataFrameAdapter, AggregationInterface[pl.DataFrame]
+):
     data_format = pl.DataFrame
 
     def calculate_for_strata(
@@ -55,13 +57,20 @@ class DataFrameAggregationAdapter(DataFrameAdapter, AggregationInterface[pl.Data
         if result_aliases is not None:
             exprs = list(
                 chain.from_iterable(
-                    self._get_stat_function(expr)(value_col, result_alias=result_alias, **kwargs)
-                    for expr, result_alias in zip(stat_builders, result_aliases)
+                    self._get_stat_function(expr)(
+                        value_col, result_alias=result_alias, **kwargs
+                    )
+                    for expr, result_alias in zip(
+                        stat_builders, result_aliases
+                    )
                 )
             )
         else:
             exprs = list(
-                chain.from_iterable(self._get_stat_function(expr)(value_col, **kwargs) for expr in stat_builders)
+                chain.from_iterable(
+                    self._get_stat_function(expr)(value_col, **kwargs)
+                    for expr in stat_builders
+                )
             )
 
         if not group_cols:
@@ -80,9 +89,16 @@ class DataFrameAggregationAdapter(DataFrameAdapter, AggregationInterface[pl.Data
         else:
             raise ValueError(f"Invalid function specification: {fn}")
 
-    def group_results(self, results_to_collect: list[pl.LazyFrame], strata: list[str] | None = None) -> pl.DataFrame:
+    def group_results(
+        self,
+        results_to_collect: list[pl.LazyFrame],
+        strata: list[str] | None = None,
+    ) -> pl.DataFrame:
         if strata is None:
             ret = pl.concat(results_to_collect, how="horizontal")
         else:
-            ret = reduce(lambda left, right: left.join(right, on=strata, how="inner"), results_to_collect)
+            ret = reduce(
+                lambda left, right: left.join(right, on=strata, how="inner"),
+                results_to_collect,
+            )
         return ret.collect()

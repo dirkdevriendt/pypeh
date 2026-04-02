@@ -9,7 +9,12 @@ from pypeh.adapters.outbound.persistence.hosts import (
     LocalStorageProvider,
     S3StorageProvider,
 )
-from pypeh.core.models.settings import LocalFileConfig, LocalFileSettings, S3Config, S3Settings
+from pypeh.core.models.settings import (
+    LocalFileConfig,
+    LocalFileSettings,
+    S3Config,
+    S3Settings,
+)
 from pypeh.core.session.connections import ConnectionManager
 
 from tests.test_utils.dirutils import get_absolute_path
@@ -31,7 +36,9 @@ class TestFileIO:
 
     @pytest.mark.core
     def test_basic(self):
-        source = get_absolute_path("./input/config_basic/_Reference_YAML/observable_entities.yaml")
+        source = get_absolute_path(
+            "./input/config_basic/_Reference_YAML/observable_entities.yaml"
+        )
         fio = FileIO(fsspec.filesystem("file"))
         data = fio.load(source)
         assert isinstance(data, EntityList)
@@ -48,7 +55,9 @@ class TestFileIO:
 @pytest.mark.dataframe
 class TestFileIOCsv:
     def test_basic(self):
-        source = get_absolute_path("./input/config_basic/_Tabular_Data/sampling_data_to_import.csv")
+        source = get_absolute_path(
+            "./input/config_basic/_Tabular_Data/sampling_data_to_import.csv"
+        )
         fio = FileIO(fsspec.filesystem("file"))
         data = fio.load(source, raise_if_empty=False)
         from polars import DataFrame
@@ -59,7 +68,9 @@ class TestFileIOCsv:
 @pytest.mark.dataframe
 class TestFileIOExcel:
     def test_basic(self):
-        source = get_absolute_path("./input/config_basic/_Tabular_Data/sampling_data_to_import.xlsx")
+        source = get_absolute_path(
+            "./input/config_basic/_Tabular_Data/sampling_data_to_import.xlsx"
+        )
         fio = FileIO(fsspec.filesystem("file"))
         data = fio.load(source)
         assert isinstance(data, dict)
@@ -125,7 +136,9 @@ class TestLocalStorageProvider:
 class TestS3StorageProvider:
     def test_basic(self, monkeypatch):
         monkeypatch.setenv("MYBUCKET_BUCKET_NAME", "my-test-bucket")
-        monkeypatch.setenv("MYBUCKET_ENDPOINT_URL", "http://endpoint-example.local")
+        monkeypatch.setenv(
+            "MYBUCKET_ENDPOINT_URL", "http://endpoint-example.local"
+        )
         override = {"aws_region": "eu-central-1"}
 
         config_base = S3Config(env_prefix="MYBUCKET_", config_dict=override)
@@ -135,7 +148,9 @@ class TestS3StorageProvider:
 
     def test_path(self, monkeypatch):
         monkeypatch.setenv("MYBUCKET_BUCKET_NAME", "my-test-bucket")
-        monkeypatch.setenv("MYBUCKET_ENDPOINT_URL", "http://endpoint-example.local")
+        monkeypatch.setenv(
+            "MYBUCKET_ENDPOINT_URL", "http://endpoint-example.local"
+        )
         override = {"aws_region": "eu-central-1"}
 
         config_base = S3Config(env_prefix="MYBUCKET_", config_dict=override)

@@ -33,7 +33,9 @@ DATATYPE_TRANSLATION_DICT = {
 }
 
 
-def get_observable_property_property(label, observable_property, codebook_property_name):
+def get_observable_property_property(
+    label, observable_property, codebook_property_name
+):
     match str(codebook_property_name):
         case "DataRequestCategory":
             return (
@@ -46,7 +48,11 @@ def get_observable_property_property(label, observable_property, codebook_proper
         case "Label":
             return label
         case "Description":
-            return observable_property.description if observable_property.description else observable_property.ui_label
+            return (
+                observable_property.description
+                if observable_property.description
+                else observable_property.ui_label
+            )
         case "Type":
             if observable_property.categorical:
                 return "categorical"
@@ -61,7 +67,12 @@ def get_observable_property_property(label, observable_property, codebook_proper
             return None
         case "AllowedValues":
             if observable_property.categorical:
-                return ";\r\n".join([vo.key + " = " + vo.value for vo in observable_property.value_options])
+                return ";\r\n".join(
+                    [
+                        vo.key + " = " + vo.value
+                        for vo in observable_property.value_options
+                    ]
+                )
             else:
                 return None
         case "DecimalsAfterComma":
@@ -74,18 +85,32 @@ def get_observable_property_property(label, observable_property, codebook_proper
             return None
 
 
-def fill_excel_form_sheet(worksheet, style_dict, header_list=None, metadata_record_dict=None, autofit=True):
+def fill_excel_form_sheet(
+    worksheet,
+    style_dict,
+    header_list=None,
+    metadata_record_dict=None,
+    autofit=True,
+):
     for counter, header in enumerate(header_list):
         worksheet.write(0, counter, header, style_dict["header"])
     for counter, metadata_record_key in enumerate(metadata_record_dict.keys()):
         worksheet.write(counter + 1, 0, metadata_record_key)
-        worksheet.write(counter + 1, 1, metadata_record_dict[metadata_record_key])
+        worksheet.write(
+            counter + 1, 1, metadata_record_dict[metadata_record_key]
+        )
     if autofit:
         worksheet.autofit()
 
 
 def fill_excel_worksheet_from_section(
-    worksheet, section, observable_property_dict, style_dict, observed_values=None, data_list=None, autofit=True
+    worksheet,
+    section,
+    observable_property_dict,
+    style_dict,
+    observed_values=None,
+    data_list=None,
+    autofit=True,
 ):
     match str(section.section_type):
         case "data_form":
@@ -115,8 +140,15 @@ def fill_excel_worksheet_from_section(
                 for r_nr, record in enumerate(data_list):
                     for c_nr, element in enumerate(record):
                         worksheet.write(r_nr + 1, c_nr, element)
-            if observed_values is not None and isinstance(observed_values, list):
-                row_ids = list(set(observed_value.observable_entity for observed_value in observed_values))
+            if observed_values is not None and isinstance(
+                observed_values, list
+            ):
+                row_ids = list(
+                    set(
+                        observed_value.observable_entity
+                        for observed_value in observed_values
+                    )
+                )
                 for r_nr, r_name in enumerate(row_ids):
                     for c_nr, c_name in enumerate(column_ids):
                         worksheet.write(
@@ -126,7 +158,8 @@ def fill_excel_worksheet_from_section(
                                 observed_value.value_as_string
                                 for observed_value in observed_values
                                 if observed_value.observable_entity == r_name
-                                and observed_value.observable_property == c_name
+                                and observed_value.observable_property
+                                == c_name
                             ][0],
                         )
         case "property_table":
@@ -154,25 +187,38 @@ def fill_excel_worksheet_from_section(
                     index_name = index_name[:-4]
                 if (
                     index_name not in observable_property_dict
-                    and f"mass concentration of {index_name} in urine" in observable_property_dict
+                    and f"mass concentration of {index_name} in urine"
+                    in observable_property_dict
                 ):
                     index_name = f"mass concentration of {index_name} in urine"
                 op = observable_property_dict[index_name]
 
                 for c_nr, c_name in enumerate(columns):
-                    worksheet.write(row, c_nr, get_observable_property_property(element.label, op, c_name))
+                    worksheet.write(
+                        row,
+                        c_nr,
+                        get_observable_property_property(
+                            element.label, op, c_name
+                        ),
+                    )
                 row += 1
     if autofit:
         worksheet.autofit()
 
 
 def write_excel_datatemplate(
-    layout, path, observable_property_dict=None, studyinfo_header_list=None, codebook_metadata_dict=None
+    layout,
+    path,
+    observable_property_dict=None,
+    studyinfo_header_list=None,
+    codebook_metadata_dict=None,
 ):
     try:
         import xlsxwriter
     except ImportError:
-        logging.error("Install the 'xlsxwriter' module in order to use the ExportXlsx Adapter.")
+        logging.error(
+            "Install the 'xlsxwriter' module in order to use the ExportXlsx Adapter."
+        )
         raise
 
     def create_analyticalinfo_dataset(layout):
@@ -185,7 +231,8 @@ def write_excel_datatemplate(
                         (element.label, matrix)
                         for element in section.elements
                         if not (
-                            element.label in ANALYTICALINFO_EXCLUSION_LIST or element.label[-4:] in ["_lod", "_loq"]
+                            element.label in ANALYTICALINFO_EXCLUSION_LIST
+                            or element.label[-4:] in ["_lod", "_loq"]
                         )
                     ]
                 )
@@ -193,19 +240,34 @@ def write_excel_datatemplate(
 
     workbook = xlsxwriter.Workbook(path)
     style_dict = {
-        "header": workbook.add_format({"font_color": "white", "bg_color": "#4F80BD", "bold": True}),
+        "header": workbook.add_format(
+            {"font_color": "white", "bg_color": "#4F80BD", "bold": True}
+        ),
         "warning": workbook.add_format({"font_color": "red"}),
         "bold": workbook.add_format({"bold": True}),
     }
     worksheet = workbook.add_worksheet("studyinfo")
     worksheet.autofit()
     fill_excel_form_sheet(
-        worksheet, style_dict, header_list=studyinfo_header_list, metadata_record_dict=codebook_metadata_dict
+        worksheet,
+        style_dict,
+        header_list=studyinfo_header_list,
+        metadata_record_dict=codebook_metadata_dict,
     )
     for section in layout.sections:
         worksheet = workbook.add_worksheet(section.ui_label)
-        data_list = create_analyticalinfo_dataset(layout) if section.ui_label == "analyticalinfo" else None
-        fill_excel_worksheet_from_section(worksheet, section, observable_property_dict, style_dict, data_list=data_list)
+        data_list = (
+            create_analyticalinfo_dataset(layout)
+            if section.ui_label == "analyticalinfo"
+            else None
+        )
+        fill_excel_worksheet_from_section(
+            worksheet,
+            section,
+            observable_property_dict,
+            style_dict,
+            data_list=data_list,
+        )
     workbook.close()
 
 

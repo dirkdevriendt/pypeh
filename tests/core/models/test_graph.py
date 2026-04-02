@@ -1,7 +1,10 @@
 import pytest
 
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
-from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.containers import (
+    CacheContainerFactory,
+    CacheContainerView,
+)
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.models.graph import Graph, Node
 from pypeh.core.interfaces.outbound.dataops import DataEnrichmentInterface
@@ -83,9 +86,15 @@ class TestGraph:
         g.add_edge(Node("C", "C"), Node("D", "D"))
         g.add_edge(Node("E", "E"), Node("F", "F"))
         sorted_nodes = g.topological_sort()
-        assert sorted_nodes.index(Node("A", "A")) < sorted_nodes.index(Node("B", "B"))
-        assert sorted_nodes.index(Node("C", "C")) < sorted_nodes.index(Node("D", "D"))
-        assert sorted_nodes.index(Node("E", "E")) < sorted_nodes.index(Node("F", "F"))
+        assert sorted_nodes.index(Node("A", "A")) < sorted_nodes.index(
+            Node("B", "B")
+        )
+        assert sorted_nodes.index(Node("C", "C")) < sorted_nodes.index(
+            Node("D", "D")
+        )
+        assert sorted_nodes.index(Node("E", "E")) < sorted_nodes.index(
+            Node("F", "F")
+        )
 
     def test_topological_sort_with_cycle(self):
         g = Graph()
@@ -101,7 +110,9 @@ class TestGraph:
 
 
 class MockIndex(ContextIndexProtocol):
-    def context_lookup(self, observation_id: str, observable_property_id: str) -> tuple[str, str]:
+    def context_lookup(
+        self, observation_id: str, observable_property_id: str
+    ) -> tuple[str, str]:
         return (observation_id, observable_property_id)
 
 
@@ -120,7 +131,9 @@ class TestEnrichmentInterfaceCore:
 
     def test_building_dependency_graph(self):
         interface = DataEnrichmentInterface()
-        container = self.container("./input/dependency_graph/Enrichment_01_SINGLE_SOURCE")
+        container = self.container(
+            "./input/dependency_graph/Enrichment_01_SINGLE_SOURCE"
+        )
         observations = list(container.get_all("Observation"))
         g = interface.build_dependency_graph(
             observations,  # type: ignore
@@ -147,11 +160,27 @@ class TestEnrichmentInterfaceCore:
         assert all(isinstance(var, Node) for var in sorted_nodes)
         assert len(sorted_nodes) == len(g.nodes)
         assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "N1Birthdate"))
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
+                "peh:agemonths",
+            )
+        ) > sorted_nodes.index(
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
+                "N1Birthdate",
+            )
+        )
         assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "Todaysdate"))
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
+                "peh:agemonths",
+            )
+        ) > sorted_nodes.index(
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
+                "Todaysdate",
+            )
+        )
 
     def test_topological_sort_linked_source(self):
         interface = DataEnrichmentInterface()
@@ -169,11 +198,27 @@ class TestEnrichmentInterfaceCore:
         assert all(isinstance(var, Node) for var in sorted_nodes)
         assert len(sorted_nodes) == len(g.nodes)
         assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "N1Birthdate"))
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
+                "peh:agemonths",
+            )
+        ) > sorted_nodes.index(
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
+                "N1Birthdate",
+            )
+        )
         assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_HOUSEHOLD_INGESTED", "Todaysdate"))
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
+                "peh:agemonths",
+            )
+        ) > sorted_nodes.index(
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_HOUSEHOLD_INGESTED",
+                "Todaysdate",
+            )
+        )
 
     def test_topological_sort_multi_steps(self):
         interface = DataEnrichmentInterface()
@@ -191,17 +236,57 @@ class TestEnrichmentInterfaceCore:
         assert all(isinstance(var, Node) for var in sorted_nodes)
         assert len(sorted_nodes) == len(g.nodes)
         assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:N1Birthdate"))
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
+                "peh:agemonths",
+            )
+        ) > sorted_nodes.index(
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
+                "peh:N1Birthdate",
+            )
+        )
         assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:agemonths")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate"))
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
+                "peh:agemonths",
+            )
+        ) > sorted_nodes.index(
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
+                "peh:Todaysdate",
+            )
+        )
         assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:current_day"))
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
+                "peh:Todaysdate",
+            )
+        ) > sorted_nodes.index(
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
+                "peh:current_day",
+            )
+        )
         assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:current_month"))
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
+                "peh:Todaysdate",
+            )
+        ) > sorted_nodes.index(
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
+                "peh:current_month",
+            )
+        )
         assert sorted_nodes.index(
-            Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED", "peh:Todaysdate")
-        ) > sorted_nodes.index(Node("peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED", "peh:current_year"))
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED",
+                "peh:Todaysdate",
+            )
+        ) > sorted_nodes.index(
+            Node(
+                "peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED",
+                "peh:current_year",
+            )
+        )

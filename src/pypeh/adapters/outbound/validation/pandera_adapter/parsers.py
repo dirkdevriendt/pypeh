@@ -34,11 +34,16 @@ def parse_single_expression(expression: ValidationExpression) -> Mapping:
     command = expression.command
     try:
         command = getattr(
-            importlib.import_module("pypeh.adapters.outbound.validation.pandera_adapter.check_functions"), command
+            importlib.import_module(
+                "pypeh.adapters.outbound.validation.pandera_adapter.check_functions"
+            ),
+            command,
         )
     except AttributeError:
         try:
-            from pypeh.adapters.outbound.validation.pandera_adapter.check_functions import AVAILABLE_CHECKS
+            from pypeh.adapters.outbound.validation.pandera_adapter.check_functions import (
+                AVAILABLE_CHECKS,
+            )
         except Exception as _:
             ImportError("Please install dataframe module.")
         assert command in AVAILABLE_CHECKS
@@ -56,7 +61,9 @@ def parse_validation_expression(expression: ValidationExpression) -> Mapping:
         case = "condition"
         exp_1 = parse_validation_expression(conditional_expr)
         arg_expressions = expression.arg_expressions
-        if arg_expressions is None or (isinstance(arg_expressions, list) and len(arg_expressions) == 0):
+        if arg_expressions is None or (
+            isinstance(arg_expressions, list) and len(arg_expressions) == 0
+        ):
             expression.conditional_expression = None
             exp_2 = parse_validation_expression(expression)
         else:
@@ -108,7 +115,10 @@ def parse_columns(columns: Sequence[ColumnValidation]) -> List:
                 "required": column.required,
                 "nullable": column.nullable,
                 "unique": False,
-                "checks": [parse_validation_design(check) for check in column.validations]
+                "checks": [
+                    parse_validation_design(check)
+                    for check in column.validations
+                ]
                 if column.validations
                 else [],
             }
@@ -121,7 +131,11 @@ def parse_config(config: ValidationConfig) -> Mapping:
         "name": config.name,
         "columns": parse_columns(config.columns),
         "ids": config.identifying_column_names,
-        "checks": [parse_validation_design(check) for check in config.validations] if config.validations else [],
+        "checks": [
+            parse_validation_design(check) for check in config.validations
+        ]
+        if config.validations
+        else [],
     }
 
 
@@ -188,12 +202,22 @@ def parse_error_schema(error_schema: ErrorSchema) -> ValidationError:
     )
 
 
-def parse_error_report(error_collector_schema: ErrorCollectorSchema) -> ValidationErrorReport:
+def parse_error_report(
+    error_collector_schema: ErrorCollectorSchema,
+) -> ValidationErrorReport:
     error_reports = error_collector_schema.error_reports
     exceptions = error_collector_schema.exceptions
 
-    groups = [parse_validation_error_group(group) for group in error_reports] if error_reports else []
-    unexpected_errors = [parse_collected_exception(exception) for exception in exceptions] if exceptions else []
+    groups = (
+        [parse_validation_error_group(group) for group in error_reports]
+        if error_reports
+        else []
+    )
+    unexpected_errors = (
+        [parse_collected_exception(exception) for exception in exceptions]
+        if exceptions
+        else []
+    )
 
     counter = {level: 0 for level in ValidationErrorLevel}
 

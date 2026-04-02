@@ -101,7 +101,12 @@ def decimals_precision(
     subject: Sequence[str] | None = None,
 ) -> pl.LazyFrame:
     return data.lazyframe.select(
-        pl.col(data.key).cast(pl.String).str.split(".").list.get(1).str.len_chars().le(arg_values[0])
+        pl.col(data.key)
+        .cast(pl.String)
+        .str.split(".")
+        .list.get(1)
+        .str.len_chars()
+        .le(arg_values[0])
     )
 
 
@@ -143,4 +148,6 @@ def tukey_range_check_log(
     )
     joined = lf.join(stats_lf, how="cross")
 
-    return joined.select(pl.col(key).log().is_between(pl.col("lower"), pl.col("upper")))
+    return joined.select(
+        pl.col(key).log().is_between(pl.col("lower"), pl.col("upper"))
+    )

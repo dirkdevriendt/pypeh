@@ -3,7 +3,10 @@ import pytest
 from datetime import datetime
 from rdflib import Graph
 
-from pypeh.core.cache.containers import CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.containers import (
+    CacheContainerFactory,
+    CacheContainerView,
+)
 from pypeh.core.models.internal_data_layout import DatasetSeries
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
 from pypeh.core.cache.utils import load_entities_from_tree
@@ -41,5 +44,9 @@ class TestSemanticProfile:
         creator = "https://orcid.org/000-000-000X"
         created = datetime.now()
         prov = {"creator": creator, "created": created}
-        ret = rdf_graph_builder.build_series(dataset_series, provenance_info=prov, schema_profile=CSVWDatasetSchema)
+        ret = rdf_graph_builder.build_series(
+            dataset_series,
+            provenance_info=prov,
+            schema_profile=CSVWDatasetSchema,
+        )
         assert isinstance(ret, Graph)

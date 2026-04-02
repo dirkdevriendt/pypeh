@@ -14,22 +14,47 @@ def stat_count(
     ]
 
 
-def statistics_count_n(value_cont: str, result_alias: str = "n") -> list[pl.Expr]:
-    return [stat_count(value_cont, result_aliases=[result_alias, "missing_n", "missing_pct"])[0].alias(result_alias)]
+def statistics_count_n(
+    value_cont: str, result_alias: str = "n"
+) -> list[pl.Expr]:
+    return [
+        stat_count(
+            value_cont,
+            result_aliases=[result_alias, "missing_n", "missing_pct"],
+        )[0].alias(result_alias)
+    ]
 
 
-def statistics_count_missing_n(value_cont: str, result_alias: str = "missing_n") -> list[pl.Expr]:
-    return [stat_count(value_cont, result_aliases=["n", result_alias, "missing_pct"])[1]]
+def statistics_count_missing_n(
+    value_cont: str, result_alias: str = "missing_n"
+) -> list[pl.Expr]:
+    return [
+        stat_count(
+            value_cont, result_aliases=["n", result_alias, "missing_pct"]
+        )[1]
+    ]
 
 
-def statistics_count_missing_pct(value_cont: str, result_alias: str = "missing_pct") -> list[pl.Expr]:
-    return [stat_count(value_cont, result_aliases=["n", "missing_n", result_alias])[2].alias(result_alias)]
+def statistics_count_missing_pct(
+    value_cont: str, result_alias: str = "missing_pct"
+) -> list[pl.Expr]:
+    return [
+        stat_count(
+            value_cont, result_aliases=["n", "missing_n", result_alias]
+        )[2].alias(result_alias)
+    ]
 
 
 def stat_arithmetic(
     value_col: str,
     *,
-    result_aliases: list[str] = ["mean", "st", "sem", "mean_95_ci_lower", "mean_95_ci_upper"],
+    result_aliases: list[str] = [
+        "mean",
+        "st",
+        "sem",
+        "mean_95_ci_lower",
+        "mean_95_ci_upper",
+    ],
 ) -> list[pl.Expr]:
     n = pl.col(value_col).is_finite().sum()
     mean = pl.col(value_col).mean()
@@ -43,50 +68,97 @@ def stat_arithmetic(
     ]
 
 
-def statistics_mean(value_cont: str, result_alias: str = "mean") -> list[pl.Expr]:
+def statistics_mean(
+    value_cont: str, result_alias: str = "mean"
+) -> list[pl.Expr]:
     return [
-        stat_arithmetic(value_cont, result_aliases=[result_alias, "st", "sem", "mean_95_ci_lower", "mean_95_ci_upper"])[
-            0
-        ].alias(result_alias)
+        stat_arithmetic(
+            value_cont,
+            result_aliases=[
+                result_alias,
+                "st",
+                "sem",
+                "mean_95_ci_lower",
+                "mean_95_ci_upper",
+            ],
+        )[0].alias(result_alias)
     ]
 
 
 def statistics_st(value_cont: str, result_alias: str = "st") -> list[pl.Expr]:
     return [
         stat_arithmetic(
-            value_cont, result_aliases=["mean", result_alias, "sem", "mean_95_ci_lower", "mean_95_ci_upper"]
+            value_cont,
+            result_aliases=[
+                "mean",
+                result_alias,
+                "sem",
+                "mean_95_ci_lower",
+                "mean_95_ci_upper",
+            ],
         )[1].alias(result_alias)
     ]
 
 
-def statistics_sem(value_cont: str, result_alias: str = "sem") -> list[pl.Expr]:
+def statistics_sem(
+    value_cont: str, result_alias: str = "sem"
+) -> list[pl.Expr]:
     return [
         stat_arithmetic(
-            value_cont, result_aliases=["mean", "st", result_alias, "mean_95_ci_lower", "mean_95_ci_upper"]
+            value_cont,
+            result_aliases=[
+                "mean",
+                "st",
+                result_alias,
+                "mean_95_ci_lower",
+                "mean_95_ci_upper",
+            ],
         )[2].alias(result_alias)
     ]
 
 
-def statistics_mean_95_ci_lower(value_cont: str, result_alias: str = "mean_95_ci_lower") -> list[pl.Expr]:
+def statistics_mean_95_ci_lower(
+    value_cont: str, result_alias: str = "mean_95_ci_lower"
+) -> list[pl.Expr]:
     return [
-        stat_arithmetic(value_cont, result_aliases=["mean", "st", "sem", result_alias, "mean_95_ci_upper"])[3].alias(
-            result_alias
-        )
+        stat_arithmetic(
+            value_cont,
+            result_aliases=[
+                "mean",
+                "st",
+                "sem",
+                result_alias,
+                "mean_95_ci_upper",
+            ],
+        )[3].alias(result_alias)
     ]
 
 
-def statistics_mean_95_ci_upper(value_cont: str, result_alias: str = "mean_95_ci_upper") -> list[pl.Expr]:
+def statistics_mean_95_ci_upper(
+    value_cont: str, result_alias: str = "mean_95_ci_upper"
+) -> list[pl.Expr]:
     return [
-        stat_arithmetic(value_cont, result_aliases=["mean", "st", "sem", "mean_95_ci_lower", result_alias])[4].alias(
-            result_alias
-        )
+        stat_arithmetic(
+            value_cont,
+            result_aliases=[
+                "mean",
+                "st",
+                "sem",
+                "mean_95_ci_lower",
+                result_alias,
+            ],
+        )[4].alias(result_alias)
     ]
 
 
 def stat_geometric(
     value_col: str,
     *,
-    result_aliases: list[str] = ["geom_mean", "geom_mean_95_ci_lower", "geom_mean_95_ci_upper"],
+    result_aliases: list[str] = [
+        "geom_mean",
+        "geom_mean_95_ci_lower",
+        "geom_mean_95_ci_upper",
+    ],
 ) -> list[pl.Expr]:
     n = pl.col(value_col).is_finite().sum()
     log_mean = pl.col(value_col).log().mean()
@@ -98,27 +170,48 @@ def stat_geometric(
     ]
 
 
-def statistics_geom_mean(value_cont: str, result_alias: str = "geom_mean") -> list[pl.Expr]:
+def statistics_geom_mean(
+    value_cont: str, result_alias: str = "geom_mean"
+) -> list[pl.Expr]:
     return [
-        stat_geometric(value_cont, result_aliases=[result_alias, "geom_mean_95_ci_lower", "geom_mean_95_ci_upper"])[
-            0
-        ].alias(result_alias)
+        stat_geometric(
+            value_cont,
+            result_aliases=[
+                result_alias,
+                "geom_mean_95_ci_lower",
+                "geom_mean_95_ci_upper",
+            ],
+        )[0].alias(result_alias)
     ]
 
 
-def statistics_geom_mean_95_ci_lower(value_cont: str, result_alias: str = "geom_mean_95_ci_lower") -> list[pl.Expr]:
+def statistics_geom_mean_95_ci_lower(
+    value_cont: str, result_alias: str = "geom_mean_95_ci_lower"
+) -> list[pl.Expr]:
     return [
-        stat_geometric(value_cont, result_aliases=["geom_mean", result_alias, "geom_mean_95_ci_upper"])[1].alias(
-            result_alias
-        )
+        stat_geometric(
+            value_cont,
+            result_aliases=[
+                "geom_mean",
+                result_alias,
+                "geom_mean_95_ci_upper",
+            ],
+        )[1].alias(result_alias)
     ]
 
 
-def statistics_geom_mean_95_ci_upper(value_cont: str, result_alias: str = "geom_mean_95_ci_upper") -> list[pl.Expr]:
+def statistics_geom_mean_95_ci_upper(
+    value_cont: str, result_alias: str = "geom_mean_95_ci_upper"
+) -> list[pl.Expr]:
     return [
-        stat_geometric(value_cont, result_aliases=["geom_mean", "geom_mean_95_ci_lower", result_alias])[2].alias(
-            result_alias
-        )
+        stat_geometric(
+            value_cont,
+            result_aliases=[
+                "geom_mean",
+                "geom_mean_95_ci_lower",
+                result_alias,
+            ],
+        )[2].alias(result_alias)
     ]
 
 
@@ -174,12 +267,23 @@ def stat_percentiles(
     *,
     result_aliases: list[str] = ["p", "ci_lower", "ci_upper"],
 ) -> list[pl.Expr]:
-    quantile_exprs = [pl.col(value_col).quantile(q).alias(f"{result_aliases[0]}{int(q * 100)}") for q in quants]
+    quantile_exprs = [
+        pl.col(value_col)
+        .quantile(q)
+        .alias(f"{result_aliases[0]}{int(q * 100)}")
+        for q in quants
+    ]
     quantile_ci_lower_exprs = [
-        _percentile_ci_lower(value_col, q, result_aliases=[result_aliases[0], result_aliases[1]]) for q in quants
+        _percentile_ci_lower(
+            value_col, q, result_aliases=[result_aliases[0], result_aliases[1]]
+        )
+        for q in quants
     ]
     quantile_ci_upper_exprs = [
-        _percentile_ci_upper(value_col, q, result_aliases=[result_aliases[0], result_aliases[2]]) for q in quants
+        _percentile_ci_upper(
+            value_col, q, result_aliases=[result_aliases[0], result_aliases[2]]
+        )
+        for q in quants
     ]
     return quantile_exprs + quantile_ci_lower_exprs + quantile_ci_upper_exprs
 
@@ -188,9 +292,11 @@ def statistics_percentiles_p5(
     value_cont: str, quants: list[float] = [0.05], result_aliases: str = "p5"
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[0].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[0].alias(result_aliases)
     ]
 
 
@@ -198,9 +304,11 @@ def statistics_percentiles_p10(
     value_cont: str, quants: list[float] = [0.1], result_aliases: str = "p10"
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[0].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[0].alias(result_aliases)
     ]
 
 
@@ -208,9 +316,11 @@ def statistics_percentiles_p25(
     value_cont: str, quants: list[float] = [0.25], result_aliases: str = "p25"
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[0].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[0].alias(result_aliases)
     ]
 
 
@@ -218,9 +328,11 @@ def statistics_percentiles_p50(
     value_cont: str, quants: list[float] = [0.5], result_aliases: str = "p50"
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[0].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[0].alias(result_aliases)
     ]
 
 
@@ -228,9 +340,11 @@ def statistics_percentiles_p75(
     value_cont: str, quants: list[float] = [0.75], result_aliases: str = "p75"
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[0].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[0].alias(result_aliases)
     ]
 
 
@@ -238,9 +352,11 @@ def statistics_percentiles_p90(
     value_cont: str, quants: list[float] = [0.9], result_aliases: str = "p90"
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[0].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[0].alias(result_aliases)
     ]
 
 
@@ -248,147 +364,205 @@ def statistics_percentiles_p95(
     value_cont: str, quants: list[float] = [0.95], result_aliases: str = "p95"
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[0].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[0].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p5_ci_lower(
-    value_cont: str, quants: list[float] = [0.05], result_aliases: str = "p5_ci_lower"
+    value_cont: str,
+    quants: list[float] = [0.05],
+    result_aliases: str = "p5_ci_lower",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[1].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[1].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p10_ci_lower(
-    value_cont: str, quants: list[float] = [0.1], result_aliases: str = "p10_ci_lower"
+    value_cont: str,
+    quants: list[float] = [0.1],
+    result_aliases: str = "p10_ci_lower",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[1].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[1].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p25_ci_lower(
-    value_cont: str, quants: list[float] = [0.25], result_aliases: str = "p25_ci_lower"
+    value_cont: str,
+    quants: list[float] = [0.25],
+    result_aliases: str = "p25_ci_lower",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[1].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[1].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p50_ci_lower(
-    value_cont: str, quants: list[float] = [0.5], result_aliases: str = "p50_ci_lower"
+    value_cont: str,
+    quants: list[float] = [0.5],
+    result_aliases: str = "p50_ci_lower",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[1].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[1].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p75_ci_lower(
-    value_cont: str, quants: list[float] = [0.75], result_aliases: str = "p75_ci_lower"
+    value_cont: str,
+    quants: list[float] = [0.75],
+    result_aliases: str = "p75_ci_lower",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[1].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[1].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p90_ci_lower(
-    value_cont: str, quants: list[float] = [0.9], result_aliases: str = "p90_ci_lower"
+    value_cont: str,
+    quants: list[float] = [0.9],
+    result_aliases: str = "p90_ci_lower",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[1].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[1].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p95_ci_lower(
-    value_cont: str, quants: list[float] = [0.95], result_aliases: str = "p95_ci_lower"
+    value_cont: str,
+    quants: list[float] = [0.95],
+    result_aliases: str = "p95_ci_lower",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[1].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[1].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p5_ci_upper(
-    value_cont: str, quants: list[float] = [0.05], result_aliases: str = "p5_ci_upper"
+    value_cont: str,
+    quants: list[float] = [0.05],
+    result_aliases: str = "p5_ci_upper",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[2].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[2].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p10_ci_upper(
-    value_cont: str, quants: list[float] = [0.1], result_aliases: str = "p10_ci_upper"
+    value_cont: str,
+    quants: list[float] = [0.1],
+    result_aliases: str = "p10_ci_upper",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[2].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[2].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p25_ci_upper(
-    value_cont: str, quants: list[float] = [0.25], result_aliases: str = "p25_ci_upper"
+    value_cont: str,
+    quants: list[float] = [0.25],
+    result_aliases: str = "p25_ci_upper",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[2].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[2].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p50_ci_upper(
-    value_cont: str, quants: list[float] = [0.5], result_aliases: str = "p50_ci_upper"
+    value_cont: str,
+    quants: list[float] = [0.5],
+    result_aliases: str = "p50_ci_upper",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[2].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[2].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p75_ci_upper(
-    value_cont: str, quants: list[float] = [0.75], result_aliases: str = "p75_ci_upper"
+    value_cont: str,
+    quants: list[float] = [0.75],
+    result_aliases: str = "p75_ci_upper",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[2].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[2].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p90_ci_upper(
-    value_cont: str, quants: list[float] = [0.9], result_aliases: str = "p90_ci_upper"
+    value_cont: str,
+    quants: list[float] = [0.9],
+    result_aliases: str = "p90_ci_upper",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[2].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[2].alias(result_aliases)
     ]
 
 
 def statistics_percentiles_p95_ci_upper(
-    value_cont: str, quants: list[float] = [0.95], result_aliases: str = "p95_ci_upper"
+    value_cont: str,
+    quants: list[float] = [0.95],
+    result_aliases: str = "p95_ci_upper",
 ) -> list[pl.Expr]:
     return [
-        stat_percentiles(value_cont, quants=quants, result_aliases=["p", "ci_lower", "ci_upper"])[2].alias(
-            result_aliases
-        )
+        stat_percentiles(
+            value_cont,
+            quants=quants,
+            result_aliases=["p", "ci_lower", "ci_upper"],
+        )[2].alias(result_aliases)
     ]

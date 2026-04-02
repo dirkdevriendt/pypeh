@@ -17,13 +17,17 @@ logger = logging.getLogger(__name__)
 class TestDataFrameEnrichment:
     def test_end_to_end_basic(self, monkeypatch):
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
-        monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_ROOT_FOLDER", get_absolute_path("./input/test_04"))
+        monkeypatch.setenv(
+            "DEFAULT_PERSISTED_CACHE_ROOT_FOLDER",
+            get_absolute_path("./input/test_04"),
+        )
 
         session = Session()
         session.load_persisted_cache(source="config")
 
         data_import_config = session.cache.get(
-            "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataImportConfig"
+            "peh:IMPORT_CONFIG_CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA",
+            "DataImportConfig",
         )
         assert isinstance(data_import_config, peh.DataImportConfig)
 
@@ -41,7 +45,10 @@ class TestDataFrameEnrichment:
         target_observations = []
         derived_from_observations = []
         for target_id, derived_from_id in [
-            ("peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB_IMPUTED", "peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB")
+            (
+                "peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB_IMPUTED",
+                "peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB",
+            )
         ]:
             target = cache_view.get(target_id, "Observation")
             target_observations.append(target)

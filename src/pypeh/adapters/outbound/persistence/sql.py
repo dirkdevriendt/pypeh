@@ -14,8 +14,23 @@ logger = logging.getLogger(__name__)
 
 
 class PostgreSQLAdapter(DatabaseAdapter):
-    def connect(self, host: str, database: str, user: str, password: str, port: int = 5432, **kwargs) -> None:
-        self.conn = psycopg2.connect(host=host, database=database, user=user, password=password, port=port, **kwargs)
+    def connect(
+        self,
+        host: str,
+        database: str,
+        user: str,
+        password: str,
+        port: int = 5432,
+        **kwargs,
+    ) -> None:
+        self.conn = psycopg2.connect(
+            host=host,
+            database=database,
+            user=user,
+            password=password,
+            port=port,
+            **kwargs,
+        )
 
     def disconnect(self) -> None:
         """Close database connection."""
@@ -23,7 +38,9 @@ class PostgreSQLAdapter(DatabaseAdapter):
             self.conn.close()
             self.conn = None
 
-    def query(self, resource_type: str, query_params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def query(
+        self, resource_type: str, query_params: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         raise NotImplementedError
 
     def get(self, resource_type: str, resource_id: str) -> Dict[str, Any]:
@@ -32,7 +49,9 @@ class PostgreSQLAdapter(DatabaseAdapter):
     def save(self, resource_type: str, data: Dict[str, Any]) -> str:
         raise NotADirectoryError
 
-    def update(self, resource_type: str, resource_id: str, data: Dict[str, Any]) -> None:
+    def update(
+        self, resource_type: str, resource_id: str, data: Dict[str, Any]
+    ) -> None:
         raise NotImplementedError
 
     def delete(self, resource_type: str, resource_id: str) -> None:

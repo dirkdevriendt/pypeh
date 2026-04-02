@@ -19,7 +19,9 @@ class LocationEnum(Enum):
 
 class DomainNameEnum(Enum):
     TYPE_API_SCHEMAS = "https://typeapi.lab.pidconsortium.net/v1/types/schema"
-    TYPE_REGISTRY_OBJECTS = "https://typeregistry.lab.pidconsortium.net/objects"
+    TYPE_REGISTRY_OBJECTS = (
+        "https://typeregistry.lab.pidconsortium.net/objects"
+    )
     RESOLVE_PID = "https://hdl.handle.net/api/handles"
 
 

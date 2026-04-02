@@ -7,7 +7,11 @@ import peh_model.peh as peh
 
 from typing import TYPE_CHECKING, TypeVar, Sequence, Generic
 
-from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory, CacheContainerView
+from pypeh.core.cache.containers import (
+    CacheContainer,
+    CacheContainerFactory,
+    CacheContainerView,
+)
 from pypeh.core.models.proxy import TypedLazyProxy
 from pypeh.core.models.settings import (
     LocalFileConfig,
@@ -48,7 +52,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
     def __init__(
         self,
         *,
-        connection_config: ConnectionConfig | Sequence[ConnectionConfig] | None = None,
+        connection_config: ConnectionConfig
+        | Sequence[ConnectionConfig]
+        | None = None,
         default_connection: str | ConnectionConfig | None = None,
         env_file: str | None = None,
         load_from_default_connection: str | None = None,
@@ -68,15 +74,25 @@ class Session(Generic[T_AdapterType, T_DataType]):
             load_from_default_connection: (str | None = None):
                 Optional. Source to load from default connection on init.
         """
-        connection_map, default_connection = self._normalize_configs(connection_config, default_connection)
-        self.connection_manager: ConnectionManager = ConnectionManager(ValidatedImportConfig())
-        validated_default_connection: BaseSettings | None = self._init_default_connection(default_connection, env_file)
+        connection_map, default_connection = self._normalize_configs(
+            connection_config, default_connection
+        )
+        self.connection_manager: ConnectionManager = ConnectionManager(
+            ValidatedImportConfig()
+        )
+        validated_default_connection: BaseSettings | None = (
+            self._init_default_connection(default_connection, env_file)
+        )
         if connection_map is not None:
-            import_config = ImportConfig(connection_map=connection_map).to_validated_import_config(_env_file=env_file)
+            import_config = ImportConfig(
+                connection_map=connection_map
+            ).to_validated_import_config(_env_file=env_file)
             self.connection_manager = ConnectionManager(import_config)
 
         if validated_default_connection is not None:
-            self.connection_manager._register_connection_label(DEFAULT_CONNECTION_LABEL, validated_default_connection)
+            self.connection_manager._register_connection_label(
+                DEFAULT_CONNECTION_LABEL, validated_default_connection
+            )
         self.cache: CacheContainer = CacheContainerFactory.new()
         if load_from_default_connection is not None:
             _ = self.load_persisted_cache(source=load_from_default_connection)
@@ -94,16 +110,22 @@ class Session(Generic[T_AdapterType, T_DataType]):
             if default_connection is None:
                 default_connection = self._env_default_connection()
             elif isinstance(default_connection, str):
-                raise ValueError("String value for default_connection requires a connection_config")
+                raise ValueError(
+                    "String value for default_connection requires a connection_config"
+                )
             elif not isinstance(default_connection, ConnectionConfig):
-                logger.debug("All resources will be loaded as linked open data")
+                logger.debug(
+                    "All resources will be loaded as linked open data"
+                )
         else:
             if isinstance(connection_config, ConnectionConfig):
                 connection_map = {connection_config.label: connection_config}
             elif isinstance(connection_config, Sequence):
                 for config in connection_config:
                     if not isinstance(config, ConnectionConfig):
-                        raise ValueError("connection_config argument is of wrong type")
+                        raise ValueError(
+                            "connection_config argument is of wrong type"
+                        )
                     connection_map[config.label] = config
             else:
                 raise ValueError("connection_config argument is of wrong type")
@@ -112,7 +134,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
         validated_default_connection = None
         if isinstance(default_connection, str):
             if default_connection not in connection_map:
-                raise ValueError("Default connection string must refer to a key in connection_config")
+                raise ValueError(
+                    "Default connection string must refer to a key in connection_config"
+                )
             validated_default_connection = connection_map[default_connection]
         elif isinstance(default_connection, ConnectionConfig):
             if default_connection.namespaces is not None:
@@ -126,7 +150,10 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
     def _env_default_connection(self) -> ConnectionConfig | None:
         """Derives a default cache config from environment variables."""
-        if os.environ.get("DEFAULT_PERSISTED_CACHE_TYPE", "").upper() == "LOCALFILE":
+        if (
+            os.environ.get("DEFAULT_PERSISTED_CACHE_TYPE", "").upper()
+            == "LOCALFILE"
+        ):
             return LocalFileConfig(env_prefix="DEFAULT_PERSISTED_CACHE_")
 
     def _init_default_connection(
@@ -156,7 +183,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
         return adapter
 
-    def register_adapter(self, interface_functionality: str, adapter: T_AdapterType):
+    def register_adapter(
+        self, interface_functionality: str, adapter: T_AdapterType
+    ):
         self._adapter_mapping[interface_functionality] = adapter
 
     def register_adapter_by_name(
@@ -196,7 +225,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
         return True
 
-    def load_persisted_cache(self, source: str | None = None, connection_label: str | None = None):
+    def load_persisted_cache(
+        self, source: str | None = None, connection_label: str | None = None
+    ):
         """Load all resources from either the default cache persistence location or from the provided
         connection into cache. The provided connection_label takes precedence over the default.
         Currently all resources should still be represented as yaml files.
@@ -204,14 +235,18 @@ class Session(Generic[T_AdapterType, T_DataType]):
         # get host/connection
         # TODO: fix host calls with unified ConnectionManager
         if connection_label is None:
-            logger.info("Using DEFAULT_CONNECTION_LABEL in absence of connection_label")
+            logger.info(
+                "Using DEFAULT_CONNECTION_LABEL in absence of connection_label"
+            )
             connection_label = DEFAULT_CONNECTION_LABEL
 
         if source is None:
             # TEMP FIX: will only work with filesystems
             source = ""
 
-        with self.connection_manager.get_connection(connection_label=connection_label) as connection:
+        with self.connection_manager.get_connection(
+            connection_label=connection_label
+        ) as connection:
             roots = connection.load(source, format="yaml")
 
         ret = self._source_to_cache(roots)
@@ -224,7 +259,12 @@ class Session(Generic[T_AdapterType, T_DataType]):
         connection_label: str | None = None,
         cache: CacheContainer | CacheContainerView | None = None,
     ):
-        supported_dump_formats = {"ttl", "turtle", "trig", "yaml"}  # TEMPORARY FIX
+        supported_dump_formats = {
+            "ttl",
+            "turtle",
+            "trig",
+            "yaml",
+        }  # TEMPORARY FIX
         assert (
             file_format in supported_dump_formats
         ), f"Format {file_format} currently not supported for `Session.dump_cache`"
@@ -242,12 +282,18 @@ class Session(Generic[T_AdapterType, T_DataType]):
             raise ValueError("cache argument does not match expected type")
 
         if connection_label is None:
-            logger.info("Using DEFAULT_CONNECTION_LABEL in absence of connection_label")
+            logger.info(
+                "Using DEFAULT_CONNECTION_LABEL in absence of connection_label"
+            )
             connection_label = DEFAULT_CONNECTION_LABEL
 
         root = to_serialize.pack_entity_list()
-        with self.connection_manager.get_connection(connection_label=connection_label) as connection:
-            _ = connection.dump(root, destination=output_path, format=file_format)
+        with self.connection_manager.get_connection(
+            connection_label=connection_label
+        ) as connection:
+            _ = connection.dump(
+                root, destination=output_path, format=file_format
+            )
 
     def load_tabular_dataset_series(
         self,
@@ -262,7 +308,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
         assert isinstance(data_import_config, peh.DataImportConfig)
         id_factory = None
         if namespace_key is not None and self.namespace_manager is None:
-            raise ValueError("A namespace_key can only be provided when a NamespaceMananger is bound to the Session")
+            raise ValueError(
+                "A namespace_key can only be provided when a NamespaceMananger is bound to the Session"
+            )
         if self.namespace_manager is not None:
             id_factory = self.namespace_manager.get_id_factory(
                 namespace_key, suffix_strategy=NamespaceManager.generate_ulid()
@@ -283,8 +331,12 @@ class Session(Generic[T_AdapterType, T_DataType]):
         else:
             connection_label = DEFAULT_CONNECTION_LABEL
 
-        with self.connection_manager.get_connection(connection_label=connection_label) as connection:
-            data_dict = connection.load(source, format=file_format, data_schema=data_schema)
+        with self.connection_manager.get_connection(
+            connection_label=connection_label
+        ) as connection:
+            data_dict = connection.load(
+                source, format=file_format, data_schema=data_schema
+            )
         assert isinstance(data_dict, dict)
         import_adapter = self.get_adapter("dataops")
         for raw_dataset_label, raw_dataset in data_dict.items():
@@ -301,15 +353,21 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
         return dataset_series
 
-    def get_resource(self, resource_identifier: str, resource_type: str) -> T_NamedThingLike | None:
+    def get_resource(
+        self, resource_identifier: str, resource_type: str
+    ) -> T_NamedThingLike | None:
         """Get resource from cache"""
         ret = self.cache.get(resource_identifier, resource_type)
         if ret is None:
-            logger.debug(f"No resource found with identifier {resource_identifier}")
+            logger.debug(
+                f"No resource found with identifier {resource_identifier}"
+            )
 
         return ret
 
-    def resolve_typed_lazy_proxy(self, proxy: TypedLazyProxy) -> peh.NamedThing:
+    def resolve_typed_lazy_proxy(
+        self, proxy: TypedLazyProxy
+    ) -> peh.NamedThing:
         raise NotImplementedError()
 
     def load_resource(
@@ -327,10 +385,14 @@ class Session(Generic[T_AdapterType, T_DataType]):
             return ret
 
         if connection_label is not None:
-            with self.connection_manager.get_connection(connection_label=connection_label) as connection:
+            with self.connection_manager.get_connection(
+                connection_label=connection_label
+            ) as connection:
                 # assuming connection points to a file-based system
                 # loading entire directory
-                logger.debug(f"Loading .yaml files recursively from {connection_label} root directory")
+                logger.debug(
+                    f"Loading .yaml files recursively from {connection_label} root directory"
+                )
                 if resource_path is None:
                     resource_path = ""
                     roots = connection.load(resource_path, format="yaml")
@@ -349,7 +411,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
         return ret
 
-    def dump_resource(self, resource_identifier: str, resource_type: str, version: str | None) -> bool:
+    def dump_resource(
+        self, resource_identifier: str, resource_type: str, version: str | None
+    ) -> bool:
         return True
 
     def validate_tabular_dataset(
@@ -381,7 +445,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
             if dataset.data is None:
                 continue
             validation_result = self.validate_tabular_dataset(
-                data=dataset, dependent_data=dataset_series, allow_incomplete=allow_incomplete
+                data=dataset,
+                dependent_data=dataset_series,
+                allow_incomplete=allow_incomplete,
             )
             assert isinstance(
                 validation_result, ValidationErrorReport
@@ -389,7 +455,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
             validation_result_dict[dataset_label] = validation_result
 
         # Catch no data in dataset_series case
-        assert len(validation_result_dict) > 0, f"DatasetSeries with label {dataset_series.label} contains no data"
+        assert (
+            len(validation_result_dict) > 0
+        ), f"DatasetSeries with label {dataset_series.label} contains no data"
 
         return validation_result_dict
 
@@ -457,7 +525,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
         **resource_kwargs,
     ):
         data = dict(resource_kwargs)
-        assert self.namespace_manager is not None, "No NameSpaceManager is bound to Session"
+        assert (
+            self.namespace_manager is not None
+        ), "No NameSpaceManager is bound to Session"
         identifier = self.namespace_manager.mint(
             resource_class=resource_cls,
             namespace_key=namespace_key,

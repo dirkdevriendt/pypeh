@@ -40,7 +40,9 @@ def debug_connection(connection):
     try:
         # Try listing the raw bucket
         bucket_only = connection.root.split("/")[0]
-        print(f"Listing bucket '{bucket_only}': {connection.file_system.ls(bucket_only, detail=False)}")
+        print(
+            f"Listing bucket '{bucket_only}': {connection.file_system.ls(bucket_only, detail=False)}"
+        )
     except Exception as e:
         print(f"Debug LS failed: {e}")
 
@@ -50,7 +52,9 @@ def save_to_bucket(file_path: str, bucket_name: str, key: str):
     local_path = file_path
     with get_session(bucket_list=bucket_list) as session:
         try:
-            with session.connection_manager.get_connection(connection_label=bucket_name) as connection:
+            with session.connection_manager.get_connection(
+                connection_label=bucket_name
+            ) as connection:
                 remote_path = f"{connection.root}/{key}"
                 connection.file_system.put(local_path, remote_path)
         except Exception as e:
@@ -64,12 +68,18 @@ def load_cache():
     bucket_name = bucket_list[0]
     with get_session(bucket_list=bucket_list) as session:
         try:
-            with session.connection_manager.get_connection(connection_label="sas-peh-staging") as connection:
+            with session.connection_manager.get_connection(
+                connection_label="sas-peh-staging"
+            ) as connection:
                 debug_connection(connection)
                 print("Loading cache ...")
-                session.load_persisted_cache(source=target_key, connection_label=bucket_list[0])
+                session.load_persisted_cache(
+                    source=target_key, connection_label=bucket_list[0]
+                )
         except Exception as e:
-            raise AssertionError(f"Error while checking existence of bucket {bucket_name}: {e}")
+            raise AssertionError(
+                f"Error while checking existence of bucket {bucket_name}: {e}"
+            )
 
 
 def main():

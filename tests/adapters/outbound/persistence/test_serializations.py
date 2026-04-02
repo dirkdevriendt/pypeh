@@ -46,7 +46,9 @@ class TestIOAdapterFactory:
         assert adapter.__class__.__name__ == expected_adapter
 
     def test_create_unknown_adapter_raises_error(self):
-        with pytest.raises(ValueError, match="No adapter registered for dataformat: unknown"):
+        with pytest.raises(
+            ValueError, match="No adapter registered for dataformat: unknown"
+        ):
             IOAdapterFactory.create("unknown")
 
     def test_register_adapter(self):
@@ -60,12 +62,16 @@ class TestIOAdapterFactory:
 @pytest.mark.core
 class TestYamlIO:
     def test_basic(self):
-        source = get_absolute_path("./input/config_basic/_Reference_YAML/observable_entities.yaml")
+        source = get_absolute_path(
+            "./input/config_basic/_Reference_YAML/observable_entities.yaml"
+        )
         yaml_io = YamlIO()
         yaml_io.load(source)
 
     def test_wrong_schema(self, caplog):
-        source = get_absolute_path("./input/config_basic/_Reference_YAML/observable_entities.yaml")
+        source = get_absolute_path(
+            "./input/config_basic/_Reference_YAML/observable_entities.yaml"
+        )
         yaml_io = YamlIO()
         with pytest.raises(ValueError):
             _ = yaml_io.load(source, target_class=MockModel)
@@ -77,7 +83,9 @@ class TestYamlIO:
             yaml_io.load(source)
 
     def test_textio(self):
-        source = get_absolute_path("./input/config_basic/_Reference_YAML/observable_entities.yaml")
+        source = get_absolute_path(
+            "./input/config_basic/_Reference_YAML/observable_entities.yaml"
+        )
         yaml_io = YamlIO()
         with open(source, "r") as f:
             data = yaml_io.load(f)
@@ -97,7 +105,9 @@ class TestJsonIO:
 @pytest.mark.dataframe
 class TestCsvIO:
     def test_basic_import(self):
-        source = get_absolute_path("./input/config_basic/_Tabular_Data/sampling_data_to_import.csv")
+        source = get_absolute_path(
+            "./input/config_basic/_Tabular_Data/sampling_data_to_import.csv"
+        )
         csv_io = CsvIO()
         with fsspec.open(source, "r") as f:
             data = csv_io.load(f, raise_if_empty=False, infer_schema_length=5)  # type: ignore
@@ -113,14 +123,18 @@ class TestCsvIO:
 @pytest.mark.dataframe
 class TestXlsIO:
     def test_basic_import(self):
-        source = get_absolute_path("./input/config_basic/_Tabular_Data/sampling_data_to_import.xlsx")
+        source = get_absolute_path(
+            "./input/config_basic/_Tabular_Data/sampling_data_to_import.xlsx"
+        )
         excel_io = ExcelIO()
         with fsspec.open(source, "rb") as f:
             data = excel_io.load(f)  # type: ignore
         assert isinstance(data, dict)
 
     def test_invalid_excel(self):
-        source = get_absolute_path("./input/config_invalid/_Tabular_Data/invalid_excel.xlsx")
+        source = get_absolute_path(
+            "./input/config_invalid/_Tabular_Data/invalid_excel.xlsx"
+        )
         excel_io = ExcelIO()
         with fsspec.open(source, "rb") as f:
             with pytest.raises(Exception) as excinfo:
@@ -158,7 +172,12 @@ class TestXlsIO:
                 "samplinghour": "float",
                 "samplingminutes": "float",
             },
-            "SAMPLETIMEPOINT_BSS": {"id_sample": "integer", "chol": "float", "chol_loq": "float", "chol_lod": "float"},
+            "SAMPLETIMEPOINT_BSS": {
+                "id_sample": "integer",
+                "chol": "float",
+                "chol_loq": "float",
+                "chol_lod": "float",
+            },
         }
         source = get_absolute_path("./input/validation_test_03_data.xlsx")
         excel_io = ExcelIO()
@@ -174,7 +193,9 @@ class TestXlsIO:
 class TestDump:
     @pytest.fixture(scope="class")
     def container(self) -> CacheContainer:
-        source = get_absolute_path("./input/config_basic/_Reference_YAML/observable_properties.yaml")
+        source = get_absolute_path(
+            "./input/config_basic/_Reference_YAML/observable_properties.yaml"
+        )
         yaml_io = YamlIO()
         entity_list = yaml_io.load(source)
         assert isinstance(entity_list, EntityList)
@@ -215,10 +236,16 @@ class TestDump:
             assert "peh" in ns
             assert "pehterms" in ns
             OP = rdflib.URIRef(ns["pehterms"] + "ObservableProperty")
-            assert (None, rdflib.RDF.type, OP) in g, "No ObservableProperty instances found"
+            assert (
+                None,
+                rdflib.RDF.type,
+                OP,
+            ) in g, "No ObservableProperty instances found"
             EL = rdflib.URIRef(ns["pehterms"] + "EntityList")
             assert (None, rdflib.RDF.type, EL) in g, "No EntityList found"
-            observable_properties_pred = rdflib.URIRef(ns["pehterms"] + "observable_properties")
+            observable_properties_pred = rdflib.URIRef(
+                ns["pehterms"] + "observable_properties"
+            )
             entity_lists = list(g.subjects(rdflib.RDF.type, EL))
             assert entity_lists, "No EntityList subjects found"
             for el in entity_lists:
@@ -226,4 +253,8 @@ class TestDump:
                 assert props, "EntityList has no observable_properties"
                 for p in props:
                     label_pred = rdflib.URIRef(ns["rdfs"] + "label")
-                    assert (p, label_pred, None) in g, f"Observable property {p} has no rdfs label"
+                    assert (
+                        p,
+                        label_pred,
+                        None,
+                    ) in g, f"Observable property {p} has no rdfs label"

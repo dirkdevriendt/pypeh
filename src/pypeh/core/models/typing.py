@@ -1,4 +1,15 @@
-from typing import TypeVar, Union, Sequence, List, Dict, Any, Mapping, TextIO, BinaryIO, Protocol
+from typing import (
+    TypeVar,
+    Union,
+    Sequence,
+    List,
+    Dict,
+    Any,
+    Mapping,
+    TextIO,
+    BinaryIO,
+    Protocol,
+)
 from pydantic import BaseModel
 from peh_model.peh import EntityList, YAMLRoot, NamedThingId, NamedThing
 from pathlib import Path

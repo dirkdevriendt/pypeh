@@ -68,7 +68,9 @@ class TestStatCount:
         assert result["missing_n"][0] == 0
         assert result["missing_pct"][0] == 0.0
 
-    def test_stat_count_with_nulls(self, dataframe_with_nulls, setup_adapter, pl):
+    def test_stat_count_with_nulls(
+        self, dataframe_with_nulls, setup_adapter, pl
+    ):
         """Test count statistics with null values."""
         adapter = setup_adapter()
 
@@ -104,10 +106,14 @@ class TestStatCount:
         assert result["missing_n"][0] == 0
 
     @pytest.mark.parametrize("name", ["n", "missing_n", "missing_pct"])
-    def test_statistics_count_unit_fn(self, name, sample_dataframe, setup_adapter, pl):
+    def test_statistics_count_unit_fn(
+        self, name, sample_dataframe, setup_adapter, pl
+    ):
         """Test that count statistics can be called with unit function."""
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name(f"statistics_count_{name}")("value")
+        exprs = adapter._get_stat_function_from_name(
+            f"statistics_count_{name}"
+        )("value")
         result = sample_dataframe.select(exprs)
 
         assert name in result.columns
@@ -117,7 +123,9 @@ class TestStatCount:
 class TestStatArithmetic:
     """Test suite for stat_arithmetic function."""
 
-    def test_stat_arithmetic_basic(self, dataframe_with_nulls, setup_adapter, pl):
+    def test_stat_arithmetic_basic(
+        self, dataframe_with_nulls, setup_adapter, pl
+    ):
         """Test basic arithmetic statistics."""
         import scipy.stats as stats
 
@@ -125,20 +133,32 @@ class TestStatArithmetic:
 
         df = dataframe_with_nulls
 
-        exprs = adapter._get_stat_function_from_name("stat_arithmetic")("value")
+        exprs = adapter._get_stat_function_from_name("stat_arithmetic")(
+            "value"
+        )
         result = df.select(exprs)
 
         assert result.shape == (1, 5)
-        assert result["mean"][0] == pytest.approx(stats.tmean(df["value"].drop_nulls().to_list()))
+        assert result["mean"][0] == pytest.approx(
+            stats.tmean(df["value"].drop_nulls().to_list())
+        )
         # Standard deviation of 1-10 is approximately 3.028
-        assert result["st"][0] == pytest.approx(stats.tstd(df["value"].drop_nulls().to_list()))
+        assert result["st"][0] == pytest.approx(
+            stats.tstd(df["value"].drop_nulls().to_list())
+        )
         # SEM = std / sqrt(n)
-        assert result["sem"][0] == pytest.approx(stats.sem(df["value"].drop_nulls().to_list()))
+        assert result["sem"][0] == pytest.approx(
+            stats.sem(df["value"].drop_nulls().to_list())
+        )
 
-    def test_stat_arithmetic_confidence_intervals(self, sample_dataframe, setup_adapter, pl):
+    def test_stat_arithmetic_confidence_intervals(
+        self, sample_dataframe, setup_adapter, pl
+    ):
         """Test that confidence intervals are correctly calculated."""
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name("stat_arithmetic")("value")
+        exprs = adapter._get_stat_function_from_name("stat_arithmetic")(
+            "value"
+        )
         result = sample_dataframe.select(exprs)
 
         mean = result["mean"][0]
@@ -148,25 +168,35 @@ class TestStatArithmetic:
         expected_ci_lower = mean - 1.96 * sem
         expected_ci_upper = mean + 1.96 * sem
 
-        assert result["mean_95_ci_lower"][0] == pytest.approx(expected_ci_lower)
-        assert result["mean_95_ci_upper"][0] == pytest.approx(expected_ci_upper)
+        assert result["mean_95_ci_lower"][0] == pytest.approx(
+            expected_ci_lower
+        )
+        assert result["mean_95_ci_upper"][0] == pytest.approx(
+            expected_ci_upper
+        )
 
     def test_stat_arithmetic_single_value(self, setup_adapter, pl):
         """Test arithmetic statistics with a single value."""
 
         df = pl.DataFrame({"value": [5.0]})
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name("stat_arithmetic")("value")
+        exprs = adapter._get_stat_function_from_name("stat_arithmetic")(
+            "value"
+        )
         result = df.select(exprs)
 
         assert result["mean"][0] == 5.0
         assert result["st"][0] is None or math.isnan(result["st"][0])
         assert result["sem"][0] is None or math.isnan(result["sem"][0])
 
-    def test_stat_arithmetic_with_nulls(self, dataframe_with_nulls, setup_adapter, pl):
+    def test_stat_arithmetic_with_nulls(
+        self, dataframe_with_nulls, setup_adapter, pl
+    ):
         """Test arithmetic statistics ignore null values."""
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name("stat_arithmetic")("value")
+        exprs = adapter._get_stat_function_from_name("stat_arithmetic")(
+            "value"
+        )
         result = dataframe_with_nulls.select(exprs)
 
         # Mean of [1, 2, 4, 5, 7, 8, 9, 10] = 46/8 = 5.75
@@ -182,21 +212,31 @@ class TestStatArithmetic:
             ([-5.0, 0.0, 5.0], 0.0),
         ],
     )
-    def test_stat_arithmetic_parametrized(self, values, expected_mean, setup_adapter, pl):
+    def test_stat_arithmetic_parametrized(
+        self, values, expected_mean, setup_adapter, pl
+    ):
         """Test arithmetic statistics with various datasets."""
 
         df = pl.DataFrame({"value": values})
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name("stat_arithmetic")("value")
+        exprs = adapter._get_stat_function_from_name("stat_arithmetic")(
+            "value"
+        )
         result = df.select(exprs)
 
         assert result["mean"][0] == pytest.approx(expected_mean)
 
-    @pytest.mark.parametrize("name", ["mean", "st", "sem", "mean_95_ci_lower", "mean_95_ci_upper"])
-    def test_statistics_arithmetic_unit_fn(self, name, sample_dataframe, setup_adapter, pl):
+    @pytest.mark.parametrize(
+        "name", ["mean", "st", "sem", "mean_95_ci_lower", "mean_95_ci_upper"]
+    )
+    def test_statistics_arithmetic_unit_fn(
+        self, name, sample_dataframe, setup_adapter, pl
+    ):
         """Test that arithmetic statistics can be called with unit function."""
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name(f"statistics_{name}")("value")
+        exprs = adapter._get_stat_function_from_name(f"statistics_{name}")(
+            "value"
+        )
         result = sample_dataframe.select(exprs)
 
         assert name in result.columns
@@ -235,7 +275,9 @@ class TestStatGeometric:
         assert ci_upper > geom_mean
         assert ci_lower > 0
 
-    def test_stat_geometric_with_nulls(self, dataframe_with_nulls, setup_adapter, pl):
+    def test_stat_geometric_with_nulls(
+        self, dataframe_with_nulls, setup_adapter, pl
+    ):
         """Test geometric mean with null values."""
         adapter = setup_adapter()
         exprs = adapter._get_stat_function_from_name("stat_geometric")("value")
@@ -252,7 +294,9 @@ class TestStatGeometric:
             ([4.0, 9.0], 6.0),
         ],
     )
-    def test_stat_geometric_parametrized(self, values, expected_geom_mean, setup_adapter, pl):
+    def test_stat_geometric_parametrized(
+        self, values, expected_geom_mean, setup_adapter, pl
+    ):
         """Test geometric mean with various datasets."""
 
         df = pl.DataFrame({"value": values})
@@ -262,11 +306,17 @@ class TestStatGeometric:
 
         assert result["geom_mean"][0] == pytest.approx(expected_geom_mean)
 
-    @pytest.mark.parametrize("name", ["geom_mean", "geom_mean_95_ci_lower", "geom_mean_95_ci_upper"])
-    def test_statistics_geometric_unit_fn(self, name, sample_dataframe, setup_adapter, pl):
+    @pytest.mark.parametrize(
+        "name", ["geom_mean", "geom_mean_95_ci_lower", "geom_mean_95_ci_upper"]
+    )
+    def test_statistics_geometric_unit_fn(
+        self, name, sample_dataframe, setup_adapter, pl
+    ):
         """Test that geometric mean can be called with unit function."""
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name(f"statistics_{name}")("value")
+        exprs = adapter._get_stat_function_from_name(f"statistics_{name}")(
+            "value"
+        )
         result = sample_dataframe.select(exprs)
 
         assert name in result.columns
@@ -276,19 +326,27 @@ class TestStatGeometric:
 class TestStatPercentiles:
     """Test suite for stat_percentiles function."""
 
-    def test_stat_percentiles_default_quantiles(self, sample_dataframe, setup_adapter, pl):
+    def test_stat_percentiles_default_quantiles(
+        self, sample_dataframe, setup_adapter, pl
+    ):
         """Test percentile calculation with default quantiles."""
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name("stat_percentiles")("value")
+        exprs = adapter._get_stat_function_from_name("stat_percentiles")(
+            "value"
+        )
         result = sample_dataframe.select(exprs)
         # Should return 7 percentiles + 7 CI lower + 7 CI upper = 21 columns
         assert result.shape == (1, 21)
 
-    def test_stat_percentiles_custom_quantiles(self, sample_dataframe, setup_adapter, pl):
+    def test_stat_percentiles_custom_quantiles(
+        self, sample_dataframe, setup_adapter, pl
+    ):
         """Test percentile calculation with custom quantiles."""
         custom_quants = [0.25, 0.5, 0.75]
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name("stat_percentiles")("value", quants=custom_quants)
+        exprs = adapter._get_stat_function_from_name("stat_percentiles")(
+            "value", quants=custom_quants
+        )
         result = sample_dataframe.select(exprs)
 
         # Should return 3 percentiles + 3 CI lower + 3 CI upper = 9 columns
@@ -298,10 +356,14 @@ class TestStatPercentiles:
         # Median should be between 5th and 6th value (5 and 6)
         assert 5.0 <= result["p50"][0] <= 6.0
 
-    def test_stat_percentiles_values(self, sample_dataframe, setup_adapter, pl):
+    def test_stat_percentiles_values(
+        self, sample_dataframe, setup_adapter, pl
+    ):
         """Test that percentile values are correctly calculated."""
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name("stat_percentiles")("value", quants=[0.25, 0.5, 0.75])
+        exprs = adapter._get_stat_function_from_name("stat_percentiles")(
+            "value", quants=[0.25, 0.5, 0.75]
+        )
         result = sample_dataframe.select(exprs)
 
         # For data [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -309,30 +371,42 @@ class TestStatPercentiles:
         assert result["p50"][0] == pytest.approx(6)
         assert result["p75"][0] == pytest.approx(8)
 
-    def test_stat_percentiles_confidence_intervals_exist(self, sample_dataframe, setup_adapter, pl):
+    def test_stat_percentiles_confidence_intervals_exist(
+        self, sample_dataframe, setup_adapter, pl
+    ):
         """Test that confidence interval columns are created."""
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name("stat_percentiles")("value", quants=[0.5])
+        exprs = adapter._get_stat_function_from_name("stat_percentiles")(
+            "value", quants=[0.5]
+        )
         result = sample_dataframe.select(exprs)
 
         assert "p50" in result.columns
         assert "p50_ci_lower" in result.columns
         assert "p50_ci_upper" in result.columns
 
-    def test_stat_percentiles_small_sample(self, small_dataframe, setup_adapter, pl):
+    def test_stat_percentiles_small_sample(
+        self, small_dataframe, setup_adapter, pl
+    ):
         """Test percentiles with small sample size."""
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name("stat_percentiles")("value", quants=[0.5])
+        exprs = adapter._get_stat_function_from_name("stat_percentiles")(
+            "value", quants=[0.5]
+        )
         result = small_dataframe.select(exprs)
 
         # With only 3 values, median should be middle value
         assert result["p50"][0] == pytest.approx(2.0)
 
     @pytest.mark.parametrize("quantile", [0.0, 0.25, 0.5, 0.75, 1.0])
-    def test_stat_percentiles_boundary_quantiles(self, sample_dataframe, quantile, setup_adapter, pl):
+    def test_stat_percentiles_boundary_quantiles(
+        self, sample_dataframe, quantile, setup_adapter, pl
+    ):
         """Test percentiles at various boundary quantiles."""
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name("stat_percentiles")("value", quants=[quantile])
+        exprs = adapter._get_stat_function_from_name("stat_percentiles")(
+            "value", quants=[quantile]
+        )
         result = sample_dataframe.select(exprs)
 
         col_name = f"p{int(quantile * 100)}"
@@ -365,10 +439,14 @@ class TestStatPercentiles:
             "p95_ci_upper",
         ],
     )
-    def test_stat_percentiles_unit_fn(self, sample_dataframe, setup_adapter, pl, name):
+    def test_stat_percentiles_unit_fn(
+        self, sample_dataframe, setup_adapter, pl, name
+    ):
         """Test that percentile function can be called with unit function."""
         adapter = setup_adapter()
-        exprs = adapter._get_stat_function_from_name(f"statistics_percentiles_{name}")("value")
+        exprs = adapter._get_stat_function_from_name(
+            f"statistics_percentiles_{name}"
+        )("value")
         result = sample_dataframe.select(exprs)
 
         assert name in result.columns
@@ -397,7 +475,9 @@ class TestPercentileCIHelpers:
         n = pl.col("value").count()
         se = (n * 0.5 * (1 - 0.5)).sqrt()
         ci_lower = (n * 0.5 - 1.96 * se).ceil()
-        expected = sample_dataframe.select(pl.col("value").quantile((ci_lower / n)).alias("p50_ci_lower"))
+        expected = sample_dataframe.select(
+            pl.col("value").quantile((ci_lower / n)).alias("p50_ci_lower")
+        )
 
         # Should return a value or null
         assert result.shape == (1, 1)
@@ -413,7 +493,9 @@ class TestPercentileCIHelpers:
         n = pl.col("value").count()
         se = (n * 0.5 * (1 - 0.5)).sqrt()
         ci_lower = (n * 0.5 + 1.96 * se).ceil()
-        expected = sample_dataframe.select(pl.col("value").quantile((ci_lower / n)).alias("p50_ci_upper"))
+        expected = sample_dataframe.select(
+            pl.col("value").quantile((ci_lower / n)).alias("p50_ci_upper")
+        )
 
         # Should return a value or null
         assert result.shape == (1, 1)
@@ -462,10 +544,18 @@ class TestIntegration:
         """Test that all statistics can be computed together."""
         adapter = setup_adapter()
 
-        count_exprs = adapter._get_stat_function_from_name("stat_count")("value")
-        arith_exprs = adapter._get_stat_function_from_name("stat_arithmetic")("value")
-        geom_exprs = adapter._get_stat_function_from_name("stat_geometric")("value")
-        perc_exprs = adapter._get_stat_function_from_name("stat_percentiles")("value", quants=[0.25, 0.5, 0.75])
+        count_exprs = adapter._get_stat_function_from_name("stat_count")(
+            "value"
+        )
+        arith_exprs = adapter._get_stat_function_from_name("stat_arithmetic")(
+            "value"
+        )
+        geom_exprs = adapter._get_stat_function_from_name("stat_geometric")(
+            "value"
+        )
+        perc_exprs = adapter._get_stat_function_from_name("stat_percentiles")(
+            "value", quants=[0.25, 0.5, 0.75]
+        )
 
         all_exprs = count_exprs + arith_exprs + geom_exprs + perc_exprs
         result = sample_dataframe.select(all_exprs)
