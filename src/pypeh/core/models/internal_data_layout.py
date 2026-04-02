@@ -617,22 +617,18 @@ class Dataset(Resource, Generic[T_DataType]):
     def add_data(
         self,
         data: T_DataType,
-        data_labels: list[str] | None = None,
+        data_labels: list[str],
         overwrite: bool = True,
         allow_incomplete: bool = False,
     ):
+        """
+        data_labels are only used for verification
+        """
         if not overwrite:
             if self.data is not None:
                 raise NotImplementedError()
 
-        # TODO: FIXME: this is completely wrong!!!!
-        # These are not the data labels but the schema labels!!!!
-        if data_labels is None:
-            data_labels = self.get_element_labels()
-
         if len(self.schema) > 0:
-            assert data_labels is not None
-
             if allow_incomplete:
                 assert self.contained_in_schema(data_labels)
             else:
@@ -1000,7 +996,7 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         self,
         dataset_label: str,
         data: T_DataType,
-        data_labels: list[str] | None = None,
+        data_labels: list[str],
         overwrite: bool = True,
         allow_incomplete: bool = False,
     ):
@@ -1111,7 +1107,12 @@ class DatasetSeries(Resource, Generic[T_DataType]):
             )
 
         if data is not None:
-            dataset.add_data(data=data)
+            dataset.add_data(
+                data=data,
+                data_labels=list(
+                    labeled_observable_property_specifications.keys()
+                ),
+            )
 
         return dataset
 
