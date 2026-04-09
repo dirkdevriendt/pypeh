@@ -63,3 +63,12 @@ class TestDataFrameEnrichment:
         )
         # this is the original updated dataset_series
         assert isinstance(ret, DatasetSeries)
+        enriched_dataset = ret["SAMPLETIMEPOINT_BWB"]
+        assert enriched_dataset is not None
+        enriched_data = enriched_dataset.data
+        assert enriched_data is not None
+        columns = adapter.get_element_labels(enriched_data)
+        unique_columns = set(columns)
+        assert len(unique_columns) == len(columns)
+        assert "chol_imputed" in unique_columns
+        assert all(enriched_data["chol_imputed"] > 0)
