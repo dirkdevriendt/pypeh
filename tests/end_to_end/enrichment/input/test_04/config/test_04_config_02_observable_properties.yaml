@@ -1356,19 +1356,19 @@ observable_properties:
   calculation_design:
     calculation_name: chol_medium_bound_imputation
     calculation_implementation:
-      function_name: compehndly.medium_bound_imputation["0.0.1"]
+      function_name: compehndly.entrypoints.medium_bound_imputation
       function_kwargs:
       - mapping_name: measurement
         contextual_field_reference:
-          dataset_label: SAMPLETIMEPOINT_BWB
+          dataset_label: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB
           field_label: chol
       - mapping_name: loq
         contextual_field_reference:
-          dataset_label: SAMPLETIMEPOINT_BWB
+          dataset_label: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB
           field_label: chol_loq
       - mapping_name: lod
         contextual_field_reference:
-          dataset_label: SAMPLETIMEPOINT_BWB
+          dataset_label: peh:VALIDATION_TEST_SAMPLE_SAMPLETIMEPOINT_BWB
           field_label: chol_lod
 - id: chol_lod
   name: chol_lod

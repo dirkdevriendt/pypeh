@@ -31,10 +31,10 @@ test-s3:
 	uv run pytest -s tests/adapters tests/core -m s3 -W ignore
 
 test-compehndly:
-	uv pip install -e ".[dataframe-adapter, test-core, test-compehndly]"
+	uv pip install -e ".[dataframe-adapter, test-core, compehndly]"
 	uv run pytest -s tests/end_to_end -m compehndly -W ignore
 
-test-all: test-core test-dataframe test-end_to_end test-end_to_end_consistency test-export test-s3
+test-all: test-core test-dataframe test-end_to_end test-end_to_end_consistency test-export test-s3 test-compehndly
 
 format:
 	uv pip install ruff

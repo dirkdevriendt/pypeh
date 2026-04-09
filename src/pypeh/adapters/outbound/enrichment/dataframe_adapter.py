@@ -66,7 +66,7 @@ class DataFrameEnrichmentAdapter(
         ).alias(new_field_name)
 
         ds2 = ds.with_columns(mapped)
-        existing = set(ds2.columns)
+        existing = ds2.collect_schema().names()
         safe_fields = [f for f in base_fields if f in existing]
 
         if new_field_name not in safe_fields:
