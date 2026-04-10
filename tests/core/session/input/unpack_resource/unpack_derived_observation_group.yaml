@@ -1,0 +1,18 @@
+observation_groups:
+- id: example:this_group
+  observation_id_list:
+  - example:this_derived_observation
+  - example:another_derived_observation
+  - example:yet_another_derived_observation
+observations:
+- id: example:this_observation
+  name: this_observation
+- id: example:another_observation
+  name: another_observation
+derived_observations:
+- id: example:this_derived_observation
+  was_derived_from: example:this_observation
+- id: example:another_derived_observation
+  was_derived_from: example:this_observation
+- id: example:yet_another_derived_observation
+  was_derived_from: example:another_observation

@@ -5,7 +5,7 @@ import importlib
 import logging
 import peh_model.peh as peh
 
-from typing import TYPE_CHECKING, TypeVar, Sequence, Generic
+from typing import TYPE_CHECKING, TypeVar, Sequence, Generic, Generator
 
 from pypeh.core.cache.containers import (
     CacheContainer,
@@ -493,6 +493,29 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
         return ret
 
+    def unpack_derived_observation_group(
+        self,
+        observation_group_id: str,
+    ) -> Generator[tuple[peh.DerivedObservation, peh.Observation], None, None]:
+        observation_group = self.cache.get(
+            observation_group_id, "ObservationGroup"
+        )
+        assert isinstance(observation_group, peh.ObservationGroup)
+        assert observation_group.observation_id_list is not None
+        for observation_id in observation_group.observation_id_list:
+            target_observation = self.cache.get(
+                observation_id, "DerivedObservation"
+            )
+            if isinstance(target_observation, peh.DerivedObservation):
+                source_observation_id = target_observation.was_derived_from
+                assert isinstance(source_observation_id, str)
+                source_observation = self.cache.get(
+                    source_observation_id, "Observation"
+                )
+                assert isinstance(source_observation, peh.Observation)
+
+                yield (target_observation, source_observation)
+
     def enrich(
         self,
         source_dataset_series: DatasetSeries,
@@ -507,6 +530,8 @@ class Session(Generic[T_AdapterType, T_DataType]):
 
         adapter = self.get_adapter("enrichment")
         assert isinstance(adapter, DataEnrichmentInterface)
+        # TODO: apply target_dataset_labels when splitting
+        # DatasetSeries into Observations
         return adapter.enrich(
             source_dataset_series=source_dataset_series,
             target_observations=target_observations,
