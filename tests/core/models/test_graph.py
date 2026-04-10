@@ -1,4 +1,5 @@
 import pytest
+import itertools
 
 from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
 from pypeh.core.cache.containers import (
@@ -8,7 +9,10 @@ from pypeh.core.cache.containers import (
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.models.graph import Graph, Node
 from pypeh.core.interfaces.outbound.dataops import DataEnrichmentInterface
-from pypeh.core.models.internal_data_layout import ContextIndexProtocol
+from pypeh.core.models.internal_data_layout import (
+    ContextIndexProtocol,
+    JoinSpec,
+)
 from tests.test_utils.dirutils import get_absolute_path
 
 
@@ -129,11 +133,31 @@ class MockIndex(ContextIndexProtocol):
     def context_lookup(
         self, observation_id: str, observable_property_id: str
     ) -> tuple[str, str]:
+        # Keep node labels aligned with observation ids used in assertions.
         return (observation_id, observable_property_id)
 
 
 @pytest.mark.core
 class TestEnrichmentInterfaceCore:
+    def mock_join_spec_mapping(
+        self, observations: list
+    ) -> dict[frozenset, JoinSpec | None]:
+        """
+        Graph-focused tests don't exercise real join execution; provide a permissive
+        dummy join mapping so dependency graph construction can proceed without
+        requiring internal data layout resolution.
+        """
+        labels = [str(obs.id) for obs in observations if obs.id is not None]
+        mapping: dict[frozenset, JoinSpec | None] = {}
+        for left_label, right_label in itertools.combinations(labels, 2):
+            mapping[frozenset((left_label, right_label))] = JoinSpec(
+                left_elements=("__mock_join_key__",),
+                left_dataset=left_label,
+                right_elements=("__mock_join_key__",),
+                right_dataset=right_label,
+            )
+        return mapping
+
     def container(self, path: str) -> CacheContainerView:
         source = get_absolute_path(path)
         container = CacheContainerFactory.new()
@@ -155,6 +179,7 @@ class TestEnrichmentInterfaceCore:
             observations,  # type: ignore
             context_index=MockIndex(),
             cache_view=container,
+            join_spec_mapping=self.mock_join_spec_mapping(observations),
         )
 
         # Simple check to see if the dependency graph is built
@@ -169,6 +194,7 @@ class TestEnrichmentInterfaceCore:
             observations,  # type: ignore
             context_index=MockIndex(),
             cache_view=container,
+            join_spec_mapping=self.mock_join_spec_mapping(observations),
         )
         sorted_nodes = g.topological_sort()
         # Simple check to see if the sorted variables list is correct
@@ -207,6 +233,7 @@ class TestEnrichmentInterfaceCore:
             observations,  # type: ignore
             context_index=MockIndex(),
             cache_view=container,
+            join_spec_mapping=self.mock_join_spec_mapping(observations),
         )
         sorted_nodes = g.topological_sort()
         # Simple check to see if the sorted variables list is correct
@@ -245,6 +272,7 @@ class TestEnrichmentInterfaceCore:
             observations,  # type: ignore
             context_index=MockIndex(),
             cache_view=container,
+            join_spec_mapping=self.mock_join_spec_mapping(observations),
         )
         sorted_nodes = g.topological_sort()
         # Simple check to see if the sorted variables list is correct

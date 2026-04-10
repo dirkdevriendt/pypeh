@@ -346,6 +346,9 @@ layouts:
     elements:
     - label: CountryCode
       observable_property: CountryCode
+      foreign_key_link:
+        section: TEST_DATA_LAYOUT_SECTION_SUBJECTTIMEPOINT
+        label: CountryCode
     - label: Sample_ID
       observable_property: Sample_ID
     - label: density

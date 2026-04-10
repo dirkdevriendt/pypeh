@@ -21,18 +21,18 @@ class Delayed:
         self.map_fn = map_fn
         self.arg_sources = {}  # refers to kwarg represented by the parent
         self.arg_values = {}
-        self.join_specs: list[list[JoinSpec]] = []
+        self.join_specs: list[JoinSpec] = []
         self.output_dtype = output_dtype
 
     def add_parent(
         self,
         parent: Node,
         map_name: str,
-        join_specs: list[JoinSpec] | None = None,
+        join_spec: JoinSpec | None = None,
     ):
         self.arg_sources[map_name] = parent
-        if join_specs is not None:
-            self.join_specs.append(join_specs)
+        if join_spec is not None:
+            self.join_specs.append(join_spec)
 
     @property
     def parents(self) -> list[Node]:
@@ -96,7 +96,7 @@ class Graph:
         parent: Node,
         child: Node,
         map_name: str | None = None,
-        join_spec: list[JoinSpec] | None = None,
+        join_spec: JoinSpec | None = None,
     ) -> None:
         # TODO: improve map name, refers to kwarg represented by the parent
         self._add_node(parent)
@@ -180,7 +180,7 @@ class Graph:
         source: Node,
         target: Node,
         source_mapping_name: str,
-        join_spec: list[JoinSpec] | None = None,
+        join_spec: JoinSpec | None = None,
     ):
         child = target
         parent = source

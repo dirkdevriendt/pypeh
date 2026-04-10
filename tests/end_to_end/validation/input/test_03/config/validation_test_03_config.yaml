@@ -80,6 +80,9 @@ layouts:
     - label: id_sample
       observable_property: id_sample
       is_observable_entity_key: true
+      foreign_key_link:
+        section: SAMPLE_METADATA_SECTION_SAMPLE
+        label: id_sample
     - label: chol
       observable_property: chol
     - label: chol_lod
