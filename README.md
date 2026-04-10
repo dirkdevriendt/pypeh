@@ -1,19 +1,51 @@
-# Installation
+# pypeh
 
-## Core Library
-To install the core library for development, run:
+`pypeh` is a lightweight ETL and data-ops toolkit for **Personal Exposure and Health (PEH)** data.
+
+It helps you:
+- work with PEH-model resources in Python
+- load/transform/validate PEH study data
+- support **FAIR** data workflows (findable, accessible, interoperable, reusable)
+
+The toolkit is built to interact with the PEH model from PARC:
+- https://github.com/eu-parc/parco-hbm
+
+## Install
+
+Core package:
 ```bash
-uv sync
+uv pip install pypeh
 ```
 
-## Adapters
-### Dataframe adapter
-To install the dataframe adapter, run:
+With dataframe adapter extras (Polars-based workflows):
 ```bash
-uv sync --extra dataframe_adapter
+uv pip install "pypeh[dataframe-adapter]"
 ```
 
-## Tests
+## Basic Usage
+
+```python
+from pypeh import Session
+
+# Start a session
+session = Session()
+# Load PEH model resources (e.g. YAML configs) into cache
+session.load_persisted_cache(source="config")
+# Load tabular data as a DatasetSeries using a DataImportConfig from cache
+data_import_config = session.cache.get("<data_import_config_id>", "DataImportConfig")
+dataset_series = session.load_tabular_dataset_series(
+    source="my_data.xlsx",
+    data_import_config=data_import_config,
+)
+```
+
+From there you can use adapters for:
+- validation
+- enrichment (derived variables)
+- aggregation
+- export/persistence
+
+## Run Tests
 
 ```bash
 make test-core
