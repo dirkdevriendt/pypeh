@@ -286,8 +286,12 @@ class ValidationDesign(BaseModel):
         metadata: list[Any],
         type_annotations: dict[str, dict[str, ObservablePropertyValueType]],
         dataset_label: str | None = None,
+        skip_fields: set[str] | None = None,
     ) -> list["ValidationDesign"]:
         name_expression_list = []
+        if skip_fields is None:
+            skip_fields = set()
+        normalized_skip_fields = {field.lower() for field in skip_fields}
         numeric_commands = set(
             [
                 "min",
@@ -303,8 +307,11 @@ class ValidationDesign(BaseModel):
             ]
         )
         for metadatum in metadata:
+            field_name = metadatum.field.lower()
+            if field_name in normalized_skip_fields:
+                continue
             arg_type = "string"
-            if metadatum.field.lower() in numeric_commands:
+            if field_name in numeric_commands:
                 if metadatum.value is not None:
                     try:
                         # NOTE: type conversion here is useless unless using Baseclass.model_construct() to avoid validation
@@ -319,7 +326,7 @@ class ValidationDesign(BaseModel):
                         raise
 
             generate = False
-            match metadatum.field.lower():
+            match field_name:
                 case "min":
                     validation_command = (
                         peh.ValidationCommand.is_greater_than_or_equal_to
@@ -364,7 +371,7 @@ class ValidationDesign(BaseModel):
             if generate:
                 name_expression_list.append(
                     (
-                        metadatum.field.lower(),
+                        field_name,
                         ValidationExpression.from_peh(
                             pehs.ValidationExpression.model_construct(
                                 **{
@@ -379,6 +386,61 @@ class ValidationDesign(BaseModel):
                         ),
                     )
                 )
+
+        return [
+            cls(
+                name=name,
+                error_level=ValidationErrorLevel.ERROR,
+                expression=expression,
+            )
+            for name, expression in name_expression_list
+        ]
+
+    @classmethod
+    def list_from_bounds(
+        cls,
+        min_value: Any | None,
+        max_value: Any | None,
+        type_annotations: dict[str, dict[str, ObservablePropertyValueType]],
+        dataset_label: str | None = None,
+    ) -> list["ValidationDesign"]:
+        name_expression_list = []
+
+        if min_value is not None:
+            typed_min_value = cast_to_peh_value_type(min_value, "float")
+            name_expression_list.append(
+                (
+                    "min",
+                    ValidationExpression.from_peh(
+                        pehs.ValidationExpression.model_construct(
+                            **{
+                                "validation_command": peh.ValidationCommand.is_greater_than_or_equal_to,
+                                "validation_arg_values": [typed_min_value],
+                            }
+                        ),
+                        type_annotations=type_annotations,
+                        dataset_label=dataset_label,
+                    ),
+                )
+            )
+
+        if max_value is not None:
+            typed_max_value = cast_to_peh_value_type(max_value, "float")
+            name_expression_list.append(
+                (
+                    "max",
+                    ValidationExpression.from_peh(
+                        pehs.ValidationExpression.model_construct(
+                            **{
+                                "validation_command": peh.ValidationCommand.is_less_than_or_equal_to,
+                                "validation_arg_values": [typed_max_value],
+                            }
+                        ),
+                        type_annotations=type_annotations,
+                        dataset_label=dataset_label,
+                    ),
+                )
+            )
 
         return [
             cls(
