@@ -9,6 +9,7 @@ from peh_model.peh import (
     Observation,
     ObservationDesign,
     DataImportConfig,
+    ObservableProperty,
     ObservablePropertySpecification,
     ObservablePropertySpecificationCategory,
 )
@@ -554,6 +555,51 @@ class TestValidation(abc.ABC):
         pattern = r"IF matrix IS\s*\([^)]*\)"
         found = any(re.search(pattern, msg) for msg in collect_messages)
         assert found
+
+    def test_build_column_validation_from_observable_property_bounds(self):
+        adapter = self.get_adapter()
+        cache_view = self.get_container_validation_example_03()
+        data_layout = cache_view.get(
+            "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataLayout"
+        )
+        assert isinstance(data_layout, DataLayout)
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            data_layout=data_layout, cache_view=cache_view, apply_context=True
+        )
+        type_annotations = dataset_series.get_type_annotations()
+        dataset = dataset_series.get("SAMPLETIMEPOINT_BSS")
+        assert dataset is not None
+        dataset_schema_element = dataset.get_schema_element_by_label(
+            "chol_lod"
+        )
+        assert dataset_schema_element is not None
+        observable_property = cache_view.get(
+            dataset_schema_element.observable_property_id, "ObservableProperty"
+        )
+        assert isinstance(observable_property, ObservableProperty)
+        observable_property.min = "0.2"
+        observable_property.max = "999.9"
+
+        cv = adapter.build_column_validation(
+            dataset_schema_element=dataset_schema_element,
+            type_annotations=type_annotations,
+            cache_view=cache_view,
+        )
+
+        assert cv.validations is not None
+        bounds_by_name = {vd.name: vd for vd in cv.validations}
+        assert "min" in bounds_by_name
+        assert "max" in bounds_by_name
+        assert (
+            bounds_by_name["min"].expression.command
+            == "is_greater_than_or_equal_to"
+        )
+        assert (
+            bounds_by_name["max"].expression.command
+            == "is_less_than_or_equal_to"
+        )
+        assert bounds_by_name["min"].expression.arg_values == [0.2]
+        assert bounds_by_name["max"].expression.arg_values == [999.9]
 
 
 class TestDataImport(abc.ABC):

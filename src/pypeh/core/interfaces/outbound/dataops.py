@@ -229,6 +229,8 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
             nullable = True
 
         if apply_property_validation:
+            min_value = getattr(observable_property, "min", None)
+            max_value = getattr(observable_property, "max", None)
             if validation_designs := getattr(
                 observable_property, "validation_designs", None
             ):
@@ -242,14 +244,29 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
                         for vd in validation_designs
                     ]
                 )
+            if min_value is not None or max_value is not None:
+                validations.extend(
+                    validation_dto.ValidationDesign.list_from_bounds(
+                        min_value=min_value,
+                        max_value=max_value,
+                        type_annotations=type_annotations,
+                        dataset_label=dataset_label,
+                    )
+                )
             if value_metadata := getattr(
                 observable_property, "value_metadata", None
             ):
+                skip_fields = set()
+                if min_value is not None:
+                    skip_fields.add("min")
+                if max_value is not None:
+                    skip_fields.add("max")
                 validations.extend(
                     validation_dto.ValidationDesign.list_from_metadata(
                         value_metadata,
                         type_annotations=type_annotations,
                         dataset_label=dataset_label,
+                        skip_fields=skip_fields,
                     )
                 )
             if getattr(observable_property, "categorical", None):
