@@ -53,17 +53,27 @@ class DataFrameEnrichmentAdapter(
         base_fields: list[str],
         **kwargs,
     ):
-        struct_expr = pl.struct(list(kwargs.values()))
-        aliased_exprs = {
-            arg_name: expr.alias(arg_name) for arg_name, expr in kwargs.items()
-        }
-        struct_expr = pl.struct(list(aliased_exprs.values()))
-        mapped = struct_expr.map_batches(
-            lambda s: map_fn(
-                **{name: s.struct.field(name) for name in aliased_exprs}
-            ),
-            return_dtype=output_dtype,
-        ).alias(new_field_name)
+        aliased_exprs = {}
+        scalar_kwargs = {}
+        for arg_name, value in kwargs.items():
+            if isinstance(value, pl.Expr):
+                aliased_exprs[arg_name] = value.alias(arg_name)
+            else:
+                scalar_kwargs[arg_name] = value
+
+        if len(aliased_exprs) > 0:
+            struct_expr = pl.struct(list(aliased_exprs.values()))
+            mapped = struct_expr.map_batches(
+                lambda s: map_fn(
+                    **{name: s.struct.field(name) for name in aliased_exprs},
+                    **scalar_kwargs,
+                ),
+                return_dtype=output_dtype,
+            ).alias(new_field_name)
+        else:
+            mapped = pl.lit(map_fn(**scalar_kwargs), dtype=output_dtype).alias(
+                new_field_name
+            )
 
         ds2 = ds.with_columns(mapped)
         existing = ds2.collect_schema().names()

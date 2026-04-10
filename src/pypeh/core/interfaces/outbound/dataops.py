@@ -569,6 +569,7 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
     def build_callable(self, delayed_node: graph.Delayed) -> Callable:
         map_fn = delayed_node.map_fn
         arg_sources = delayed_node.arg_sources
+        arg_values = delayed_node.arg_values
         join_specs = delayed_node.join_specs
         output_dtype = self.map_type(delayed_node.output_dtype)
 
@@ -591,6 +592,7 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
             for arg_name, parent_node in arg_sources.items():
                 col_name = parent_node.field_label
                 kwargs[arg_name] = self.select_field(ds, col_name)
+            kwargs.update(arg_values)
 
             # Apply the map
             base_fields_subset = base_fields.get(node.dataset_label, None)
@@ -745,57 +747,73 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
                         assert isinstance(
                             function_kwarg, peh.CalculationKeywordArgument
                         )
-                        source_field_ref = (
-                            function_kwarg.contextual_field_reference
-                        )
-                        assert isinstance(
-                            source_field_ref, peh.ContextualFieldReference
-                        )
-                        source_observation_id = source_field_ref.dataset_label
-                        assert source_observation_id is not None
-                        source_observable_property_id = (
-                            source_field_ref.field_label
-                        )
-                        assert source_observable_property_id is not None
-                        source_contextual_field_ref = (
-                            context_index.context_lookup(
-                                source_observation_id,
-                                source_observable_property_id,
-                            )
-                        )
-                        assert (
-                            source_contextual_field_ref is not None
-                        ), f"Source contextual reference could not be found for property {source_observable_property_id} in observation {source_observation_id}."
-                        source_dataset_label, source_field_label = (
-                            source_contextual_field_ref
-                        )
-                        parent = graph.Node(
-                            dataset_label=source_dataset_label,
-                            field_label=source_field_label,
-                        )
                         map_name = function_kwarg.mapping_name
                         assert map_name is not None
-                        join_spec = None
-                        if join_spec_mapping is not None:
-                            join_spec = join_spec_mapping.get(
-                                frozenset(
-                                    [
-                                        target_dataset_label,
-                                        source_dataset_label,
-                                    ]
-                                ),
-                                None,
-                            )
-                            if join_spec is not None:
-                                assert (
-                                    len(join_spec) == 1
-                                ), "Complex JoinSpecs are not supported yet."
-                        dependency_graph.add_calculation_source(
-                            parent,
-                            child,
-                            map_name,
-                            join_spec=join_spec,
+                        source_field_ref = getattr(
+                            function_kwarg,
+                            "contextual_field_reference",
+                            None,
                         )
+                        # TODO: Validate once peh-model 0.5.3 has been released
+                        scalar_value = getattr(function_kwarg, "value", None)
+
+                        if source_field_ref is not None:
+                            assert isinstance(
+                                source_field_ref, peh.ContextualFieldReference
+                            )
+                            source_observation_id = (
+                                source_field_ref.dataset_label
+                            )
+                            assert source_observation_id is not None
+                            source_observable_property_id = (
+                                source_field_ref.field_label
+                            )
+                            assert source_observable_property_id is not None
+                            source_contextual_field_ref = (
+                                context_index.context_lookup(
+                                    source_observation_id,
+                                    source_observable_property_id,
+                                )
+                            )
+                            assert (
+                                source_contextual_field_ref is not None
+                            ), f"Source contextual reference could not be found for property {source_observable_property_id} in observation {source_observation_id}."
+                            source_dataset_label, source_field_label = (
+                                source_contextual_field_ref
+                            )
+                            parent = graph.Node(
+                                dataset_label=source_dataset_label,
+                                field_label=source_field_label,
+                            )
+                            join_spec = None
+                            if join_spec_mapping is not None:
+                                join_spec = join_spec_mapping.get(
+                                    frozenset(
+                                        [
+                                            target_dataset_label,
+                                            source_dataset_label,
+                                        ]
+                                    ),
+                                    None,
+                                )
+                                if join_spec is not None:
+                                    assert (
+                                        len(join_spec) == 1
+                                    ), "Complex JoinSpecs are not supported yet."
+                            dependency_graph.add_calculation_source(
+                                parent,
+                                child,
+                                map_name,
+                                join_spec=join_spec,
+                            )
+                        elif scalar_value is not None:
+                            dependency_graph.add_calculation_scalar_argument(
+                                child, map_name, scalar_value
+                            )
+                        else:
+                            raise ValueError(
+                                f"CalculationKeywordArgument {map_name} has neither contextual_field_reference nor value."
+                            )
 
         return dependency_graph
 
@@ -1017,9 +1035,13 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
                             assert isinstance(
                                 function_kwarg, peh.CalculationKeywordArgument
                             )
-                            source_field_ref = (
-                                function_kwarg.contextual_field_reference
+                            source_field_ref = getattr(
+                                function_kwarg,
+                                "contextual_field_reference",
+                                None,
                             )
+                            if source_field_ref is None:
+                                continue
                             assert isinstance(
                                 source_field_ref, peh.ContextualFieldReference
                             )

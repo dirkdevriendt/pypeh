@@ -20,6 +20,7 @@ class Delayed:
     def __init__(self, map_fn: Callable, output_dtype):
         self.map_fn = map_fn
         self.arg_sources = {}  # refers to kwarg represented by the parent
+        self.arg_values = {}
         self.join_specs: list[list[JoinSpec]] = []
         self.output_dtype = output_dtype
 
@@ -36,6 +37,9 @@ class Delayed:
     @property
     def parents(self) -> list[Node]:
         return list(self.arg_sources.values())
+
+    def add_arg_value(self, map_name: str, value):
+        self.arg_values[map_name] = value
 
 
 @dataclass
@@ -103,7 +107,7 @@ class Graph:
                 child_delayed.add_parent(parent, map_name, join_spec)
             else:
                 raise ValueError(
-                    "No Delayed function has been defined for node {child}"
+                    f"No Delayed function has been defined for node {child}"
                 )
 
         self.graph[parent].add(child)
@@ -183,3 +187,16 @@ class Graph:
         self.add_edge(
             parent, child, map_name=source_mapping_name, join_spec=join_spec
         )
+
+    def add_calculation_scalar_argument(
+        self,
+        target: Node,
+        source_mapping_name: str,
+        value,
+    ):
+        delayed = self.delayed_fns.get(target)
+        if delayed is None:
+            raise ValueError(
+                f"No Delayed function has been defined for node {target}"
+            )
+        delayed.add_arg_value(source_mapping_name, value)
