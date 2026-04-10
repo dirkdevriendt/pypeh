@@ -108,6 +108,22 @@ class TestGraph:
 
         assert "Circular dependency detected" in str(excinfo.value)
 
+    def test_add_calculation_scalar_argument(self):
+        g = Graph()
+        target = Node("A", "result")
+        g.add_calculation_target(
+            target=target,
+            function_name="builtins.abs",
+            result_dtype="integer",
+        )
+        g.add_calculation_scalar_argument(
+            target=target,
+            source_mapping_name="offset",
+            value=2,
+        )
+        delayed = g.delayed_fns[target]
+        assert delayed.arg_values == {"offset": 2}
+
 
 class MockIndex(ContextIndexProtocol):
     def context_lookup(
