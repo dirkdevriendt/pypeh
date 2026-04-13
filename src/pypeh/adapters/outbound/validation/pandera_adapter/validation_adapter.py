@@ -97,23 +97,3 @@ class DataFrameValidationAdapter(
                 error.locations = new_location_list
 
         return report
-
-    def _join_data(
-        self,
-        data: DataFrame,
-        other_data: list[DataFrame],
-        join_on: list[str],
-        subset_fields_other: list[list[str]],
-    ) -> DataFrame:
-        assert len(other_data) == len(subset_fields_other)
-        this = data
-        for other, subset_fields in zip(other_data, subset_fields_other):
-            selected = other.select(subset_fields)
-
-            this = this.join(
-                selected,
-                on=join_on,
-                how="left",
-            )
-
-        return this

@@ -7,7 +7,10 @@ from typing import TYPE_CHECKING
 from polars.datatypes import DataType
 from enum import Enum
 
-from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface
+from pypeh.core.interfaces.outbound.dataops import (
+    JoinPlan,
+    OutDataOpsInterface,
+)
 from pypeh.core.models.constants import ObservablePropertyValueType
 
 if TYPE_CHECKING:
@@ -94,3 +97,72 @@ class DataFrameAdapter(OutDataOpsInterface[pl.DataFrame]):
         if isinstance(data, pl.LazyFrame):
             return data.collect()
         return data
+
+    def execute_join_plan(
+        self,
+        base_data: pl.DataFrame | pl.LazyFrame,
+        datasets: dict[str, pl.DataFrame | pl.LazyFrame],
+        join_plan: JoinPlan,
+    ) -> pl.DataFrame | pl.LazyFrame:
+        joined = base_data
+        seen_edges = set()
+
+        for edge in join_plan.edges:
+            # Invariant: JoinPlan.from_join_specs orients every edge so the
+            # base dataset is always the left side.
+            if edge.left_dataset != join_plan.base_dataset_label:
+                raise ValueError(
+                    "JoinEdge is not oriented to base dataset "
+                    f"'{join_plan.base_dataset_label}': {edge}"
+                )
+            left_on = edge.left_elements
+            right_on = edge.right_elements
+            other_dataset_label = edge.right_dataset
+
+            edge_signature = (
+                left_on,
+                join_plan.base_dataset_label,
+                right_on,
+                other_dataset_label,
+            )
+            if edge_signature in seen_edges:
+                continue
+            seen_edges.add(edge_signature)
+
+            other_dataset = datasets.get(other_dataset_label, None)
+            assert other_dataset is not None
+
+            required_fields = list(right_on)
+            extra_fields = join_plan.required_fields_by_dataset.get(
+                other_dataset_label, set()
+            )
+            for field in sorted(extra_fields):
+                if field not in required_fields:
+                    required_fields.append(field)
+
+            if isinstance(joined, pl.LazyFrame):
+                if isinstance(other_dataset, pl.LazyFrame):
+                    selected_lf = other_dataset.select(required_fields)
+                else:
+                    selected_lf = other_dataset.select(required_fields).lazy()
+                joined = joined.join(
+                    selected_lf,
+                    left_on=list(left_on),
+                    right_on=list(right_on),
+                    how=join_plan.how,
+                )
+            else:
+                if isinstance(other_dataset, pl.LazyFrame):
+                    selected_df = other_dataset.select(
+                        required_fields
+                    ).collect()
+                else:
+                    selected_df = other_dataset.select(required_fields)
+                joined = joined.join(
+                    selected_df,
+                    left_on=list(left_on),
+                    right_on=list(right_on),
+                    how=join_plan.how,
+                )
+
+        return joined

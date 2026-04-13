@@ -37,9 +37,9 @@ class ContextIndexProtocol(Protocol):
 
 @dataclass
 class JoinSpec:
-    left_element: str
+    left_elements: tuple[str, ...]
     left_dataset: str
-    right_element: str
+    right_elements: tuple[str, ...]
     right_dataset: str
 
 
@@ -361,72 +361,97 @@ class DatasetSchema:
 
     #### EXTRACT INFO FROM SCHEMA ####
 
+    @staticmethod
+    def _pack_join_elements(elements: list[str]) -> tuple[str, ...]:
+        return tuple(elements)
+
+    @staticmethod
+    def _collect_fk_pairs(
+        schema: DatasetSchema, referenced_dataset_label: str
+    ) -> list[tuple[str, str]]:
+        pairs: list[tuple[str, str]] = []
+        for fk in schema.foreign_keys.values():
+            if fk.reference.dataset_label == referenced_dataset_label:
+                pairs.append((fk.element_label, fk.reference.element_label))
+        pairs.sort(key=lambda pair: (pair[0], pair[1]))
+        return pairs
+
+    @staticmethod
+    def _collect_fk_pairs_by_dataset(
+        schema: DatasetSchema,
+    ) -> dict[str, list[tuple[str, str]]]:
+        by_dataset: dict[str, list[tuple[str, str]]] = defaultdict(list)
+        for fk in schema.foreign_keys.values():
+            by_dataset[fk.reference.dataset_label].append(
+                (fk.element_label, fk.reference.element_label)
+            )
+        for pairs in by_dataset.values():
+            pairs.sort(key=lambda pair: (pair[0], pair[1]))
+        return by_dataset
+
     def detect_join(
         self,
         dataset_label: str,
         other_schema: DatasetSchema,
         other_dataset_label: str,
-    ) -> list[JoinSpec] | None:
-        # Case 1: A → B directly
-        for col, fk in self.foreign_keys.items():
-            if fk.reference.dataset_label == other_dataset_label:
-                return [
-                    JoinSpec(
-                        left_element=fk.element_label,
-                        left_dataset=dataset_label,
-                        right_element=fk.reference.element_label,
-                        right_dataset=other_dataset_label,
-                    )
-                ]
-
-        # Case 2: B → A directly
-        for col, fk in other_schema.foreign_keys.items():
-            if fk.reference.dataset_label == dataset_label:
-                return [
-                    JoinSpec(
-                        left_element=fk.reference.element_label,
-                        left_dataset=dataset_label,
-                        right_element=fk.element_label,
-                        right_dataset=other_dataset_label,
-                    )
-                ]
-
-        # Case 3: shared third dataset: requires two `JoinSpec`
-        refs_a = {
-            fk.reference.dataset_label: (
-                fk.element_label,
-                fk.reference.element_label,
+    ) -> JoinSpec | None:
+        # Case 1: A -> B directly (supports multi-column keys)
+        left_pairs = self._collect_fk_pairs(self, other_dataset_label)
+        if len(left_pairs) > 0:
+            left_elements = [pair[0] for pair in left_pairs]
+            right_elements = [pair[1] for pair in left_pairs]
+            return JoinSpec(
+                left_elements=self._pack_join_elements(left_elements),
+                left_dataset=dataset_label,
+                right_elements=self._pack_join_elements(right_elements),
+                right_dataset=other_dataset_label,
             )
-            for fk in self.foreign_keys.values()
-        }
-        refs_b = {
-            fk.reference.dataset_label: (
-                fk.element_label,
-                fk.reference.element_label,
+
+        # Case 2: B -> A directly (supports multi-column keys)
+        right_pairs = self._collect_fk_pairs(other_schema, dataset_label)
+        if len(right_pairs) > 0:
+            left_elements = [pair[1] for pair in right_pairs]
+            right_elements = [pair[0] for pair in right_pairs]
+            return JoinSpec(
+                left_elements=self._pack_join_elements(left_elements),
+                left_dataset=dataset_label,
+                right_elements=self._pack_join_elements(right_elements),
+                right_dataset=other_dataset_label,
             )
-            for fk in other_schema.foreign_keys.values()
-        }
 
-        shared = set(refs_a.keys()).intersection(set(refs_b.keys()))
-        if shared:
-            shared_label = next(iter(shared))
-            a_col_local, a_other = refs_a[shared_label]
-            b_col_local, b_other = refs_b[shared_label]
-
-            return [
-                JoinSpec(
-                    left_element=a_col_local,
+        # Case 3: shared third dataset (hub), resolved as direct inferred join
+        refs_a = self._collect_fk_pairs_by_dataset(self)
+        refs_b = self._collect_fk_pairs_by_dataset(other_schema)
+        shared = sorted(set(refs_a.keys()).intersection(set(refs_b.keys())))
+        if len(shared) > 0:
+            for shared_label in shared:
+                a_by_ref = {
+                    ref_element: local_element
+                    for local_element, ref_element in refs_a[shared_label]
+                }
+                b_by_ref = {
+                    ref_element: local_element
+                    for local_element, ref_element in refs_b[shared_label]
+                }
+                shared_ref_elements = sorted(
+                    set(a_by_ref.keys()).intersection(set(b_by_ref.keys()))
+                )
+                if len(shared_ref_elements) == 0:
+                    continue
+                left_elements = [
+                    a_by_ref[ref_element]
+                    for ref_element in shared_ref_elements
+                ]
+                right_elements = [
+                    b_by_ref[ref_element]
+                    for ref_element in shared_ref_elements
+                ]
+                return JoinSpec(
+                    left_elements=self._pack_join_elements(left_elements),
                     left_dataset=dataset_label,
-                    right_element=a_other,
-                    right_dataset=shared_label,
-                ),
-                JoinSpec(
-                    left_element=b_col_local,
-                    left_dataset="",
-                    right_element=b_other,
-                    right_dataset=shared_label,
-                ),
-            ]
+                    right_elements=self._pack_join_elements(right_elements),
+                    right_dataset=other_dataset_label,
+                )
 
         return None
 
@@ -494,7 +519,7 @@ class Dataset(Resource, Generic[T_DataType]):
     def get_primary_keys(self) -> set[str] | None:
         return self.schema.primary_keys
 
-    def resolve_join(self, other: Dataset) -> list[JoinSpec] | None:
+    def resolve_join(self, other: Dataset) -> JoinSpec | None:
         schema = self.schema
         assert schema is not None
         return schema.detect_join(
@@ -1170,14 +1195,14 @@ class DatasetSeries(Resource, Generic[T_DataType]):
 
     def resolve_join(
         self, left_dataset_label: str, right_dataset_label: str
-    ) -> list[JoinSpec] | None:
+    ) -> JoinSpec | None:
         left = self.get(left_dataset_label)
         assert left is not None
         right = self.get(right_dataset_label)
         assert right is not None
         return left.resolve_join(right)
 
-    def resolve_all_joins(self) -> dict[frozenset, list[JoinSpec] | None]:
+    def resolve_all_joins(self) -> dict[frozenset, JoinSpec | None]:
         ret = {}
         for combo in itertools.combinations(self.parts, 2):
             key = frozenset(combo)

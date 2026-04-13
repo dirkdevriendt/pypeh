@@ -20,5 +20,8 @@ layouts:
     elements:
     - label: id_sample
       observable_property:  peh:adults_id_subject
+      foreign_key_link:
+        section: SAMPLE_METADATA_SECTION_SAMPLE
+        label: id_sample
     - label: adults_u_crt
       observable_property: peh:adults_u_crt

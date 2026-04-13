@@ -13,8 +13,9 @@ import logging
 
 from abc import abstractmethod
 from collections import defaultdict
+from dataclasses import dataclass, field
 from peh_model import peh
-from typing import TYPE_CHECKING, Callable, Generic
+from typing import TYPE_CHECKING, Callable, Generic, Literal
 
 from pypeh.core.cache.containers import CacheContainerView
 from pypeh.core.models.constants import ObservablePropertyValueType
@@ -23,6 +24,7 @@ from pypeh.core.models.internal_data_layout import (
     DatasetSchemaElement,
     DatasetSeries,
     ContextIndexProtocol,
+    JoinSpec,
 )
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models import graph, validation_dto
@@ -33,6 +35,79 @@ if TYPE_CHECKING:
     from pypeh.core.models.validation_errors import ValidationErrorReport
 
 logger = logging.getLogger(__name__)
+
+
+JoinHow = Literal[
+    "inner",
+    "left",
+    "right",
+    "full",
+    "semi",
+    "anti",
+    "cross",
+]
+
+
+@dataclass(frozen=True)
+class JoinEdge:
+    left_dataset: str
+    left_elements: tuple[str, ...]
+    right_dataset: str
+    right_elements: tuple[str, ...]
+
+    @classmethod
+    def from_join_spec(cls, join_spec: JoinSpec) -> "JoinEdge":
+        return cls(
+            left_dataset=join_spec.left_dataset,
+            left_elements=join_spec.left_elements,
+            right_dataset=join_spec.right_dataset,
+            right_elements=join_spec.right_elements,
+        )
+
+    def orient_to_base(self, base_dataset_label: str) -> "JoinEdge":
+        if self.left_dataset == base_dataset_label:
+            return self
+        if self.right_dataset == base_dataset_label:
+            return JoinEdge(
+                left_dataset=self.right_dataset,
+                left_elements=self.right_elements,
+                right_dataset=self.left_dataset,
+                right_elements=self.left_elements,
+            )
+        raise ValueError(
+            f"JoinEdge {self} does not reference base dataset "
+            f"'{base_dataset_label}'."
+        )
+
+
+@dataclass
+class JoinPlan:
+    base_dataset_label: str
+    edges: list[JoinEdge]
+    required_fields_by_dataset: dict[str, set[str]] = field(
+        default_factory=dict
+    )
+    how: JoinHow = "left"
+
+    @classmethod
+    def from_join_specs(
+        cls,
+        *,
+        base_dataset_label: str,
+        join_specs: list[JoinSpec],
+        required_fields_by_dataset: dict[str, set[str]] | None = None,
+        how: JoinHow = "left",
+    ) -> "JoinPlan":
+        edges = [
+            JoinEdge.from_join_spec(js).orient_to_base(base_dataset_label)
+            for js in join_specs
+        ]
+        return cls(
+            base_dataset_label=base_dataset_label,
+            edges=edges,
+            required_fields_by_dataset=required_fields_by_dataset or {},
+            how=how,
+        )
 
 
 class OutDataOpsInterface(Generic[T_DataType]):
@@ -59,13 +134,11 @@ class OutDataOpsInterface(Generic[T_DataType]):
             raise e
         return adapter_class
 
-    @abstractmethod
-    def _join_data(
+    def execute_join_plan(
         self,
-        data: T_DataType,
-        other_data: list[T_DataType],
-        join_on: list[str],
-        subset_fields_other: list[list[str]],
+        base_data: T_DataType,
+        datasets: dict[str, T_DataType],
+        join_plan: JoinPlan,
     ) -> T_DataType:
         raise NotImplementedError
 
@@ -524,11 +597,11 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
                     dependent_contextual_field_references is not None
                 ), "dependent_contextual_field_references in `ValidationInterface.validate` should not be None"
                 assert dependent_dataset_series is not None
-                identifying_field_labels = dataset.schema.primary_keys
-                assert identifying_field_labels is not None
-                all_other_data = []
-                subset_fields_other = []
-
+                join_specs: list[JoinSpec] = []
+                required_fields_by_dataset: dict[str, set[str]] = defaultdict(
+                    set
+                )
+                available_data: dict[str, T_DataType] = {}
                 for (
                     dataset_label,
                     dependent_field_labels,
@@ -537,18 +610,32 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
                     assert other_dataset is not None
                     other_data = other_dataset.data
                     assert other_data is not None
-                    all_other_data.append(other_data)
-                    field_subset = [
-                        *identifying_field_labels,
-                        *dependent_field_labels,
-                    ]
-                    subset_fields_other.append(field_subset)
-                    to_validate = self._join_data(
-                        data=to_validate,
-                        other_data=all_other_data,
-                        join_on=list(identifying_field_labels),
-                        subset_fields_other=subset_fields_other,
+                    available_data[dataset_label] = other_data
+                    join_spec = dataset.resolve_join(other_dataset)
+                    if join_spec is None:
+                        me = (
+                            f"Cannot resolve explicit join path between "
+                            f"'{dataset.label}' and '{dataset_label}'. "
+                            "Add a `foreign_key_link` to the DataLayout elements."
+                        )
+                        logger.error(me)
+                        raise ValueError(me)
+                    join_specs.append(join_spec)
+                    required_fields_by_dataset[dataset_label].update(
+                        dependent_field_labels
                     )
+
+                join_plan = JoinPlan.from_join_specs(
+                    base_dataset_label=dataset.label,
+                    join_specs=join_specs,
+                    required_fields_by_dataset=required_fields_by_dataset,
+                    how="left",
+                )
+                to_validate = self.execute_join_plan(
+                    base_data=to_validate,
+                    datasets=available_data,
+                    join_plan=join_plan,
+                )
 
         ret = self._validate(to_validate, validation_config)
 
@@ -573,9 +660,6 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
         return adapter_class
 
     @abstractmethod
-    def apply_joins(self, datasets, join_specs, node): ...
-
-    @abstractmethod
     def apply_map(
         self, dataset, map_fn, field_label, output_dtype, base_fields, **kwargs
     ): ...
@@ -598,10 +682,24 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
             ds = datasets[node.dataset_label]
             # Apply all joins
             if join_specs:
-                ds = self.apply_joins(
-                    datasets=datasets,
+                required_fields_by_dataset: dict[str, set[str]] = defaultdict(
+                    set
+                )
+                for parent_node in arg_sources.values():
+                    if parent_node.dataset_label != node.dataset_label:
+                        required_fields_by_dataset[
+                            parent_node.dataset_label
+                        ].add(parent_node.field_label)
+                join_plan = JoinPlan.from_join_specs(
+                    base_dataset_label=node.dataset_label,
                     join_specs=join_specs,
-                    node=node,
+                    required_fields_by_dataset=required_fields_by_dataset,
+                    how="left",
+                )
+                ds = self.execute_join_plan(
+                    base_data=ds,
+                    datasets=datasets,
+                    join_plan=join_plan,
                 )
 
             # Build column expressions for the map function
@@ -675,7 +773,7 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
         observations: list[peh.Observation],
         context_index: ContextIndexProtocol,
         cache_view: CacheContainerView,
-        join_spec_mapping: dict | None = None,
+        join_spec_mapping: dict[frozenset, JoinSpec | None] | None = None,
     ) -> graph.Graph:
         dependency_graph = graph.Graph()
         # the source_observations also need to be added to the dependency graph!!!!!
@@ -813,10 +911,13 @@ class DataEnrichmentInterface(OutDataOpsInterface, Generic[T_DataType]):
                                     ),
                                     None,
                                 )
-                                if join_spec is not None:
-                                    assert (
-                                        len(join_spec) == 1
-                                    ), "Complex JoinSpecs are not supported yet."
+                            if (
+                                source_dataset_label != target_dataset_label
+                                and join_spec is None
+                            ):
+                                raise ValueError(
+                                    f"Could not resolve join path between datasets '{target_dataset_label}' and '{source_dataset_label}' for calculation argument '{map_name}'."
+                                )
                             dependency_graph.add_calculation_source(
                                 parent,
                                 child,

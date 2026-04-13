@@ -27,6 +27,9 @@ layouts:
     elements:
     - label: id_subject
       observable_property: adults_id_subject
+      foreign_key_link:
+        section: peh:PARC_ALIGNED_STUDIES_LAYOUT_ADULTS_SECTION_urine_lab
+        label: id_subject
     - label: biomarkercode
       observable_property: adults_anl_biomarkercode
     - label: matrix

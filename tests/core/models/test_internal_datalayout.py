@@ -1,6 +1,7 @@
 import pytest
 import peh_model.peh as peh
 import uuid
+from dataclasses import asdict
 
 from pypeh.core.cache.containers import (
     CacheContainer,
@@ -183,6 +184,7 @@ class TestInternalDataLayout:
         assert len(ds._obs_index) == 1
 
 
+@pytest.mark.core
 class TestJoinConditions:
     def test_left_to_right_join(self):
         left_schema = DatasetSchema(
@@ -215,10 +217,9 @@ class TestJoinConditions:
 
         join = left_schema.detect_join("A", right_schema, "B")
         assert join is not None
-        join = join[0]
         assert isinstance(join, JoinSpec)
-        assert join.left_element == "b_id"
-        assert join.right_element == "id"
+        assert join.left_elements == ("b_id",)
+        assert join.right_elements == ("id",)
         assert join.right_dataset == "B"
 
     def test_right_to_left_join(self):
@@ -252,10 +253,9 @@ class TestJoinConditions:
 
         join = left_schema.detect_join("A", right_schema, "B")
         assert join is not None
-        join = join[0]
         assert isinstance(join, JoinSpec)
-        assert join.left_element == "id"
-        assert join.right_element == "a_id"
+        assert join.left_elements == ("id",)
+        assert join.right_elements == ("a_id",)
         assert join.right_dataset == "B"
 
     def test_shared_reference_join(self):
@@ -271,7 +271,7 @@ class TestJoinConditions:
                 "c_ref": ForeignKey(
                     element_label="c_ref",
                     reference=ElementReference(
-                        dataset_label="C", element_label="id_other"
+                        dataset_label="C", element_label="id"
                     ),
                 )
             },
@@ -297,16 +297,253 @@ class TestJoinConditions:
 
         join = left_schema.detect_join("A", right_schema, "B")
         assert join is not None
-        assert isinstance(join, list)
-        assert join[0].left_element == "c_ref"
-        assert join[0].right_element == "id_other"
-        assert join[0].right_dataset == "C"
-        assert join[1].left_element == "c_fk"
-        assert join[1].right_element == "id"
-        assert join[1].right_dataset == "C"
+        assert isinstance(join, JoinSpec)
+        assert join.left_elements == ("c_ref",)
+        assert join.right_elements == ("c_fk",)
+        assert join.right_dataset == "B"
+
+    def test_shared_reference_join_none_without_shared_ref_columns(self):
+        left_schema = DatasetSchema(
+            elements={
+                "c_ref": DatasetSchemaElement(
+                    label="c_ref",
+                    observable_property_id="c_ref",
+                    data_type=ObservablePropertyValueType.STRING,
+                )
+            },
+            foreign_keys={
+                "c_ref": ForeignKey(
+                    element_label="c_ref",
+                    reference=ElementReference(
+                        dataset_label="C", element_label="id_other"
+                    ),
+                )
+            },
+        )
+        right_schema = DatasetSchema(
+            elements={
+                "c_fk": DatasetSchemaElement(
+                    label="c_fk",
+                    observable_property_id="c_fk",
+                    data_type=ObservablePropertyValueType.STRING,
+                )
+            },
+            foreign_keys={
+                "c_fk": ForeignKey(
+                    element_label="c_fk",
+                    reference=ElementReference(
+                        dataset_label="C", element_label="id"
+                    ),
+                )
+            },
+        )
+
+        join = left_schema.detect_join("A", right_schema, "B")
+        assert join is None
+
+    def test_direct_multi_column_join(self):
+        left_schema = DatasetSchema(
+            elements={
+                "k1": DatasetSchemaElement(
+                    label="k1",
+                    observable_property_id="k1",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+                "k2": DatasetSchemaElement(
+                    label="k2",
+                    observable_property_id="k2",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+            },
+            foreign_keys={
+                "k1": ForeignKey(
+                    element_label="k1",
+                    reference=ElementReference(
+                        dataset_label="B", element_label="id1"
+                    ),
+                ),
+                "k2": ForeignKey(
+                    element_label="k2",
+                    reference=ElementReference(
+                        dataset_label="B", element_label="id2"
+                    ),
+                ),
+            },
+        )
+        right_schema = DatasetSchema(
+            elements={
+                "id1": DatasetSchemaElement(
+                    label="id1",
+                    observable_property_id="id1",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+                "id2": DatasetSchemaElement(
+                    label="id2",
+                    observable_property_id="id2",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+            }
+        )
+
+        join = left_schema.detect_join("A", right_schema, "B")
+        assert join is not None
+        assert join.left_elements == ("k1", "k2")
+        assert join.right_elements == ("id1", "id2")
+        assert join.right_dataset == "B"
+
+    def test_shared_hub_multi_column_join(self):
+        left_schema = DatasetSchema(
+            elements={
+                "h1_local": DatasetSchemaElement(
+                    label="h1_local",
+                    observable_property_id="h1_local",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+                "h2_local": DatasetSchemaElement(
+                    label="h2_local",
+                    observable_property_id="h2_local",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+            },
+            foreign_keys={
+                "h1_local": ForeignKey(
+                    element_label="h1_local",
+                    reference=ElementReference(
+                        dataset_label="HUB", element_label="id1"
+                    ),
+                ),
+                "h2_local": ForeignKey(
+                    element_label="h2_local",
+                    reference=ElementReference(
+                        dataset_label="HUB", element_label="id2"
+                    ),
+                ),
+            },
+        )
+        right_schema = DatasetSchema(
+            elements={
+                "h1_fk": DatasetSchemaElement(
+                    label="h1_fk",
+                    observable_property_id="h1_fk",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+                "h2_fk": DatasetSchemaElement(
+                    label="h2_fk",
+                    observable_property_id="h2_fk",
+                    data_type=ObservablePropertyValueType.STRING,
+                ),
+            },
+            foreign_keys={
+                "h1_fk": ForeignKey(
+                    element_label="h1_fk",
+                    reference=ElementReference(
+                        dataset_label="HUB", element_label="id1"
+                    ),
+                ),
+                "h2_fk": ForeignKey(
+                    element_label="h2_fk",
+                    reference=ElementReference(
+                        dataset_label="HUB", element_label="id2"
+                    ),
+                ),
+            },
+        )
+
+        join = left_schema.detect_join("A", right_schema, "B")
+        assert join is not None
+        assert join.left_elements == ("h1_local", "h2_local")
+        assert join.right_elements == ("h1_fk", "h2_fk")
+        assert join.right_dataset == "B"
+
+    def test_dataset_series_resolve_join_via_shared_parent(self):
+        dataset_a = Dataset(
+            label="A",
+            schema=DatasetSchema(
+                elements={
+                    "id": DatasetSchemaElement(
+                        label="id",
+                        observable_property_id="id",
+                        data_type=ObservablePropertyValueType.STRING,
+                    )
+                }
+            ),
+        )
+        dataset_b = Dataset(
+            label="B",
+            schema=DatasetSchema(
+                elements={
+                    "a_id": DatasetSchemaElement(
+                        label="a_id",
+                        observable_property_id="a_id",
+                        data_type=ObservablePropertyValueType.STRING,
+                    )
+                },
+                foreign_keys={
+                    "a_id": ForeignKey(
+                        element_label="a_id",
+                        reference=ElementReference(
+                            dataset_label="A", element_label="id"
+                        ),
+                    )
+                },
+            ),
+        )
+        dataset_c = Dataset(
+            label="C",
+            schema=DatasetSchema(
+                elements={
+                    "a_id": DatasetSchemaElement(
+                        label="a_id",
+                        observable_property_id="a_id",
+                        data_type=ObservablePropertyValueType.STRING,
+                    )
+                },
+                foreign_keys={
+                    "a_id": ForeignKey(
+                        element_label="a_id",
+                        reference=ElementReference(
+                            dataset_label="A", element_label="id"
+                        ),
+                    )
+                },
+            ),
+        )
+        series = DatasetSeries(
+            label="series",
+            parts={"A": dataset_a, "B": dataset_b, "C": dataset_c},
+        )
+
+        join = series.resolve_join("B", "C")
+        assert join is not None
+        assert join.left_elements == ("a_id",)
+        assert join.right_elements == ("a_id",)
+        assert join.right_dataset == "C"
 
 
+@pytest.mark.core
 class TestToTarget:
+    @staticmethod
+    def _strip_identifiers(obj):
+        if isinstance(obj, dict):
+            return {
+                k: TestToTarget._strip_identifiers(v)
+                for k, v in obj.items()
+                if k != "identifier"
+            }
+        if isinstance(obj, list):
+            return [TestToTarget._strip_identifiers(v) for v in obj]
+        if isinstance(obj, set):
+            return {TestToTarget._strip_identifiers(v) for v in obj}
+        return obj
+
+    @classmethod
+    def _assert_schema_equal_ignoring_identifiers(
+        cls, actual: DatasetSchema, expected: DatasetSchema
+    ) -> None:
+        actual_dict = cls._strip_identifiers(asdict(actual))
+        expected_dict = cls._strip_identifiers(asdict(expected))
+        assert actual_dict == expected_dict
+
     @pytest.fixture(scope="class")
     def dataset_series_input(self) -> tuple[DatasetSeries, DatasetSchema]:
         # Schema for urine_lab
@@ -515,16 +752,19 @@ class TestToTarget:
             obsprop = cache_view.get(
                 spec.observable_property, "ObservableProperty"
             )
-            spec.observable_property = obsprop
             labeled_observable_property_specifications[obsprop.ui_label] = spec
         source_dataset_series.add_observation(
             dataset_label="partial_urine_lab",
             observation=obs,
             labeled_observable_property_specifications=labeled_observable_property_specifications,
+            cache_view=cache_view,
         )
         partial_urine_data = source_dataset_series["partial_urine_lab"]
         assert partial_urine_data is not None
-        assert partial_urine_data.schema == expected_schema
+        self._assert_schema_equal_ignoring_identifiers(
+            partial_urine_data.schema, expected_schema
+        )
+
         expected_observation_index = {
             "peh:analyticalinfo_obs": {"analyticalinfo"},
             "peh:urine_lab_this": {"partial_urine_lab"},
