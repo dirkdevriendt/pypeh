@@ -73,6 +73,13 @@ class DataOpsProtocol(Protocol, Generic[T_DataType]):
 
     def compute_with_dependency_graph(self, dependency_graph, datasets): ...
 
+    def split_by_observation(
+        self,
+        dataset_series: DatasetSeries[T_DataType],
+        *,
+        new_label: str | None = None,
+    ) -> DatasetSeries[T_DataType]: ...
+
     def enrich(
         self,
         source_dataset_series,
@@ -88,6 +95,8 @@ class DataOpsProtocol(Protocol, Generic[T_DataType]):
         target_derived_from,
         cache_view,
     ): ...
+
+    def matches_schema(self, raw_data_dict, dataset_series) -> bool: ...
 
 
 class TestValidation(abc.ABC):
@@ -630,14 +639,6 @@ class TestDatasetSeriesMods(abc.ABC):
     def get_adapter(self):
         raise NotImplementedError
 
-    def verify_dataset_subset(self, dataset: Dataset, num_elements: int):
-        raise NotImplementedError
-
-    def verify_dataset_relabel(
-        self, dataset: Dataset, expected_labels: list[str]
-    ):
-        raise NotImplementedError
-
     @pytest.fixture(scope="function")
     def raw_data(self):
         raise NotImplementedError
@@ -844,64 +845,157 @@ class TestDatasetSeriesMods(abc.ABC):
 
         return series
 
-    def test_subset_dataset(
-        self, dataset_series, observation_designs, observations
+    def test_split_by_observation_check_indices(self, dataset_series):
+        adapter = self.get_adapter()
+        dataset_series._register_observable_property(
+            "id_subject", "peh:urine_lab_this", "urine_lab", "id_subject"
+        )
+        dataset_series._register_observable_property(
+            "matrix", "peh:urine_lab_this", "urine_lab", "matrix"
+        )
+        dataset_series._register_observable_property(
+            "crt", "peh:urine_lab_this", "urine_lab", "crt"
+        )
+        dataset_series._register_observable_property(
+            "id_subject", "peh:urine_lab_other", "urine_lab", "id_subject"
+        )
+        dataset_series._register_observable_property(
+            "crt_lod", "peh:urine_lab_other", "urine_lab", "crt_lod"
+        )
+        dataset_series._register_observable_property(
+            "crt_loq", "peh:urine_lab_other", "urine_lab", "crt_loq"
+        )
+        dataset_series._register_observable_property(
+            "sg", "peh:urine_lab_other", "urine_lab", "sg"
+        )
+        dataset_series._register_observable_property(
+            "id_subject",
+            "peh:analyticalinfo_obs",
+            "analyticalinfo",
+            "id_subject",
+        )
+        dataset_series._register_observable_property(
+            "biomarkercode",
+            "peh:analyticalinfo_obs",
+            "analyticalinfo",
+            "biomarkercode",
+        )
+        dataset_series._register_observable_property(
+            "matrix",
+            "peh:analyticalinfo_obs",
+            "analyticalinfo",
+            "matrix",
+        )
+        dataset_series._register_observable_property(
+            "labinstitution",
+            "peh:analyticalinfo_obs",
+            "analyticalinfo",
+            "labinstitution",
+        )
+        # NOTE: dataset_series does not contain an observation_index !
+        split_series = adapter.split_by_observation(dataset_series)
+
+        assert len(split_series.parts) == 3
+        for dataset in split_series.parts.values():
+            assert len(dataset.observation_ids) == 1
+
+        assert split_series.context_lookup("peh:urine_lab_this", "crt")[0] == (
+            "peh:urine_lab_this"
+        )
+        assert split_series.context_lookup("peh:urine_lab_other", "crt_lod")[
+            0
+        ] == ("peh:urine_lab_other")
+        assert split_series.context_lookup(
+            "peh:analyticalinfo_obs", "labinstitution"
+        )[0] == ("peh:analyticalinfo_obs")
+
+    @abc.abstractmethod
+    def mixed_join_and_single_dataset_data(self):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def verify_join_and_single_dataset(
+        self, split_series: DatasetSeries, adapter: DataOpsProtocol
     ):
-        urine_this_design, urine_other_design = observation_designs[
-            "urine_lab"
-        ]
-        urine_this, urine_other = observations["urine_lab"]
-        num_primary_keys_urine_lab = len(
-            dataset_series["urine_lab"].schema.primary_keys
-        )
-        ret = dataset_series.subset_dataset(
-            dataset_label="urine_lab",
-            new_dataset_series_label="urine_split",
-            observation_groups={"this": [urine_this], "other": [urine_other]},
-            observation_designs=[urine_this_design, urine_other_design],
-            dataops_adapter=self.get_adapter(),
-        )
-        assert len(ret.parts) == 2
-        labels = set(ret.parts)
-        dataset_labels = set(["this", "other"])
-        dataset_schema_size = {"this": 3, "other": 4}
-        assert labels == dataset_labels
+        raise NotImplementedError
 
-        # check schema
-        for dataset_label in dataset_labels:
-            dataset = ret.get(dataset_label)
-            schema = dataset.schema
-            assert schema is not None
-            assert len(schema) == dataset_schema_size[dataset_label]
-            assert len(schema.primary_keys) == num_primary_keys_urine_lab
+    def test_split_by_observation_mixed_join_and_single_dataset(self):
+        # FIXME: currently limited to dataframe implementation
 
-            self.verify_dataset_subset(
-                dataset, num_elements=dataset_schema_size[dataset_label]
-            )
+        adapter = self.get_adapter()
+        dataset_series = DatasetSeries(label="mixed_split_case")
 
-    def test_relabel_dataset(self, dataset_series):
-        element_mapping = {
-            "id_subject": "id_subject_new",
-            "matrix": "matrix_new",
-            "crt": "crt_new",
-            "crt_loq": "crt_loq_new",
-            "crt_lod": "crt_lod_new",
-            "sg": "sg_new",
-        }
-        _ = dataset_series.relabel_dataset(
-            "urine_lab",
-            element_mapping=element_mapping,
-            dataops_adapter=self.get_adapter(),
+        left_dataset = dataset_series.add_empty_dataset("left")
+        right_dataset = dataset_series.add_empty_dataset("right")
+
+        left_dataset.add_observation_to_index("obs:1")
+        left_dataset.add_observation_to_index("obs:2")
+        right_dataset.add_observation_to_index("obs:1")
+
+        # left schema
+        left_dataset.add_observable_property(
+            observable_property_id="shared_id_prop",
+            data_type=ObservablePropertyValueType.STRING,
+            element_label="id",
+            is_primary_key=True,
         )
-        dataset = dataset_series.get("urine_lab")
-        for _, new_label in element_mapping.items():
-            schema_element = dataset.get_schema_element_by_label(new_label)
-            assert schema_element is not None
-            assert schema_element.label == new_label
-
-        self.verify_dataset_relabel(
-            dataset, expected_labels=list(element_mapping.values())
+        left_dataset.add_observable_property(
+            observable_property_id="obs1_left_prop",
+            data_type=ObservablePropertyValueType.FLOAT,
+            element_label="left_measure",
         )
+        left_dataset.add_observable_property(
+            observable_property_id="obs2_left_prop",
+            data_type=ObservablePropertyValueType.FLOAT,
+            element_label="left_other_measure",
+        )
+
+        # right schema
+        right_dataset.add_observable_property(
+            observable_property_id="right_fk_prop",
+            data_type=ObservablePropertyValueType.STRING,
+            element_label="left_id",
+        )
+        right_dataset.add_observable_property(
+            observable_property_id="obs1_right_prop",
+            data_type=ObservablePropertyValueType.FLOAT,
+            element_label="right_measure",
+        )
+        right_dataset.schema.add_foreign_key_link(
+            element_label="left_id",
+            foreign_key_dataset_label="left",
+            foreign_key_element_label="id",
+        )
+
+        # Context index links: obs:1 spans left+right, obs:2 is only on left.
+        dataset_series._register_observable_property(
+            "shared_id_prop", "obs:1", "left", "id"
+        )
+        dataset_series._register_observable_property(
+            "obs1_left_prop", "obs:1", "left", "left_measure"
+        )
+        dataset_series._register_observable_property(
+            "obs1_right_prop", "obs:1", "right", "right_measure"
+        )
+        dataset_series._register_observable_property(
+            "shared_id_prop", "obs:2", "left", "id"
+        )
+        dataset_series._register_observable_property(
+            "obs2_left_prop", "obs:2", "left", "left_other_measure"
+        )
+
+        left_dataset_data, right_dataset_data = (
+            self.mixed_join_and_single_dataset_data()
+        )
+        left_dataset.data = left_dataset_data
+        right_dataset.data = right_dataset_data
+
+        split_series = adapter.split_by_observation(dataset_series)
+        assert isinstance(split_series, DatasetSeries)
+        assert set(split_series.parts.keys()) == {"obs:1", "obs:2"}
+        assert len(split_series.parts["obs:1"].observation_ids) == 1
+        assert len(split_series.parts["obs:2"].observation_ids) == 1
+        self.verify_join_and_single_dataset(split_series, adapter)
 
 
 class TestEnrichment(abc.ABC):
@@ -1016,7 +1110,7 @@ class TestEnrichment(abc.ABC):
                     raw_data, element_label=element_label, as_list=True
                 )
                 assert len(values) > 0
-        assert dataset_series.matches_schema(enriched_data, adapter)
+        assert adapter.matches_schema(enriched_data, dataset_series)
 
 
 @pytest.mark.dataframe
@@ -1100,18 +1194,50 @@ class TestDataFrameDataOps(
 
         return layout
 
-    def verify_dataset_subset(self, dataset: Dataset, num_elements: int):
-        data = dataset.data
-        assert data is not None
-        assert data.shape[-1] == num_elements
+    def mixed_join_and_single_dataset_data(self):
+        import polars as pl
 
-    def verify_dataset_relabel(
-        self, dataset: Dataset, expected_labels: list[str]
+        left_data = pl.DataFrame(
+            {
+                "id": ["001", "002"],
+                "left_measure": [10.0, 20.0],
+                "left_other_measure": [7.0, 8.0],
+            }
+        )
+        right_data = pl.DataFrame(
+            {"left_id": ["001", "002"], "right_measure": [100.0, 200.0]}
+        )
+        return (left_data, right_data)
+
+    def verify_join_and_single_dataset(
+        self, split_series: DatasetSeries, adapter: DataOpsProtocol
     ):
-        data = dataset.data
-        assert data is not None
-        labels = data.columns
-        assert set(labels) == set(expected_labels)
+        obs1_dataset_label, obs1_right_label = split_series.context_lookup(
+            "obs:1", "obs1_right_prop"
+        )
+        assert obs1_dataset_label == "obs:1"
+        obs1_data = split_series.parts["obs:1"].data
+        assert obs1_data is not None
+        assert obs1_data.width == 3
+        assert obs1_data.get_column(obs1_right_label).to_list() == [
+            100.0,
+            200.0,
+        ]
+
+        obs2_dataset_label, obs2_left_label = split_series.context_lookup(
+            "obs:2", "obs2_left_prop"
+        )
+        assert obs2_dataset_label == "obs:2"
+        obs2_data = split_series.parts["obs:2"].data
+        assert obs2_data is not None
+        assert obs2_data.width == 2
+        assert obs2_data.get_column(obs2_left_label).to_list() == [7.0, 8.0]
+        split_series_data = {}
+        for dataset_label in split_series.parts:
+            dataset = split_series[dataset_label]
+            assert dataset is not None
+            split_series_data[dataset_label] = dataset.data
+        assert adapter.matches_schema(split_series_data, split_series)
 
 
 @pytest.mark.dataframe
