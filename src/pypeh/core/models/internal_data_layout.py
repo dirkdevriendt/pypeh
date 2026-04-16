@@ -12,7 +12,6 @@ from typing import (
     Callable,
     Generator,
     Generic,
-    Sequence,
     Protocol,
 )
 from ulid import ULID
@@ -262,100 +261,6 @@ class DatasetSchema:
             # if observable_property.calculation_design is not None:
             #    pass
 
-    #### RESTRUCTURE DATASETSCHEMA ####
-
-    def subset(self, element_group: Sequence[str]) -> DatasetSchema:
-        elements = {}
-        foreign_keys = {}
-        primary_keys = set()
-
-        for element_label in element_group:
-            element = self.get_element_by_label(element_label)
-            assert (
-                element is not None
-            ), f"Element with label {element_label} not found in schema"
-            elements[element_label] = element
-            if element_label in self.foreign_keys:
-                foreign_keys[element_label] = self.foreign_keys[element_label]
-            if self.primary_keys is not None:
-                if element_label in self.primary_keys:
-                    primary_keys.add(element_label)
-            elements[element_label] = element
-
-        return DatasetSchema(
-            elements=elements,
-            primary_keys=primary_keys,
-            foreign_keys=foreign_keys,
-        )
-
-    def relabel(self, element_mapping: dict[str, str]):
-        elements: dict[str, DatasetSchemaElement] = dict()
-        all_type_info: dict[str, ObservablePropertyValueType] = dict()
-        elements_by_observable_property: dict[str, set[str]] = defaultdict(set)
-        primary_keys: set[str] | None = set()
-        foreign_keys: dict[str, ForeignKey] = {}
-
-        for element_label, new_element_label in element_mapping.items():
-            schema_element = self.elements.pop(element_label)
-            elements[new_element_label] = schema_element
-            schema_element.label = new_element_label
-
-            # _type dict
-            type_info = self._type.pop(element_label)
-            all_type_info[new_element_label] = type_info
-
-            # _elements_by_observable_property
-            observable_property_id = schema_element.observable_property_id
-            element_labels = self._elements_by_observable_property.pop(
-                observable_property_id
-            )
-            for element_label in element_labels:
-                elements_by_observable_property[observable_property_id].add(
-                    element_label
-                )
-
-            # primary_keys
-            if self.primary_keys is not None:
-                if element_label in self.primary_keys:
-                    self.primary_keys.discard(element_label)
-                    primary_keys.add(new_element_label)
-
-            # foreign_keys
-            if element_label in self.foreign_keys:
-                foreign_key = self.foreign_keys.pop(element_label)
-                foreign_keys[new_element_label] = foreign_key
-
-        if len(self.elements) > 0:
-            for element in self.elements:
-                if element in elements:
-                    raise ValueError(
-                        "Schema element label {element} is non unique"
-                    )
-            elements = {**elements, **self.elements}
-            all_type_info = {**all_type_info, **self._type}
-            elements_by_observable_property = {
-                **elements_by_observable_property,
-                **self._elements_by_observable_property,
-            }
-            foreign_keys = {**foreign_keys, **self.foreign_keys}
-            if self.primary_keys is not None:
-                primary_keys = primary_keys | self.primary_keys
-            else:
-                assert len(primary_keys) == 0
-                primary_keys = None
-
-        num_elements = len(elements)
-        assert len(elements_by_observable_property) == num_elements
-        assert len(all_type_info) == num_elements
-        assert len(foreign_keys) <= num_elements
-
-        self.elements = elements
-        self._elements_by_observable_property = elements_by_observable_property
-        self._type = all_type_info
-        self.foreign_keys = foreign_keys
-        if primary_keys is not None:
-            self.primary_keys = primary_keys
-
     def __len__(self):
         return len(self.elements)
 
@@ -527,98 +432,6 @@ class Dataset(Resource, Generic[T_DataType]):
             other_schema=other.schema,
             other_dataset_label=other.label,
         )
-
-    #### RESTRUCTURE DATASET ####
-
-    def subset(
-        self,
-        new_dataset_series_label: str,
-        observation_groups: dict[str, list[peh.Observation]],
-        observation_designs: list[peh.ObservationDesign],
-        dataops_adapter: OutDataOpsInterface,
-    ) -> DatasetSeries:
-        # TODO: schemas for all new datasets need to be properly relabeled
-        ret = DatasetSeries(label=new_dataset_series_label, parts={})
-        observation_design_dict = {od.id: od for od in observation_designs}
-
-        for dataset_label, observation_group in observation_groups.items():
-            observable_property_ids: set[str] = set()
-            selected_observation_ids: set[str] = set()
-            for observation in observation_group:
-                assert observation.id in self.observation_ids
-                selected_observation_ids.add(observation.id)
-                observation_design_id = str(observation.observation_design)
-                assert observation_design_id in observation_design_dict.keys()
-                observation_design = observation_design_dict[
-                    observation_design_id
-                ]
-                assert observation_design is not None
-                assert isinstance(observation_design, peh.ObservationDesign)
-                obs_prop_specs = (
-                    observation_design.observable_property_specifications
-                )
-                assert obs_prop_specs is not None
-                for observable_property_specification in obs_prop_specs:
-                    assert isinstance(
-                        observable_property_specification,
-                        peh.ObservablePropertySpecification,
-                    )
-                    assert (
-                        observable_property_specification.observable_property
-                        is not None
-                    )
-                    observable_property_ids.add(
-                        str(
-                            observable_property_specification.observable_property
-                        )
-                    )
-
-            element_group = []
-            for observable_property_id in observable_property_ids:
-                elements = (
-                    self.schema.yield_elements_by_observable_property_id(
-                        observable_property_id
-                    )
-                )
-                for element in elements:
-                    element_group.append(element.label)
-            assert len(element_group) > 0
-
-            # split data
-            data_subset = dataops_adapter.subset(
-                data=self.data,
-                element_group=element_group,
-            )
-            # split schema
-            schema_subset = self.schema.subset(element_group)
-            # add both to new dataset
-            new_dataset = Dataset(
-                schema=schema_subset,
-                label=dataset_label,
-                data=data_subset,
-                observation_ids=selected_observation_ids,
-                part_of=ret,
-            )
-            ret.parts[dataset_label] = new_dataset
-
-        return ret
-
-    def relabel(
-        self,
-        element_mapping: dict[str, str],
-        dataops_adapter: OutDataOpsInterface,
-    ) -> bool:
-        # uniqueness check
-        if len(set(element_mapping.values())) != len(element_mapping):
-            raise ValueError(
-                "Not all values in the element_mapping are unique"
-            )
-        # relabel schema
-        _ = self.schema.relabel(element_mapping)
-        # relabel dataset
-        self.data = dataops_adapter.relabel(self.data, element_mapping)
-
-        return True
 
     def add_observable_property(
         self,
@@ -1146,41 +959,6 @@ class DatasetSeries(Resource, Generic[T_DataType]):
 
         return dataset
 
-    #### RESTRUCTURE DATASETSERIES ####
-
-    def subset_dataset(
-        self,
-        dataset_label: str,
-        new_dataset_series_label: str,
-        observation_groups: dict[str, list[peh.Observation]],
-        observation_designs: list[peh.ObservationDesign],
-        dataops_adapter: OutDataOpsInterface,
-    ) -> DatasetSeries:
-        """
-        observation_groups: Contains the new `Dataset.label` as key, and the list[ObservationId] to be included in the new `Dataset`
-        """
-
-        dataset = self.get(dataset_label)
-        assert dataset is not None
-        return dataset.subset(
-            new_dataset_series_label,
-            observation_groups,
-            observation_designs,
-            dataops_adapter=dataops_adapter,
-        )
-
-    def relabel_dataset(
-        self,
-        dataset_label: str,
-        element_mapping: dict[str, str],
-        dataops_adapter: OutDataOpsInterface,
-    ):
-        dataset = self.get(dataset_label)
-        assert dataset is not None
-        return dataset.relabel(
-            element_mapping, dataops_adapter=dataops_adapter
-        )
-
     #### EXTRACT INFO FROM DATASETSERIES ####
 
     def get_type_annotations(
@@ -1207,23 +985,6 @@ class DatasetSeries(Resource, Generic[T_DataType]):
         for combo in itertools.combinations(self.parts, 2):
             key = frozenset(combo)
             ret[key] = self.resolve_join(*combo)
-        return ret
-
-    def matches_schema(
-        self,
-        raw_data_dict: dict[str, T_DataType],
-        adapter: OutDataOpsInterface,
-    ) -> bool:
-        ret = True
-        for dataset_label in self.parts:
-            if dataset_label not in raw_data_dict:
-                return False
-            dataset = self[dataset_label]
-            assert dataset is not None
-            raw_data = raw_data_dict[dataset_label]
-            raw_data_labels = set(adapter.get_element_labels(raw_data))
-            ret = set(dataset.get_element_labels()) == raw_data_labels
-
         return ret
 
     def _get_validation_index(self) -> dict[str, dict[str, str]]:

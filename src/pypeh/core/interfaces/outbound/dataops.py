@@ -189,6 +189,23 @@ class OutDataOpsInterface(Generic[T_DataType]):
     def type_mapper(self, peh_value_type: str | ObservablePropertyValueType):
         raise NotImplementedError
 
+    def matches_schema(
+        self,
+        raw_data_dict: dict[str, T_DataType],
+        dataset_series: DatasetSeries,
+    ) -> bool:
+        ret = True
+        for dataset_label in dataset_series.parts:
+            if dataset_label not in raw_data_dict:
+                return False
+            dataset = dataset_series[dataset_label]
+            assert dataset is not None
+            raw_data = raw_data_dict[dataset_label]
+            raw_data_labels = set(self.get_element_labels(raw_data))
+            ret = set(dataset.get_element_labels()) == raw_data_labels
+
+        return ret
+
     def extract_labeled_observable_property_specifications(
         self, observation: peh.Observation, cache_view: CacheContainerView
     ) -> dict[str, peh.ObservablePropertySpecification]:
@@ -225,6 +242,431 @@ class OutDataOpsInterface(Generic[T_DataType]):
         except StopIteration:
             pass
         return dataset
+
+    @staticmethod
+    def _build_unique_label(
+        candidate: str,
+        used_labels: set[str],
+        dataset_label: str | None = None,
+    ) -> str:
+        if candidate not in used_labels:
+            return candidate
+
+        prefix = dataset_label if dataset_label is not None else "field"
+        numbered_prefix = f"{prefix}__{candidate}"
+        if numbered_prefix not in used_labels:
+            return numbered_prefix
+
+        idx = 2
+        while True:
+            unique = f"{numbered_prefix}_{idx}"
+            if unique not in used_labels:
+                return unique
+            idx += 1
+
+    @staticmethod
+    def _ensure_split_indices(
+        dataset_series: DatasetSeries[T_DataType],
+    ) -> None:
+        if len(dataset_series._obs_index) == 0:
+            dataset_series.build_observation_index()
+        if len(dataset_series._context_index) == 0:
+            raise ValueError(
+                "Cannot split DatasetSeries by observation without a context "
+                "index. Add observations through `DatasetSeries.add_observation` "
+                "or populate `_context_index` first."
+            )
+
+    @staticmethod
+    def _collect_observable_property_context(
+        dataset_series: DatasetSeries[T_DataType],
+        observation_id: str,
+        source_dataset_labels: list[str],
+    ) -> dict[str, tuple[str, str]]:
+        observable_property_context: dict[str, tuple[str, str]] = {}
+        for (
+            context_observation_id,
+            observable_property_id,
+        ), contextual_ref in dataset_series._context_index.items():
+            if context_observation_id != observation_id:
+                continue
+            source_label, element_label = contextual_ref
+            if source_label not in source_dataset_labels:
+                continue
+            observable_property_context[observable_property_id] = (
+                source_label,
+                element_label,
+            )
+        if len(observable_property_context) == 0:
+            raise ValueError(
+                f"Could not determine contextual fields for observation "
+                f"'{observation_id}'."
+            )
+        return observable_property_context
+
+    @staticmethod
+    def _collect_required_fields_by_dataset(
+        observable_property_context: dict[str, tuple[str, str]],
+    ) -> dict[str, set[str]]:
+        required_fields_by_dataset: dict[str, set[str]] = defaultdict(set)
+        for (
+            source_label,
+            element_label,
+        ) in observable_property_context.values():
+            required_fields_by_dataset[source_label].add(element_label)
+        return required_fields_by_dataset
+
+    @staticmethod
+    def _pick_base_dataset_label(
+        source_dataset_labels: list[str],
+        required_fields_by_dataset: dict[str, set[str]],
+    ) -> str:
+        source_order = {
+            label: idx for idx, label in enumerate(source_dataset_labels)
+        }
+        return max(
+            source_dataset_labels,
+            key=lambda label: (
+                len(required_fields_by_dataset.get(label, set())),
+                -source_order[label],
+            ),
+        )
+
+    @staticmethod
+    def _resolve_join_specs(
+        dataset_series: DatasetSeries[T_DataType],
+        observation_id: str,
+        source_dataset_labels: list[str],
+        base_dataset_label: str,
+        required_fields_by_dataset: dict[str, set[str]],
+    ) -> tuple[list[JoinSpec], dict[tuple[str, str], tuple[str, str]]]:
+        raw_join_specs: list[JoinSpec] = []
+        right_to_left_join_key: dict[tuple[str, str], tuple[str, str]] = {}
+
+        for source_label in source_dataset_labels:
+            if source_label == base_dataset_label:
+                continue
+            join_spec = dataset_series.resolve_join(
+                base_dataset_label, source_label
+            )
+            if join_spec is None:
+                raise ValueError(
+                    f"Could not resolve join path between datasets "
+                    f"'{base_dataset_label}' and '{source_label}' for "
+                    f"observation '{observation_id}'."
+                )
+            raw_join_specs.append(join_spec)
+            required_fields_by_dataset[join_spec.left_dataset].update(
+                join_spec.left_elements
+            )
+            required_fields_by_dataset[join_spec.right_dataset].update(
+                join_spec.right_elements
+            )
+            for left_element, right_element in zip(
+                join_spec.left_elements, join_spec.right_elements
+            ):
+                right_to_left_join_key[
+                    (join_spec.right_dataset, right_element)
+                ] = (join_spec.left_dataset, left_element)
+
+        return raw_join_specs, right_to_left_join_key
+
+    def _build_field_label_mapping(
+        self,
+        source_dataset_labels: list[str],
+        required_fields_by_dataset: dict[str, set[str]],
+    ) -> dict[tuple[str, str], str]:
+        used_output_labels: set[str] = set()
+        field_label_mapping: dict[tuple[str, str], str] = {}
+
+        for source_label in source_dataset_labels:
+            for field_label in sorted(
+                required_fields_by_dataset.get(source_label, set())
+            ):
+                unique_label = self._build_unique_label(
+                    field_label,
+                    used_output_labels,
+                    dataset_label=source_label,
+                )
+                used_output_labels.add(unique_label)
+                field_label_mapping[(source_label, field_label)] = unique_label
+
+        return field_label_mapping
+
+    def _prepare_datasets_for_join(
+        self,
+        dataset_series: DatasetSeries[T_DataType],
+        observation_id: str,
+        source_dataset_labels: list[str],
+        required_fields_by_dataset: dict[str, set[str]],
+        field_label_mapping: dict[tuple[str, str], str],
+    ) -> dict[str, T_DataType]:
+        datasets_for_join: dict[str, T_DataType] = {}
+
+        for source_label in source_dataset_labels:
+            source_dataset = dataset_series[source_label]
+            assert source_dataset is not None
+            source_data = source_dataset.data
+            if source_data is None:
+                raise ValueError(
+                    f"Dataset '{source_label}' has no data; cannot split "
+                    f"observation '{observation_id}'."
+                )
+
+            selected_fields = sorted(
+                required_fields_by_dataset.get(source_label, set())
+            )
+            data_subset = self.subset(
+                source_data, element_group=selected_fields
+            )
+            relabel_mapping = {
+                field_label: field_label_mapping[(source_label, field_label)]
+                for field_label in selected_fields
+                if field_label_mapping[(source_label, field_label)]
+                != field_label
+            }
+            if len(relabel_mapping) > 0:
+                data_subset = self.relabel(data_subset, relabel_mapping)
+            datasets_for_join[source_label] = data_subset
+
+        return datasets_for_join
+
+    @staticmethod
+    def _build_adjusted_join_plan(
+        base_dataset_label: str,
+        source_dataset_labels: list[str],
+        raw_join_specs: list[JoinSpec],
+        required_fields_by_dataset: dict[str, set[str]],
+        field_label_mapping: dict[tuple[str, str], str],
+    ) -> JoinPlan:
+        adjusted_join_specs = [
+            JoinSpec(
+                left_elements=tuple(
+                    field_label_mapping[(js.left_dataset, el)]
+                    for el in js.left_elements
+                ),
+                left_dataset=js.left_dataset,
+                right_elements=tuple(
+                    field_label_mapping[(js.right_dataset, el)]
+                    for el in js.right_elements
+                ),
+                right_dataset=js.right_dataset,
+            )
+            for js in raw_join_specs
+        ]
+        adjusted_required_fields: dict[str, set[str]] = defaultdict(set)
+        for source_label in source_dataset_labels:
+            adjusted_required_fields[source_label].update(
+                field_label_mapping[(source_label, field_label)]
+                for field_label in required_fields_by_dataset.get(
+                    source_label, set()
+                )
+            )
+        return JoinPlan.from_join_specs(
+            base_dataset_label=base_dataset_label,
+            join_specs=adjusted_join_specs,
+            required_fields_by_dataset=adjusted_required_fields,
+            how="left",
+        )
+
+    def _resolve_output_fields_by_observable_property(
+        self,
+        observation_id: str,
+        observable_property_context: dict[str, tuple[str, str]],
+        right_to_left_join_key: dict[tuple[str, str], tuple[str, str]],
+        field_label_mapping: dict[tuple[str, str], str],
+    ) -> dict[str, str]:
+        final_fields_by_observable_property: dict[str, str] = {}
+        for observable_property_id, (
+            source_label,
+            field_label,
+        ) in observable_property_context.items():
+            join_key_pair = right_to_left_join_key.get(
+                (source_label, field_label), None
+            )
+            if join_key_pair is not None:
+                mapped_source = join_key_pair
+            else:
+                mapped_source = (source_label, field_label)
+            final_fields_by_observable_property[observable_property_id] = (
+                field_label_mapping[mapped_source]
+            )
+        if len(set(final_fields_by_observable_property.values())) != len(
+            final_fields_by_observable_property
+        ):
+            raise ValueError(
+                f"Observation '{observation_id}' resolves multiple "
+                "observable properties to the same output field after "
+                "join normalization. This is currently unsupported."
+            )
+        return final_fields_by_observable_property
+
+    def _build_output_dataset_for_observation(
+        self,
+        target_series: DatasetSeries[T_DataType],
+        source_series: DatasetSeries[T_DataType],
+        observation_id: str,
+        source_dataset_labels: list[str],
+        observable_property_context: dict[str, tuple[str, str]],
+        final_fields_by_observable_property: dict[str, str],
+        final_data: T_DataType,
+    ) -> None:
+        output_dataset_label = self._build_unique_label(
+            observation_id,
+            set(target_series.parts.keys()),
+            dataset_label="observation",
+        )
+        output_dataset = target_series.add_empty_dataset(
+            output_dataset_label,
+            metadata={
+                "source_datasets": source_dataset_labels,
+                "observation_id": observation_id,
+            },
+        )
+        output_dataset.observation_ids.add(observation_id)
+
+        for (
+            observable_property_id,
+            final_field_label,
+        ) in final_fields_by_observable_property.items():
+            source_label, source_field_label = observable_property_context[
+                observable_property_id
+            ]
+            source_dataset = source_series[source_label]
+            assert source_dataset is not None
+            source_schema_element = source_dataset.get_schema_element_by_label(
+                source_field_label
+            )
+            if source_schema_element is None:
+                raise ValueError(
+                    f"Schema element '{source_field_label}' missing in "
+                    f"dataset '{source_label}'."
+                )
+            is_primary_key = (
+                source_field_label in source_dataset.schema.primary_keys
+            )
+            output_dataset.add_observable_property(
+                observable_property_id=observable_property_id,
+                data_type=source_schema_element.data_type,
+                element_label=final_field_label,
+                is_primary_key=is_primary_key,
+            )
+
+        output_dataset.data = final_data
+
+    def split_by_observation(
+        self,
+        dataset_series: DatasetSeries[T_DataType],
+        *,
+        new_label: str | None = None,
+    ) -> DatasetSeries[T_DataType]:
+        """
+        Return a new DatasetSeries where each Dataset maps to exactly one Observation.
+
+        This operation can split datasets with multiple observations and join
+        multiple datasets that jointly represent one observation.
+        """
+        self._ensure_split_indices(dataset_series)
+
+        series_label = (
+            new_label
+            if new_label is not None
+            else f"{dataset_series.label}_by_observation"
+        )
+        ret = DatasetSeries[T_DataType](
+            label=series_label,
+            metadata=dict(dataset_series.metadata),
+        )
+
+        observation_ids = sorted(dataset_series._obs_index.keys())
+        for observation_id in observation_ids:
+            source_dataset_labels = sorted(
+                dataset_series._obs_index.get(observation_id, set())
+            )
+            if len(source_dataset_labels) == 0:
+                continue
+
+            observable_property_context = (
+                self._collect_observable_property_context(
+                    dataset_series,
+                    observation_id,
+                    source_dataset_labels,
+                )
+            )
+            required_fields_by_dataset = (
+                self._collect_required_fields_by_dataset(
+                    observable_property_context
+                )
+            )
+            base_dataset_label = self._pick_base_dataset_label(
+                source_dataset_labels, required_fields_by_dataset
+            )
+
+            raw_join_specs, right_to_left_join_key = self._resolve_join_specs(
+                dataset_series,
+                observation_id,
+                source_dataset_labels,
+                base_dataset_label,
+                required_fields_by_dataset,
+            )
+            field_label_mapping = self._build_field_label_mapping(
+                source_dataset_labels, required_fields_by_dataset
+            )
+
+            datasets_for_join = self._prepare_datasets_for_join(
+                dataset_series,
+                observation_id,
+                source_dataset_labels,
+                required_fields_by_dataset,
+                field_label_mapping,
+            )
+
+            base_data = datasets_for_join[base_dataset_label]
+            if len(raw_join_specs) > 0:
+                join_plan = self._build_adjusted_join_plan(
+                    base_dataset_label,
+                    source_dataset_labels,
+                    raw_join_specs,
+                    required_fields_by_dataset,
+                    field_label_mapping,
+                )
+                joined_data = self.execute_join_plan(
+                    base_data=base_data,
+                    datasets=datasets_for_join,
+                    join_plan=join_plan,
+                )
+            else:
+                joined_data = base_data
+
+            final_fields_by_observable_property = (
+                self._resolve_output_fields_by_observable_property(
+                    observation_id,
+                    observable_property_context,
+                    right_to_left_join_key,
+                    field_label_mapping,
+                )
+            )
+
+            final_fields = [
+                final_fields_by_observable_property[observable_property_id]
+                for observable_property_id in sorted(
+                    final_fields_by_observable_property
+                )
+            ]
+            final_data = self.subset(joined_data, element_group=final_fields)
+
+            self._build_output_dataset_for_observation(
+                target_series=ret,
+                source_series=dataset_series,
+                observation_id=observation_id,
+                source_dataset_labels=source_dataset_labels,
+                observable_property_context=observable_property_context,
+                final_fields_by_observable_property=final_fields_by_observable_property,
+                final_data=final_data,
+            )
+
+        ret.build_indices()
+        return ret
 
     @abstractmethod
     def normalize_input(self, data: T_DataType) -> T_DataType:
