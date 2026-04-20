@@ -69,7 +69,9 @@ def parse_validation_expression(expression: ValidationExpression) -> Mapping:
         else:
             if len(arg_expressions) != 1:
                 raise NotImplementedError(
-                    f"Conditional expression {expression.conditional_expression} can only take a single validation_arg_expression"
+                    "Conditional expressions with a validation condition "
+                    "currently support exactly one arg expression. "
+                    f"received={len(arg_expressions)}."
                 )
             exp_2 = parse_validation_expression(arg_expressions[0])
 
@@ -80,7 +82,11 @@ def parse_validation_expression(expression: ValidationExpression) -> Mapping:
     if expression.command in ("conjunction", "disjunction"):
         if expression.arg_expressions is not None:
             if len(expression.arg_expressions) != 2:
-                raise NotImplementedError
+                raise NotImplementedError(
+                    "Conjunction/disjunction expressions currently support "
+                    "exactly two arg expressions. "
+                    f"received={len(expression.arg_expressions)}."
+                )
             case = expression.command
             exp_1 = parse_validation_expression(expression.arg_expressions[0])
             exp_2 = parse_validation_expression(expression.arg_expressions[1])

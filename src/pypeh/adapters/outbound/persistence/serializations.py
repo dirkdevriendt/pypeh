@@ -92,10 +92,14 @@ class IOAdapter(PersistenceInterface):
     """Adapter for loading from file."""
 
     def _loads(self, data: Union[str, bytes]) -> Any:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class IOAdapter was called without supporting implementation."
+        )
 
     def _load(self, stream: IO) -> Any:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class IOAdapter was called without supporting implementation."
+        )
 
     def load(
         self,
@@ -103,10 +107,14 @@ class IOAdapter(PersistenceInterface):
         target_class: Type[T_Dataclass] | Any | None,
         **kwargs,
     ) -> Any:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class IOAdapter was called without supporting implementation."
+        )
 
     def dump(self, source: EntityList, file_obj) -> None:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class IOAdapter was called without supporting implementation."
+        )
 
 
 class JsonIO(IOAdapter):

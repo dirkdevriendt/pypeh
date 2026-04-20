@@ -140,33 +140,45 @@ class OutDataOpsInterface(Generic[T_DataType]):
         datasets: dict[str, T_DataType],
         join_plan: JoinPlan,
     ) -> T_DataType:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Method OutDataOpsInterface.execute_join_plan requires adapter-specific implementation."
+        )
 
     @abstractmethod
     def select_field(self, dataset, field_label: str):
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class OutDataOpsInterface was called without supporting implementation."
+        )
 
     @abstractmethod
     def get_element_labels(self, data: T_DataType) -> list[str]:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class OutDataOpsInterface was called without supporting implementation."
+        )
 
     @abstractmethod
     def get_element_values(
         self, data: T_DataType, element_label: str, as_list=True
     ) -> set[str] | list[str]:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class OutDataOpsInterface was called without supporting implementation."
+        )
 
     @abstractmethod
     def check_element_has_empty_values(
         self, data: T_DataType, element_label: str
     ) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class OutDataOpsInterface was called without supporting implementation."
+        )
 
     @abstractmethod
     def check_element_has_only_empty_values(
         self, data: T_DataType, element_label: str
     ) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class OutDataOpsInterface was called without supporting implementation."
+        )
 
     @abstractmethod
     def subset(
@@ -183,11 +195,15 @@ class OutDataOpsInterface(Generic[T_DataType]):
 
     @abstractmethod
     def collect(self, datasets: dict):
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class OutDataOpsInterface was called without supporting implementation."
+        )
 
     @abstractmethod
     def type_mapper(self, peh_value_type: str | ObservablePropertyValueType):
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class OutDataOpsInterface was called without supporting implementation."
+        )
 
     def matches_schema(
         self,
@@ -670,11 +686,15 @@ class OutDataOpsInterface(Generic[T_DataType]):
 
     @abstractmethod
     def normalize_input(self, data: T_DataType) -> T_DataType:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class OutDataOpsInterface was called without supporting implementation."
+        )
 
     @abstractmethod
     def normalize_output(self, data: T_DataType) -> T_DataType:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class OutDataOpsInterface was called without supporting implementation."
+        )
 
 
 class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
@@ -684,7 +704,9 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         data: dict[str, Sequence] | T_DataType,
         config: validation_dto.ValidationConfig,
     ) -> ValidationErrorReport:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class ValidationInterface was called without supporting implementation."
+        )
 
     @classmethod
     def get_default_adapter_class(cls):
@@ -886,7 +908,9 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
     ) -> list[validation_dto.ValidationDesign] | None:
         dataset_level_validations: list[validation_dto.ValidationDesign] = []
         if cache_view is None:
-            raise NotImplementedError
+            raise NotImplementedError(
+                "ValidationInterface.build_dataset_level_validations requires a cache_view, but received None."
+            )
 
         if dataset_series is not None:
             type_annotations = dataset_series.get_type_annotations()
@@ -967,7 +991,7 @@ class ValidationInterface(OutDataOpsInterface, Generic[T_DataType]):
         dataset_validations = []
         if cache_view is None:
             raise NotImplementedError(
-                "The absence of a CacheView is currently not supported"
+                "ValidationInterface.build_validation_config requires a cache_view, but received None."
             )
 
         identifying_column_names = dataset.get_primary_keys()
@@ -1441,7 +1465,9 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
         stat_builders: list,
         **kwargs,
     ) -> T_DataType:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class AggregationInterface was called without supporting implementation."
+        )
 
     @abstractmethod
     def calculate_for_strata(
@@ -1452,7 +1478,9 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
         stat_builders: list[str],
         **kwargs,
     ) -> T_DataType:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class AggregationInterface was called without supporting implementation."
+        )
 
     @abstractmethod
     def group_results(
@@ -1460,7 +1488,9 @@ class AggregationInterface(OutDataOpsInterface, Generic[T_DataType]):
         results_to_collect: list[T_DataType],
         strata: list[str] | None = None,
     ) -> T_DataType:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class AggregationInterface was called without supporting implementation."
+        )
 
     @classmethod
     def get_default_adapter_class(cls):

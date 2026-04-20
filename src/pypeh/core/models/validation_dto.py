@@ -112,7 +112,11 @@ class ValidationExpression(BaseModel):
             logger.error(
                 f"No conversion defined for {v} of type {v.__class__}"
             )
-            raise NotImplementedError
+            raise NotImplementedError(
+                "ValidationExpression.command_to_str encountered an "
+                "unsupported command value. "
+                f"value={v!r}, value_type={v.__class__.__name__}."
+            )
 
     @classmethod
     def from_peh(

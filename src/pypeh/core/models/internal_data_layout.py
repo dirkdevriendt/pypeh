@@ -469,7 +469,10 @@ class Dataset(Resource, Generic[T_DataType]):
         """
         if not overwrite:
             if self.data is not None:
-                raise NotImplementedError()
+                raise NotImplementedError(
+                    "Dataset.add_data does not support overwrite=False when "
+                    f"data already exists. dataset_label={self.label!r}."
+                )
 
         if len(self.schema) > 0:
             if allow_incomplete:

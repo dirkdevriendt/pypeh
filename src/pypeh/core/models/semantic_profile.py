@@ -33,7 +33,9 @@ XSD_TYPE_MAP: dict[ObservablePropertyValueType, URIRef] = {
 class SemanticDatasetSchema(DatasetSchema):
     @abstractmethod
     def to_rdf(self, dataset: SemanticDataset):
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class SemanticDatasetSchema was called without supporting implementation."
+        )
 
     @classmethod
     def from_dataset_schema(

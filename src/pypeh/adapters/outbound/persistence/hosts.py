@@ -37,10 +37,14 @@ if TYPE_CHECKING:
 
 class HostAdapter(PersistenceInterface):
     def connect(self):
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class HostAdapter was called without supporting implementation."
+        )
 
     def close(self):
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class HostAdapter was called without supporting implementation."
+        )
 
 
 ## fsspec-based file interactions: local or cloud
@@ -588,7 +592,11 @@ class DatabaseAdapter(HostAdapter, Generic[T_Dataclass]):
         entity: Union[Dict[str, Any], BaseModel],
         **kwargs,
     ) -> None:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "DatabaseAdapter.dump is not implemented yet. "
+            f"destination={destination!r}, entity_type={type(entity).__name__}, "
+            f"kwargs={kwargs!r}."
+        )
 
 
 class ResourceRegistry:

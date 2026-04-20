@@ -300,7 +300,10 @@ class ExportXlsxAdapter(ExportInterface):
         studyinfo_header_list: list = None,
         codebook_metadata_dict: dict = None,
     ) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "ExportXlsxAdapter.export_data_dictionary is not implemented yet. "
+            f"destination={destination!r}."
+        )
 
     def export_data(
         self,
@@ -311,4 +314,7 @@ class ExportXlsxAdapter(ExportInterface):
         studyinfo_header_list: list = None,
         codebook_metadata_dict: dict = None,
     ) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "ExportXlsxAdapter.export_data is not implemented yet. "
+            f"destination={destination!r}."
+        )

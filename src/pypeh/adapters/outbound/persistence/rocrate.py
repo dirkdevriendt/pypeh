@@ -17,7 +17,14 @@ class ROCrateAdapter(PersistenceInterface):
     """Adapter for loading from file."""
 
     def load(self, source: str, **kwargs) -> Generator[Any, None, None]:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "ROCrateAdapter.load is not implemented yet. "
+            f"source={source!r}, kwargs={kwargs!r}."
+        )
 
     def dump(self, destination: str, entity: Any, **kwargs) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "ROCrateAdapter.dump is not implemented yet. "
+            f"destination={destination!r}, entity_type={type(entity).__name__}, "
+            f"kwargs={kwargs!r}."
+        )

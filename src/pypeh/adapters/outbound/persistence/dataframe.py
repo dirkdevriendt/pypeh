@@ -56,7 +56,10 @@ class CsvIOImpl(IOAdapter):
             raise
 
     def dump(self, destination: str, **kwargs):
-        raise NotImplementedError
+        raise NotImplementedError(
+            "CsvIOImpl.dump is not implemented yet. "
+            f"destination={destination!r}, kwargs={kwargs!r}."
+        )
 
 
 class ExcelIOImpl(IOAdapter):
@@ -171,4 +174,7 @@ class ExcelIOImpl(IOAdapter):
             raise
 
     def dump(self, destination: str, **kwargs):
-        raise NotImplementedError
+        raise NotImplementedError(
+            "ExcelIOImpl.dump is not implemented yet. "
+            f"destination={destination!r}, kwargs={kwargs!r}."
+        )
