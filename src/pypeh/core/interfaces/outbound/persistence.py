@@ -15,11 +15,15 @@ logger = logging.getLogger(__name__)
 class PersistenceInterface:
     @abstractmethod
     def load(self, source: str, **kwargs):
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class PersistenceInterface was called without supporting implementation."
+        )
 
     @abstractmethod
     def dump(self, source: EntityList, destination: str, **kwargs) -> None:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class PersistenceInterface was called without supporting implementation."
+        )
 
 
 class RepositoryInterface(PersistenceInterface):

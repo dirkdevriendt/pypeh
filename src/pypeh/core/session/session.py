@@ -179,7 +179,10 @@ class Session(Generic[T_AdapterType, T_DataType]):
                 adapter = DataEnrichmentInterface.get_default_adapter_class()
                 self._adapter_mapping[interface_functionality] = adapter
             case _:
-                raise NotImplementedError()
+                raise NotImplementedError(
+                    "Session.register_default_adapter does not support "
+                    f"interface_functionality={interface_functionality!r}."
+                )
 
         return adapter
 
@@ -325,7 +328,10 @@ class Session(Generic[T_AdapterType, T_DataType]):
         # Add data to DatasetSeries
         # TODO: fix host calls with unified ConnectionManager
         if is_url(source):
-            raise NotImplementedError
+            raise NotImplementedError(
+                "Session.load_tabular_dataset_series does not support URL "
+                f"sources yet. source={source!r}, file_format={file_format!r}."
+            )
         elif connection_label is not None:
             pass
         else:
@@ -368,7 +374,10 @@ class Session(Generic[T_AdapterType, T_DataType]):
     def resolve_typed_lazy_proxy(
         self, proxy: TypedLazyProxy
     ) -> peh.NamedThing:
-        raise NotImplementedError()
+        raise NotImplementedError(
+            "Session.resolve_typed_lazy_proxy is not implemented yet. "
+            f"proxy={proxy!r}."
+        )
 
     def load_resource(
         self,
@@ -407,7 +416,12 @@ class Session(Generic[T_AdapterType, T_DataType]):
             assert isinstance(ret, type_to_cast)
         else:
             # TODO: use linked data approach
-            raise NotImplementedError
+            raise NotImplementedError(
+                "Session.load_resource without connection_label is not "
+                "implemented yet (linked data fallback). "
+                f"resource_identifier={resource_identifier!r}, "
+                f"resource_type={resource_type!r}."
+            )
 
         return ret
 

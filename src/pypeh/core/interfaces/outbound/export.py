@@ -9,6 +9,7 @@ import logging
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+
 if TYPE_CHECKING:
     from typing import Optional
     from peh_model.peh import (
@@ -33,7 +34,9 @@ class ExportInterface:
         studyinfo_header_list: Optional[list[str]] = None,
         codebook_metadata_dict: Optional[dict[str, str]] = None,
     ) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class ExportInterface was called without supporting implementation."
+        )
 
     @abstractmethod
     def export_data_dictionary(
@@ -47,7 +50,9 @@ class ExportInterface:
         studyinfo_header_list: Optional[list[str]] = None,
         codebook_metadata_dict: Optional[dict[str, str]] = None,
     ) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class ExportInterface was called without supporting implementation."
+        )
 
     @abstractmethod
     def export_data(
@@ -61,4 +66,6 @@ class ExportInterface:
         studyinfo_header_list: Optional[list[str]] = None,
         codebook_metadata_dict: Optional[dict[str, str]] = None,
     ) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Abstract method on class ExportInterface was called without supporting implementation."
+        )
