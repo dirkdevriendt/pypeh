@@ -571,18 +571,20 @@ def statistics_percentiles_p95_ci_upper(
 
 
 def frequency_table(
-    value_col: str,
+    value_cols: list[str],
     *,
     result_aliases: list[str] = ["value", "frequency"],
 ) -> Callable[[pl.DataFrame | pl.LazyFrame], pl.DataFrame | pl.LazyFrame]:
-    def get_result(data: pl.DataFrame | pl.LazyFrame) -> pl.DataFrame | pl.LazyFrame:
+    def get_result(
+        data: pl.DataFrame | pl.LazyFrame,
+    ) -> pl.DataFrame | pl.LazyFrame:
         return (
-            data.group_by(pl.col(value_col))
-            .agg(pl.count())
+            data.group_by([pl.col(col) for col in value_cols])
+            .agg(pl.len())
             .rename(
                 {
-                    value_col: result_aliases[0],
-                    "count": result_aliases[1],
+                    value_cols[-1]: result_aliases[0],
+                    "len": result_aliases[1],
                 }
             )
             .sort(result_aliases[0])

@@ -571,15 +571,24 @@ class TestIntegration:
 class TestFrequencyTable:
     """Test suite for frequency table generation."""
 
-    def test_frequency_table_basic(self, dataframe_with_nulls, setup_adapter, pl):
+    def test_frequency_table_basic(
+        self, dataframe_with_nulls, setup_adapter, pl
+    ):
         """Test basic frequency table generation."""
         adapter = setup_adapter()
 
-        exprs = adapter._get_stat_function_from_name("frequency_table")("value")
+        exprs = adapter._get_stat_function_from_name("frequency_table")(
+            ["value"]
+        )
 
         result = exprs(dataframe_with_nulls)
 
         assert result.shape == (9, 2)
         assert "value" in result.columns
         assert "frequency" in result.columns
-        assert result.filter(pl.col("value").is_null()).select(pl.col("frequency")).item() == 2
+        assert (
+            result.filter(pl.col("value").is_null())
+            .select(pl.col("frequency"))
+            .item()
+            == 2
+        )
