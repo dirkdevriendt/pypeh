@@ -27,8 +27,8 @@ from pypeh.core.models.validation_errors import (
     ValidationErrorReportCollection,
 )
 from pypeh.core.models.internal_data_layout import DatasetSeries, Dataset
-from pypeh.core.interfaces.outbound.dataops import (
-    OutDataOpsInterface,
+from pypeh.core.interfaces.dataops import (
+    DataOpsInterface,
     DataEnrichmentInterface,
     ValidationInterface,
 )
@@ -173,7 +173,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
                 adapter = ValidationInterface.get_default_adapter_class()
                 self._adapter_mapping[interface_functionality] = adapter
             case "dataops":
-                adapter = OutDataOpsInterface.get_default_adapter_class()
+                adapter = DataOpsInterface.get_default_adapter_class()
                 self._adapter_mapping[interface_functionality] = adapter
             case "enrichment":
                 adapter = DataEnrichmentInterface.get_default_adapter_class()
@@ -346,7 +346,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         assert isinstance(data_dict, dict)
         import_adapter = self.get_adapter("dataops")
         for raw_dataset_label, raw_dataset in data_dict.items():
-            assert isinstance(import_adapter, OutDataOpsInterface)
+            assert isinstance(import_adapter, DataOpsInterface)
             data_labels = import_adapter.get_element_labels(raw_dataset)
             result = dataset_series.add_data(
                 dataset_label=raw_dataset_label,

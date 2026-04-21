@@ -18,7 +18,7 @@ from pypeh.core.models.internal_data_layout import (
     JoinSpec,
 )
 from pypeh.core.models.constants import ObservablePropertyValueType
-from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
+from pypeh.adapters.persistence.hosts import DirectoryIO
 from pypeh.core.cache.utils import load_entities_from_tree
 
 from tests.test_utils.dirutils import get_absolute_path

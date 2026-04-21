@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import pypeh.core.models.settings as settingsmodels
 
-from pypeh.adapters.outbound.persistence.hosts import (
+from pypeh.adapters.persistence.hosts import (
     HostAdapter,
     S3StorageProvider,
     LocalStorageProvider,

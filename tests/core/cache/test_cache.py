@@ -13,7 +13,7 @@ from pypeh.core.cache.containers import (
     CacheContainerView,
 )
 from pypeh.core.cache.utils import load_entities_from_tree
-from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
+from pypeh.adapters.persistence.hosts import DirectoryIO
 
 from tests.test_utils.dirutils import get_absolute_path
 

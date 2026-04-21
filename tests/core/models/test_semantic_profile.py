@@ -8,7 +8,7 @@ from pypeh.core.cache.containers import (
     CacheContainerView,
 )
 from pypeh.core.models.internal_data_layout import DatasetSeries
-from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
+from pypeh.adapters.persistence.hosts import DirectoryIO
 from pypeh.core.cache.utils import load_entities_from_tree
 
 from pypeh.core.models.semantic_profile import CSVWDatasetSchema

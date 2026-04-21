@@ -22,7 +22,6 @@ from pypeh.core.models.constants import ObservablePropertyValueType
 
 if TYPE_CHECKING:
     from typing import Any
-    from pypeh.core.interfaces.outbound.dataops import OutDataOpsInterface
 
 
 logger = logging.getLogger(__name__)

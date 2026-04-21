@@ -3,7 +3,7 @@ import peh_model.peh as peh
 import logging
 
 from pypeh.core.cache.containers import CacheContainerView
-from pypeh.core.interfaces.outbound.dataops import DataEnrichmentInterface
+from pypeh.core.interfaces.dataops import DataEnrichmentInterface
 from tests.test_utils.dirutils import get_absolute_path
 
 from pypeh import Session

@@ -1,14 +1,14 @@
 import pytest
 import itertools
 
-from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
+from pypeh.adapters.persistence.hosts import DirectoryIO
 from pypeh.core.cache.containers import (
     CacheContainerFactory,
     CacheContainerView,
 )
 from pypeh.core.cache.utils import load_entities_from_tree
 from pypeh.core.models.graph import Graph, Node
-from pypeh.core.interfaces.outbound.dataops import DataEnrichmentInterface
+from pypeh.core.interfaces.dataops import DataEnrichmentInterface
 from pypeh.core.models.internal_data_layout import (
     ContextIndexProtocol,
     JoinSpec,

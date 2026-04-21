@@ -1,9 +1,9 @@
 import pytest
 import re
 
-from pypeh.adapters.outbound.persistence.hosts import DirectoryIO
-from pypeh.core.interfaces.outbound.dataops import (
-    OutDataOpsInterface,
+from pypeh.adapters.persistence.hosts import DirectoryIO
+from pypeh.core.interfaces.dataops import (
+    DataOpsInterface,
     ValidationInterface,
 )
 from pypeh.core.cache.containers import (
@@ -32,9 +32,9 @@ class TestBasicValidationConfig:
                 container.add(entity)
         return CacheContainerView(container)
 
-    def get_adapter(self) -> OutDataOpsInterface:
+    def get_adapter(self) -> DataOpsInterface:
         try:
-            from pypeh.adapters.outbound.validation.pandera_adapter import (
+            from pypeh.adapters.validation.pandera_adapter import (
                 validation_adapter as dfops,
             )
 
