@@ -1,3 +1,5 @@
+from typing import Callable
+
 import polars as pl
 
 
@@ -566,3 +568,26 @@ def statistics_percentiles_p95_ci_upper(
             result_aliases=["p", "ci_lower", "ci_upper"],
         )[2].alias(result_aliases)
     ]
+
+
+def frequency_table(
+    value_cols: list[str],
+    *,
+    result_aliases: list[str] = ["value", "frequency"],
+) -> Callable[[pl.DataFrame | pl.LazyFrame], pl.DataFrame | pl.LazyFrame]:
+    def get_result(
+        data: pl.DataFrame | pl.LazyFrame,
+    ) -> pl.DataFrame | pl.LazyFrame:
+        return (
+            data.group_by([pl.col(col) for col in value_cols])
+            .agg(pl.len())
+            .rename(
+                {
+                    value_cols[-1]: result_aliases[0],
+                    "len": result_aliases[1],
+                }
+            )
+            .sort(result_aliases[0])
+        )
+
+    return get_result

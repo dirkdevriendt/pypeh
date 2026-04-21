@@ -102,3 +102,20 @@ class DataFrameAggregationAdapter(
                 results_to_collect,
             )
         return ret.collect()
+
+    def _calculate_frequency(
+        self,
+        df: pl.LazyFrame,
+        group_cols: list[str] | None,
+        value_col: str,
+        result_aliases: list[str] = ["value", "frequency"],
+    ) -> pl.LazyFrame:
+        if group_cols:
+            cols = group_cols + [value_col]
+        else:
+            cols = [value_col]
+
+        fn = self._get_stat_function_from_name("frequency_table")(
+            cols, result_aliases=result_aliases
+        )
+        return fn(df).collect()

@@ -514,3 +514,76 @@ class TestIntegrationScenarios:
 
         # Each row should have a combination of all three grouping variables
         assert all(result["n"] > 0)
+
+
+@pytest.mark.dataframe
+class TestCalculateFrequencies:
+    """Test suite for the calculate_frequencies method."""
+
+    def test_calculate_frequencies_basic(
+        self, setup_adapter, sample_dataframe, pl
+    ):
+        """Test calculate_frequencies with basic parameters."""
+        adapter = setup_adapter()
+
+        result = adapter._calculate_frequency(
+            df=sample_dataframe.lazy(),
+            group_cols=None,
+            value_col="group_a",
+        )
+
+        assert result.shape[0] == 2
+        assert "value" in result.columns
+        assert "frequency" in result.columns
+        assert (
+            result.filter(pl.col("value").eq("X"))
+            .select(pl.col("frequency"))
+            .item()
+            == 5
+        )
+        assert (
+            result.filter(pl.col("value").eq("Y"))
+            .select(pl.col("frequency"))
+            .item()
+            == 5
+        )
+
+    def test_calculate_frequencies_group_col(
+        self, setup_adapter, sample_dataframe, pl
+    ):
+        """Test calculate_frequencies with basic parameters."""
+        adapter = setup_adapter()
+
+        result = adapter._calculate_frequency(
+            df=sample_dataframe.lazy(),
+            group_cols=["group_a", "group_b"],
+            value_col="category",
+            result_aliases=["value", "frequency"],
+        )
+
+        assert (
+            result.shape[0] == 7
+        )  # There are 7 unique combinations of group_a, group_b, and category in the sample dataframe
+        assert result.shape[1] == 4  # group_a, group_b, value, frequency
+        assert "value" in result.columns
+        assert "frequency" in result.columns
+        assert (
+            result.filter(
+                pl.col("group_a").eq("X")
+                & pl.col("group_b").eq("A")
+                & pl.col("value").eq("cat1")
+            )
+            .select(pl.col("frequency"))
+            .item()
+            == 2
+        )
+        assert (
+            result.filter(
+                pl.col("group_a").eq("X")
+                & pl.col("group_b").eq("B")
+                & pl.col("value").eq("cat1")
+            )
+            .select(pl.col("frequency"))
+            .item()
+            == 1
+        )
