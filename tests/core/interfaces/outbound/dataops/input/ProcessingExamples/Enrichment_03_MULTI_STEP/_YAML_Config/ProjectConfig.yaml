@@ -58,7 +58,7 @@ observation_designs:
     specification_category: optional
   - observable_property: peh:N1Birthdate
     specification_category: optional
-- id: peh:EENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE_DESIGN
+- id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE_DESIGN
   observation_result_type: calculation
   observable_entity_type: person
   observable_property_specifications:
@@ -76,6 +76,8 @@ observation_designs:
     specification_category: optional
   - observable_property: peh:agemonths
     specification_category: optional
+  - observable_property: peh:transformed-weight
+    specification_category: optional
 observations:
 - id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
   name: ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
@@ -84,7 +86,7 @@ observations:
   - peh:INGESTION_RESULT_20251001_01
 - id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE
   name: ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE
-  observation_design: peh:EENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE_DESIGN
+  observation_design: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE_DESIGN
   observation_result_id_list:
   - peh:ENRICHMENT_BASE_RESULT_20251001_01
 - id: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED
