@@ -16,3 +16,9 @@ def datetime_from_year_month_day(
         ),
         dtype=pl.Date,
     )
+
+
+def transform_birthweight(
+    birthweight: pl.Series, constant: float
+) -> pl.Series:
+    return birthweight + constant
