@@ -1,0 +1,196 @@
+observable_properties:
+- id: peh:id_subject
+  ui_label: id_subject
+  name: id_subject
+  short_name: id_subject
+  description: Subject Identifier
+  value_type: string
+  categorical: false
+  multivalued: false
+  unit: UNITLESS
+  required: true
+  zeroallowed: false
+  observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+- id: peh:current_year
+  name: current_year
+  ui_label: current_year
+  short_name: current_year
+  description: year the questionnaire is filled in
+  value_type: integer
+  categorical: false
+  multivalued: false
+  value_metadata:
+  - field: min
+    value: '1900.0'
+  - field: max
+    value: '2100.0'
+  unit: UNITLESS
+  required: false
+  zeroallowed: false
+  observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+- id: peh:current_month
+  ui_label: current_month
+  name: current_month
+  short_name: current_month
+  description: month the questionnaire is filled in
+  value_type: string
+  categorical: true
+  multivalued: false
+  value_options:
+  - key: '1'
+    value: January
+  - key: '2'
+    value: February
+  - key: '3'
+    value: March
+  - key: '4'
+    value: April
+  - key: '5'
+    value: May
+  - key: '6'
+    value: June
+  - key: '7'
+    value: July
+  - key: '8'
+    value: August
+  - key: '9'
+    value: September
+  - key: '10'
+    value: October
+  - key: '11'
+    value: November
+  - key: '12'
+    value: December
+  unit: UNITLESS
+  required: false
+  zeroallowed: false
+  observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+- id: peh:N1BirthWeight
+  name: N1BirthWeight
+  ui_label: N1BirthWeight
+  short_name: N1BW
+  value_type: float
+  categorical: false
+  multivalued: false
+  unit: GM
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+- id: peh:N1BirthLength
+  name: N1BirthLength
+  ui_label: N1BirthLength
+  short_name: N1BL
+  value_type: float
+  categorical: false
+  multivalued: false
+  unit: CM
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+- id: peh:N2BirthWeight
+  name: N2BirthWeight
+  ui_label: N2BirthWeight
+  short_name: N2BW
+  value_type: integer
+  categorical: false
+  multivalued: false
+  unit: GM
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+- id: peh:mean_birthweight
+  ui_label: mean_birthweight
+  name: mean_birthweight
+  short_name: MBW
+  value_type: float
+  categorical: false
+  multivalued: false
+  unit: GM
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  calculation_design:
+    calculation_name: mean
+    calculation_implementation:
+      function_name: pypeh.adapters.aggregation.polars_adapter.statistics.statistics_mean
+      function_kwargs:
+      - contextual_field_reference:
+          dataset_label: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
+          field_label: peh:N1BirthWeight
+- id: peh:sem_birthweight
+  ui_label: sem_birthweight
+  name: sem_birthweight
+  short_name: SEMBW
+  value_type: float
+  categorical: false
+  multivalued: false
+  unit: GM
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  calculation_design:
+    calculation_name: standard_error
+    calculation_implementation:
+      function_name: pypeh.adapters.aggregation.polars_adapter.statistics.statistics_sem
+      function_kwargs:
+      - contextual_field_reference:
+          dataset_label: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
+          field_label: peh:N1BirthWeight
+- id: peh:mean_birthlength
+  ui_label: mean_birthlength
+  name: mean_birthlength
+  short_name: MBL
+  value_type: float
+  categorical: false
+  multivalued: false
+  unit: CM
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  calculation_design:
+    calculation_name: mean
+    calculation_implementation:
+      function_name: pypeh.adapters.aggregation.polars_adapter.statistics.statistics_mean
+      function_kwargs:
+      - contextual_field_reference:
+          dataset_label: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECTUNIQUE_INGESTED
+          field_label: peh:N1BirthLength
+- id: peh:mean_birthweight2
+  ui_label: mean_birthweight2
+  name: mean_birthweight2
+  short_name: MBW2
+  value_type: float
+  categorical: false
+  multivalued: false
+  unit: GM
+  required: false
+  zeroallowed: true
+  observation_result_type: measurement
+  relevant_observation_types:
+  - questionnaire
+  calculation_design:
+    calculation_name: mean
+    calculation_implementation:
+      function_name: pypeh.adapters.aggregation.polars_adapter.statistics.statistics_mean
+      function_kwargs:
+      - contextual_field_reference:
+          dataset_label: peh:ENRICHMENT_TEST_OBSERVATION_SUBJECT_ENRICHED_BASE
+          field_label: peh:N2BirthWeight
