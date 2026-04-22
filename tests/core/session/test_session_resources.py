@@ -1,10 +1,18 @@
 import pytest
 import re
 import yaml
+import inspect
+from typing import Callable
 
 from peh_model.peh import Observation, ObservableProperty, DerivedObservation
 
 from pypeh import Session
+from pypeh.core.cache.containers import CacheContainerView
+from pypeh.core.interfaces.dataops import (
+    AggregationInterface,
+    DataEnrichmentInterface,
+)
+from pypeh.core.models.internal_data_layout import DatasetSeries
 from pypeh.core.models.settings import LocalFileConfig
 
 from pypeh.core.utils.namespaces import NamespaceManager
@@ -111,3 +119,287 @@ class TestSessionUnpack:
             assert isinstance(source, Observation)
             count += 1
         assert count == 3
+
+
+class RecordingAggregationAdapter(AggregationInterface):
+    def __init__(self, result: DatasetSeries):
+        self.calls: list[dict] = []
+        self._result = result
+
+    def select_field(self, dataset, field_label: str):
+        return None
+
+    def get_element_labels(self, data):
+        return []
+
+    def get_element_values(self, data, element_label: str, as_list=True):
+        return []
+
+    def check_element_has_empty_values(self, data, element_label: str) -> bool:
+        return False
+
+    def check_element_has_only_empty_values(
+        self, data, element_label: str
+    ) -> bool:
+        return False
+
+    def subset(
+        self,
+        data,
+        element_group: list[str],
+        id_group=None,
+        identifying_elements=None,
+    ):
+        return data
+
+    def collect(self, datasets: dict):
+        return datasets
+
+    def type_mapper(self, peh_value_type):
+        return peh_value_type
+
+    def _calculate_for_stratum(
+        self, df, group_cols, value_col: str, stat_builders: list, **kwargs
+    ):
+        return df
+
+    def calculate_for_strata(
+        self,
+        df,
+        stratifications,
+        value_col: str,
+        stat_builders: list[str],
+        **kwargs,
+    ):
+        return df
+
+    def group_results(self, results_to_collect: list, strata=None):
+        return results_to_collect[0]
+
+    def summarize(
+        self,
+        source_dataset_series: DatasetSeries,
+        target_observations: list[Observation],
+        target_derived_from: list[Observation],
+        cache_view: CacheContainerView,
+        id_factory: Callable[[], str] | None = None,
+    ) -> DatasetSeries:
+        self.calls.append(
+            {
+                "source_dataset_series": source_dataset_series,
+                "target_observations": target_observations,
+                "target_derived_from": target_derived_from,
+                "cache_view": cache_view,
+            }
+        )
+        return self._result
+
+
+class RecordingEnrichmentAdapter(DataEnrichmentInterface):
+    def __init__(self, result: DatasetSeries):
+        self.calls: list[dict] = []
+        self._result = result
+
+    def select_field(self, dataset, field_label: str):
+        return None
+
+    def get_element_labels(self, data):
+        return []
+
+    def get_element_values(self, data, element_label: str, as_list=True):
+        return []
+
+    def check_element_has_empty_values(self, data, element_label: str) -> bool:
+        return False
+
+    def check_element_has_only_empty_values(
+        self, data, element_label: str
+    ) -> bool:
+        return False
+
+    def subset(
+        self,
+        data,
+        element_group: list[str],
+        id_group=None,
+        identifying_elements=None,
+    ):
+        return data
+
+    def collect(self, datasets: dict):
+        return datasets
+
+    def type_mapper(self, peh_value_type):
+        return peh_value_type
+
+    def apply_map(
+        self, dataset, map_fn, field_label, output_dtype, base_fields, **kwargs
+    ):
+        return dataset
+
+    def map_type(self, peh_value_type: str):
+        return peh_value_type
+
+    def enrich(
+        self,
+        source_dataset_series: DatasetSeries,
+        target_observations: list[Observation],
+        target_derived_from: list[Observation],
+        cache_view: CacheContainerView,
+    ) -> DatasetSeries:
+        self.calls.append(
+            {
+                "source_dataset_series": source_dataset_series,
+                "target_observations": target_observations,
+                "target_derived_from": target_derived_from,
+                "cache_view": cache_view,
+            }
+        )
+        return self._result
+
+
+@pytest.mark.core
+class TestAdapterSignatureContracts:
+    @staticmethod
+    def _signature_without_annotations(func):
+        sig = inspect.signature(func)
+        params = [
+            param.replace(annotation=inspect.Signature.empty)
+            for param in sig.parameters.values()
+        ]
+        return sig.replace(
+            parameters=params,
+            return_annotation=inspect.Signature.empty,
+        )
+
+    def test_recording_enrichment_adapter_enrich_signature_matches_interface(
+        self,
+    ):
+        assert self._signature_without_annotations(
+            RecordingEnrichmentAdapter.enrich
+        ) == self._signature_without_annotations(
+            DataEnrichmentInterface.enrich
+        )
+
+    def test_recording_aggregation_adapter_summarize_signature_matches_interface(
+        self,
+    ):
+        assert self._signature_without_annotations(
+            RecordingAggregationAdapter.summarize
+        ) == self._signature_without_annotations(
+            AggregationInterface.summarize
+        )
+
+
+@pytest.mark.core
+class TestSessionAggregate:
+    @staticmethod
+    def _make_observation(label: str) -> Observation:
+        return Observation(
+            id=f"peh:{label}",
+            ui_label=label,
+            observation_design="peh:test_observation_design",
+        )
+
+    def test_aggregate_delegates_to_adapter(self):
+        session = get_session()
+        source_dataset_series = DatasetSeries(label="source")
+        expected = DatasetSeries(label="summary")
+        adapter = RecordingAggregationAdapter(result=expected)
+        session.register_adapter("aggregate", adapter)
+
+        target_observations = [
+            self._make_observation("target_a"),
+            self._make_observation("target_b"),
+        ]
+        target_derived_from = [
+            self._make_observation("source_a"),
+            self._make_observation("source_b"),
+        ]
+        target_dataset_labels = ["TARGET_A", "TARGET_B"]
+
+        result = session.aggregate(
+            source_dataset_series=source_dataset_series,
+            target_observations=target_observations,
+            target_derived_from=target_derived_from,
+            target_dataset_labels=target_dataset_labels,
+        )
+
+        assert result is expected
+        assert len(adapter.calls) == 1
+        call = adapter.calls[0]
+        assert call["source_dataset_series"] is source_dataset_series
+        assert call["target_observations"] is target_observations
+        assert call["target_derived_from"] is target_derived_from
+        assert isinstance(call["cache_view"], CacheContainerView)
+        assert call["cache_view"]._container is session.cache
+
+    def test_aggregate_requires_matching_target_lengths(self):
+        session = get_session()
+        source_dataset_series = DatasetSeries(label="source")
+        with pytest.raises(AssertionError):
+            session.aggregate(
+                source_dataset_series=source_dataset_series,
+                target_observations=[self._make_observation("target_a")],
+                target_derived_from=[
+                    self._make_observation("source_a"),
+                    self._make_observation("source_b"),
+                ],
+            )
+
+
+@pytest.mark.core
+class TestSessionEnrich:
+    @staticmethod
+    def _make_observation(label: str) -> Observation:
+        return Observation(
+            id=f"peh:{label}",
+            ui_label=label,
+            observation_design="peh:test_observation_design",
+        )
+
+    def test_enrich_delegates_to_adapter(self):
+        session = get_session()
+        source_dataset_series = DatasetSeries(label="source")
+        expected = DatasetSeries(label="enriched")
+        adapter = RecordingEnrichmentAdapter(result=expected)
+        session.register_adapter("enrichment", adapter)
+
+        target_observations = [
+            self._make_observation("target_a"),
+            self._make_observation("target_b"),
+        ]
+        target_derived_from = [
+            self._make_observation("source_a"),
+            self._make_observation("source_b"),
+        ]
+        target_dataset_labels = ["TARGET_A", "TARGET_B"]
+
+        result = session.enrich(
+            source_dataset_series=source_dataset_series,
+            target_observations=target_observations,
+            target_derived_from=target_derived_from,
+            target_dataset_labels=target_dataset_labels,
+        )
+
+        assert result is expected
+        assert len(adapter.calls) == 1
+        call = adapter.calls[0]
+        assert call["source_dataset_series"] is source_dataset_series
+        assert call["target_observations"] is target_observations
+        assert call["target_derived_from"] is target_derived_from
+        assert isinstance(call["cache_view"], CacheContainerView)
+        assert call["cache_view"]._container is session.cache
+
+    def test_enrich_requires_matching_target_lengths(self):
+        session = get_session()
+        source_dataset_series = DatasetSeries(label="source")
+        with pytest.raises(AssertionError):
+            session.enrich(
+                source_dataset_series=source_dataset_series,
+                target_observations=[self._make_observation("target_a")],
+                target_derived_from=[
+                    self._make_observation("source_a"),
+                    self._make_observation("source_b"),
+                ],
+            )
