@@ -28,6 +28,7 @@ from pypeh.core.models.validation_errors import (
 )
 from pypeh.core.models.internal_data_layout import DatasetSeries, Dataset
 from pypeh.core.interfaces.dataops import (
+    AggregationInterface,
     DataOpsInterface,
     DataEnrichmentInterface,
     ValidationInterface,
@@ -177,6 +178,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
                 self._adapter_mapping[interface_functionality] = adapter
             case "enrichment":
                 adapter = DataEnrichmentInterface.get_default_adapter_class()
+                self._adapter_mapping[interface_functionality] = adapter
+            case "enrichment":
+                adapter = AggregationInterface.get_default_adapter_class()
                 self._adapter_mapping[interface_functionality] = adapter
             case _:
                 raise NotImplementedError(
@@ -547,6 +551,29 @@ class Session(Generic[T_AdapterType, T_DataType]):
         # TODO: apply target_dataset_labels when splitting
         # DatasetSeries into Observations
         return adapter.enrich(
+            source_dataset_series=source_dataset_series,
+            target_observations=target_observations,
+            target_derived_from=target_derived_from,
+            cache_view=CacheContainerView(self.cache),
+        )
+
+    def aggregate(
+        self,
+        source_dataset_series: DatasetSeries,
+        target_observations: list[peh.Observation],
+        target_derived_from: list[peh.Observation],
+        target_dataset_labels: list[str] | None = None,
+    ) -> DatasetSeries:
+        num_targets = len(target_observations)
+        assert num_targets == len(target_derived_from)
+        if target_dataset_labels is not None:
+            assert num_targets == len(target_dataset_labels)
+
+        adapter = self.get_adapter("aggregate")
+        assert isinstance(adapter, AggregationInterface)
+        # TODO: apply target_dataset_labels when splitting
+        # DatasetSeries into Observations
+        return adapter.summarize(
             source_dataset_series=source_dataset_series,
             target_observations=target_observations,
             target_derived_from=target_derived_from,
