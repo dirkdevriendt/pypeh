@@ -78,6 +78,15 @@ observable_properties:
   observation_result_type: measurement
   relevant_observation_types:
   - questionnaire
+  validation_designs:
+  - validation_expression:
+      validation_subject_contextual_field_references:
+      - dataset_label: SAMPLE
+        field_label: samplingyear
+      validation_command: is_equal_to
+      validation_arg_contextual_field_references:
+      - dataset_label: SAMPLE
+        field_label: samplingyear
 - id: samplingmonth
   name: samplingmonth
   description: month of sample collection (1 is the first month of the year)

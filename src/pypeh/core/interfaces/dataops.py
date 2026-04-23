@@ -893,6 +893,7 @@ class ValidationInterface(DataOpsInterface, Generic[T_DataType]):
                 dataset_schema_element=dataset_schema_element,
                 cache_view=cache_view,
                 type_annotations=type_annotations,
+                dataset_label=dataset.label,
                 column_has_only_empty_values=column_has_only_empty_values,
                 allow_incomplete=allow_incomplete,
             )
