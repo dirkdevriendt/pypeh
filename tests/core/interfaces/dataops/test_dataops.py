@@ -538,6 +538,28 @@ class TestValidation(abc.ABC):
         )
         assert isinstance(validation_config, ValidationConfig)
 
+    def test_build_validation_config_excludes_self_dataset_dependencies(self):
+        adapter = self.get_adapter()
+        cache_view = self.get_container_validation_example_03()
+        data_layout = cache_view.get(
+            "peh:CODEBOOK_v2.4_LAYOUT_SAMPLE_METADATA", "DataLayout"
+        )
+        assert isinstance(data_layout, DataLayout)
+        dataset_series = DatasetSeries.from_peh_datalayout(
+            data_layout=data_layout, cache_view=cache_view, apply_context=True
+        )
+        dataset = dataset_series.get("SAMPLETIMEPOINT_BSS")
+        assert dataset is not None
+
+        validation_config = adapter.build_validation_config(
+            dataset=dataset,
+            dataset_series=dataset_series,
+            cache_view=cache_view,
+        )
+        assert dataset.label not in (
+            validation_config.dependent_contextual_field_references or {}
+        )
+
     def test_build_column_validation_with_custom_message(self):
         adapter = self.get_adapter()
         cache_view = self.get_container_validation_example_03()
