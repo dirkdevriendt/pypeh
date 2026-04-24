@@ -18,7 +18,7 @@ dependencies = [
 core = []
 rocrate-adapter = ["rocrate"]
 dataframe-adapter = [
-    "dataguard",
+    "peh-dataguard>=0.4,<1.0",
 	"pandera>=0.27.0",
     "polars",
     "pyarrow",
@@ -36,7 +36,7 @@ test-core = [
     "pytest>=8.2.0,<9",
 ]
 test-dataframe = [
-    "dataguard",
+    "peh-dataguard>=0.4,<1.0",
     "polars",
     "pyarrow",
     "fastexcel",
@@ -64,9 +64,6 @@ default-groups = [
     "test-core",
     "dev",
 ]
-
-[tool.uv.sources]
-dataguard = { git = "https://github.com/eu-parc/dataguard.git", tag = "v0.4.4" }
 
 [tool.hatch.build.targets.sdist]
 include = [
