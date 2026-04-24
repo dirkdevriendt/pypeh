@@ -136,6 +136,8 @@ class TestRoundTripDataset:
 
     @pytest.mark.parametrize("test_label", ["01", "02", "04", "05", "06"])
     def test_load_data(self, monkeypatch, import_config_label, test_label):
+        from pypeh.adapters.persistence.dataframe import DataFrameTypeCastError
+
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
         monkeypatch.setenv(
             "DEFAULT_PERSISTED_CACHE_ROOT_FOLDER",
@@ -153,9 +155,18 @@ class TestRoundTripDataset:
         dataset_series = session.load_tabular_dataset_series(
             source=excel_path,
             data_import_config=data_import_config,
+            cast_error_policy="null",
         )
         assert isinstance(dataset_series, DatasetSeries)
         assert len(dataset_series) > 0
+
+        if test_label == "04":
+            with pytest.raises(DataFrameTypeCastError):
+                dataset_series = session.load_tabular_dataset_series(
+                    source=excel_path,
+                    data_import_config=data_import_config,
+                    cast_error_policy="raise",
+                )
 
     @pytest.mark.parametrize("test_label", ["01", "02"])
     def test_basic_roundtrip(
@@ -279,6 +290,8 @@ class TestRoundTripDataset:
         ],
     )
     def test_full(self, monkeypatch, import_config_label, test_label):
+        from pypeh.adapters.persistence.dataframe import DataFrameTypeCastError
+
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
         monkeypatch.setenv(
             "DEFAULT_PERSISTED_CACHE_ROOT_FOLDER",
@@ -293,9 +306,17 @@ class TestRoundTripDataset:
             import_config_label, "DataImportConfig"
         )
         assert isinstance(data_import_config, peh.DataImportConfig)
+        with pytest.raises(DataFrameTypeCastError):
+            dataset_series = session.load_tabular_dataset_series(
+                source=excel_path,
+                data_import_config=data_import_config,
+                cast_error_policy="raise",
+            )
+
         dataset_series = session.load_tabular_dataset_series(
             source=excel_path,
             data_import_config=data_import_config,
+            cast_error_policy="null",
         )
         assert isinstance(dataset_series, DatasetSeries)
         assert len(dataset_series) > 0

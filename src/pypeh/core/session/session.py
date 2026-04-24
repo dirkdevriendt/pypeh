@@ -5,7 +5,14 @@ import importlib
 import logging
 import peh_model.peh as peh
 
-from typing import TYPE_CHECKING, TypeVar, Sequence, Generic, Generator
+from typing import (
+    TYPE_CHECKING,
+    TypeVar,
+    Sequence,
+    Generic,
+    Generator,
+    Literal,
+)
 
 from pypeh.core.cache.containers import (
     CacheContainer,
@@ -309,6 +316,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         file_format: str | None = None,
         connection_label: str | None = None,
         allow_incomplete: bool = False,
+        cast_error_policy: Literal["null", "raise"] = "raise",
         namespace_key: str | None = None,
     ) -> DatasetSeries[DataFrame]:
         cache_view = CacheContainerView(self.cache)
@@ -345,7 +353,10 @@ class Session(Generic[T_AdapterType, T_DataType]):
             connection_label=connection_label
         ) as connection:
             data_dict = connection.load(
-                source, format=file_format, data_schema=data_schema
+                source,
+                format=file_format,
+                data_schema=data_schema,
+                cast_error_policy=cast_error_policy,
             )
         assert isinstance(data_dict, dict)
         import_adapter = self.get_adapter("dataops")
