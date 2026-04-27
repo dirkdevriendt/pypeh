@@ -410,7 +410,6 @@ class TestSessionValidation:
         self,
         tmp_path,
         allow_incomplete,
-        expected_report,
     ):
         source = tmp_path / "schema_mismatch.xlsx"
         write_minimal_xlsx(
@@ -465,7 +464,6 @@ class TestSessionValidation:
             connection_label="local_file",
             allow_incomplete=allow_incomplete,
             schema_error_policy="report",
-            drop_empty_cols=False,
         )
 
         assert isinstance(result, ValidationErrorReportCollection)
