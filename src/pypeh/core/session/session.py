@@ -316,9 +316,9 @@ class Session(Generic[T_AdapterType, T_DataType]):
         file_format: str | None = None,
         connection_label: str | None = None,
         allow_incomplete: bool = False,
-        cast_error_policy: Literal["null", "raise"] = "raise",
+        cast_error_policy: Literal["null", "raise", "report"] = "raise",
         namespace_key: str | None = None,
-    ) -> DatasetSeries[DataFrame]:
+    ) -> DatasetSeries[DataFrame] | ValidationErrorReportCollection:
         cache_view = CacheContainerView(self.cache)
         assert isinstance(data_import_config, peh.DataImportConfig)
         id_factory = None
@@ -358,7 +358,19 @@ class Session(Generic[T_AdapterType, T_DataType]):
                 data_schema=data_schema,
                 cast_error_policy=cast_error_policy,
             )
+
         assert isinstance(data_dict, dict)
+        # IF cast_error_policy == "report" THEN cast_error_reports might not be empty
+        cast_error_reports = ValidationErrorReportCollection(
+            {
+                dataset_label: raw_result
+                for dataset_label, raw_result in data_dict.items()
+                if isinstance(raw_result, ValidationErrorReport)
+            }
+        )
+        if cast_error_reports:
+            return cast_error_reports
+
         import_adapter = self.get_adapter("dataops")
         for raw_dataset_label, raw_dataset in data_dict.items():
             assert isinstance(import_adapter, DataOpsInterface)
