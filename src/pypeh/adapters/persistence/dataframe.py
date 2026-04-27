@@ -4,11 +4,20 @@ import logging
 import polars as pl
 import io
 
+from datetime import datetime
 from pathlib import Path
 from typing import Union, IO, Literal, Mapping
 from polars.datatypes import DataType, DataTypeClass
 
-from pypeh.core.models.constants import ObservablePropertyValueType
+from pypeh.core.models.constants import (
+    ObservablePropertyValueType,
+    ValidationErrorLevel,
+)
+from pypeh.core.models.validation_errors import (
+    ValidationError,
+    ValidationErrorGroup,
+    ValidationErrorReport,
+)
 from pypeh.adapters.persistence.serializations import IOAdapter
 
 logger = logging.getLogger(__name__)
@@ -28,7 +37,7 @@ DATAFRAME_TYPE_MAPPING: dict[
 }
 
 
-CastErrorPolicy = Literal["null", "raise"]
+CastErrorPolicy = Literal["null", "raise", "report"]
 
 
 class DataFrameTypeCastError(ValueError):
@@ -90,11 +99,43 @@ class ExcelIOImpl(IOAdapter):
     def _validate_cast_error_policy(
         cast_error_policy: str,
     ) -> CastErrorPolicy:
-        if cast_error_policy not in {"null", "raise"}:
+        if cast_error_policy not in {"null", "raise", "report"}:
             raise ValueError(
-                "cast_error_policy must be either 'null' or 'raise'"
+                "cast_error_policy must be one of 'null', 'raise', or "
+                "'report'"
             )
         return cast_error_policy
+
+    @staticmethod
+    def _build_cast_error_report(
+        exception: DataFrameTypeCastError,
+        *,
+        section_name: str,
+    ) -> ValidationErrorReport:
+        counter = {level: 0 for level in ValidationErrorLevel}
+        counter[ValidationErrorLevel.FATAL] = 1
+        return ValidationErrorReport(
+            timestamp=datetime.now().isoformat(),
+            total_errors=1,
+            error_counts=counter,
+            groups=[
+                ValidationErrorGroup(
+                    group_id=f"{section_name}",
+                    group_type="excel_cast_error",
+                    name=f"Excel cast error in sheet {section_name!r}",
+                    metadata={"section_name": section_name},
+                    errors=[
+                        ValidationError(
+                            message=str(exception),
+                            type=type(exception).__name__,
+                            level=ValidationErrorLevel.FATAL,
+                            source="ExcelIOImpl.load_section",
+                        )
+                    ],
+                )
+            ],
+            unexpected_errors=[],
+        )
 
     def _cast_frame_to_schema(
         self,
@@ -175,7 +216,7 @@ class ExcelIOImpl(IOAdapter):
         data_schema: dict[str, str] | None = None,
         cast_error_policy: CastErrorPolicy = "null",
         cached_data: bytes | None = None,
-    ) -> pl.DataFrame:
+    ) -> pl.DataFrame | ValidationErrorReport:
         typed_schema = self._build_typed_schema(data_schema)
         cast_error_policy = self._validate_cast_error_policy(cast_error_policy)
 
@@ -190,12 +231,23 @@ class ExcelIOImpl(IOAdapter):
 
         ret = self._load(source, **options)
         assert isinstance(ret, pl.DataFrame)
-        return self._cast_frame_to_schema(
-            ret,
-            typed_schema,
-            section_name=section_name,
-            cast_error_policy=cast_error_policy,
-        )
+        try:
+            return self._cast_frame_to_schema(
+                ret,
+                typed_schema,
+                section_name=section_name,
+                cast_error_policy=(
+                    "raise"
+                    if cast_error_policy == "report"
+                    else cast_error_policy
+                ),
+            )
+        except DataFrameTypeCastError as exc:
+            if cast_error_policy != "report":
+                raise
+            return self._build_cast_error_report(
+                exc, section_name=section_name
+            )
 
     def load(
         self,
@@ -203,7 +255,7 @@ class ExcelIOImpl(IOAdapter):
         data_schema: dict[str, dict[str, str]] | None = None,
         cast_error_policy: CastErrorPolicy = "null",
         **kwargs,
-    ) -> dict[str, pl.DataFrame]:
+    ) -> dict[str, pl.DataFrame | ValidationErrorReport]:
         try:
             cast_error_policy = self._validate_cast_error_policy(
                 cast_error_policy

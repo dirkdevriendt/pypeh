@@ -4,7 +4,12 @@ import fsspec
 import linkml_runtime.loaders
 import pytest
 import rdflib
+from peh_model.peh import EntityList
+from pydantic import BaseModel
 
+from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
+from pypeh.core.models.constants import ValidationErrorLevel
+from pypeh.core.models.validation_errors import ValidationErrorReport
 from pypeh.adapters.persistence.serializations import (
     IOAdapterFactory,
     IOAdapter,
@@ -13,11 +18,6 @@ from pypeh.adapters.persistence.serializations import (
     ExcelIO,
     CsvIO,
 )
-
-from pydantic import BaseModel
-from peh_model.peh import EntityList
-
-from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from tests.test_utils.dirutils import get_absolute_path
 from tests.test_utils.xlsx import write_minimal_xlsx
 
@@ -245,6 +245,39 @@ class TestXlsIO:
                 data_schema={"id_sample": "string", "chol": "float"},
                 cast_error_policy="raise",
             )
+
+    def test_typed_sheet_type_mismatch_returns_report_when_requested(
+        self, tmp_path
+    ):
+        source = tmp_path / "typed_mismatch.xlsx"
+        write_minimal_xlsx(
+            source,
+            sheet_name="SAMPLE",
+            headers=["id_sample", "chol"],
+            rows=[
+                ["sample_a", 1.2],
+                ["sample_b", "oops"],
+                ["sample_c", 3.4],
+            ],
+        )
+
+        excel_io = ExcelIO()
+        result = excel_io.load_section(
+            source,
+            section_name="SAMPLE",
+            data_schema={"id_sample": "string", "chol": "float"},
+            cast_error_policy="report",
+        )
+
+        assert isinstance(result, ValidationErrorReport)
+        assert result.total_errors == 1
+        assert result.error_counts[ValidationErrorLevel.FATAL] == 1
+        assert len(result.groups) == 1
+        assert len(result.groups[0].errors) == 1
+        error = result.groups[0].errors[0]
+        assert error.level == ValidationErrorLevel.FATAL
+        assert error.type == "DataFrameTypeCastError"
+        assert "Failed to cast Excel sheet 'SAMPLE'" in error.message
 
 
 @pytest.mark.core
