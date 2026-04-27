@@ -9,6 +9,11 @@ from typing import Union, IO, Literal, Mapping
 from polars.datatypes import DataType, DataTypeClass
 
 from pypeh.core.models.constants import ObservablePropertyValueType
+from pypeh.core.models.validation_errors import (
+    TypeCastError,
+    ValidationErrorReport,
+    build_type_cast_error_report,
+)
 from pypeh.adapters.persistence.serializations import IOAdapter
 
 logger = logging.getLogger(__name__)
@@ -28,11 +33,7 @@ DATAFRAME_TYPE_MAPPING: dict[
 }
 
 
-CastErrorPolicy = Literal["null", "raise"]
-
-
-class DataFrameTypeCastError(ValueError):
-    """Raised when a dataframe column cannot be cast to the declared type."""
+CastErrorPolicy = Literal["null", "raise", "report"]
 
 
 class CsvIOImpl(IOAdapter):
@@ -90,9 +91,10 @@ class ExcelIOImpl(IOAdapter):
     def _validate_cast_error_policy(
         cast_error_policy: str,
     ) -> CastErrorPolicy:
-        if cast_error_policy not in {"null", "raise"}:
+        if cast_error_policy not in {"null", "raise", "report"}:
             raise ValueError(
-                "cast_error_policy must be either 'null' or 'raise'"
+                "cast_error_policy must be one of 'null', 'raise', or "
+                "'report'"
             )
         return cast_error_policy
 
@@ -121,7 +123,7 @@ class ExcelIOImpl(IOAdapter):
         try:
             return data.with_columns(cast_expressions)
         except pl.exceptions.InvalidOperationError as exc:
-            raise DataFrameTypeCastError(
+            raise TypeCastError(
                 "Failed to cast Excel sheet "
                 f"{section_name!r} using cast_error_policy='raise': {exc}"
             ) from exc
@@ -175,7 +177,7 @@ class ExcelIOImpl(IOAdapter):
         data_schema: dict[str, str] | None = None,
         cast_error_policy: CastErrorPolicy = "null",
         cached_data: bytes | None = None,
-    ) -> pl.DataFrame:
+    ) -> pl.DataFrame | ValidationErrorReport:
         typed_schema = self._build_typed_schema(data_schema)
         cast_error_policy = self._validate_cast_error_policy(cast_error_policy)
 
@@ -190,12 +192,28 @@ class ExcelIOImpl(IOAdapter):
 
         ret = self._load(source, **options)
         assert isinstance(ret, pl.DataFrame)
-        return self._cast_frame_to_schema(
-            ret,
-            typed_schema,
-            section_name=section_name,
-            cast_error_policy=cast_error_policy,
-        )
+        try:
+            return self._cast_frame_to_schema(
+                ret,
+                typed_schema,
+                section_name=section_name,
+                cast_error_policy=(
+                    "raise"
+                    if cast_error_policy == "report"
+                    else cast_error_policy
+                ),
+            )
+        except TypeCastError as exc:
+            if cast_error_policy != "report":
+                raise
+            return build_type_cast_error_report(
+                exc,
+                group_id=section_name,
+                group_type="excel_cast_error",
+                name=f"Excel cast error in sheet {section_name!r}",
+                metadata={"section_name": section_name},
+                source="ExcelIOImpl.load_section",
+            )
 
     def load(
         self,
@@ -203,7 +221,7 @@ class ExcelIOImpl(IOAdapter):
         data_schema: dict[str, dict[str, str]] | None = None,
         cast_error_policy: CastErrorPolicy = "null",
         **kwargs,
-    ) -> dict[str, pl.DataFrame]:
+    ) -> dict[str, pl.DataFrame | ValidationErrorReport]:
         try:
             cast_error_policy = self._validate_cast_error_policy(
                 cast_error_policy

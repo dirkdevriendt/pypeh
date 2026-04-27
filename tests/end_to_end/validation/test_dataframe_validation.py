@@ -136,7 +136,7 @@ class TestRoundTripDataset:
 
     @pytest.mark.parametrize("test_label", ["01", "02", "04", "05", "06"])
     def test_load_data(self, monkeypatch, import_config_label, test_label):
-        from pypeh.adapters.persistence.dataframe import DataFrameTypeCastError
+        from pypeh.core.models.validation_errors import TypeCastError
 
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
         monkeypatch.setenv(
@@ -161,7 +161,7 @@ class TestRoundTripDataset:
         assert len(dataset_series) > 0
 
         if test_label == "04":
-            with pytest.raises(DataFrameTypeCastError):
+            with pytest.raises(TypeCastError):
                 dataset_series = session.load_tabular_dataset_series(
                     source=excel_path,
                     data_import_config=data_import_config,
@@ -290,7 +290,7 @@ class TestRoundTripDataset:
         ],
     )
     def test_full(self, monkeypatch, import_config_label, test_label):
-        from pypeh.adapters.persistence.dataframe import DataFrameTypeCastError
+        from pypeh.core.models.validation_errors import TypeCastError
 
         monkeypatch.setenv("DEFAULT_PERSISTED_CACHE_TYPE", "LocalFile")
         monkeypatch.setenv(
@@ -306,7 +306,7 @@ class TestRoundTripDataset:
             import_config_label, "DataImportConfig"
         )
         assert isinstance(data_import_config, peh.DataImportConfig)
-        with pytest.raises(DataFrameTypeCastError):
+        with pytest.raises(TypeCastError):
             dataset_series = session.load_tabular_dataset_series(
                 source=excel_path,
                 data_import_config=data_import_config,

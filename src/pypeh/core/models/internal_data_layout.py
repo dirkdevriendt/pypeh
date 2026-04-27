@@ -19,6 +19,7 @@ from ulid import ULID
 from pypeh.core.cache.containers import CacheContainer, CacheContainerView
 from pypeh.core.models.typing import T_DataType
 from pypeh.core.models.constants import ObservablePropertyValueType
+from pypeh.core.models.validation_errors import DatasetSchemaError
 
 if TYPE_CHECKING:
     from typing import Any
@@ -491,8 +492,12 @@ class Dataset(Resource, Generic[T_DataType]):
         schema_labels = set(self.get_element_labels())
         label_diff = raw_data_labels.difference(schema_labels)
         if len(label_diff) != 0:
-            raise AssertionError(
-                f"Data Schema Error: label(s) {', '.join(label_diff)} not in schema"
+            raise DatasetSchemaError(
+                f"Data Schema Error: label(s) {', '.join(label_diff)} are undefined",
+                dataset_label=self.label,
+                data_labels=element_labels,
+                schema_labels=self.get_element_labels(),
+                undefined_labels=list(label_diff),
             )
         return len(label_diff) == 0
 
@@ -510,10 +515,16 @@ class Dataset(Resource, Generic[T_DataType]):
             )
         missing_diff = schema_labels.difference(raw_data_labels)
         if len(missing_diff) > 0:
-            error_str.append(f"labels {', '.join(missing_diff)} are missing")
-        assert (
-            raw_data_labels == schema_labels
-        ), f"Data Schema Error: {', '.join(error_str)}"
+            error_str.append(f"label(s) {', '.join(missing_diff)} are missing")
+        if raw_data_labels != schema_labels:
+            raise DatasetSchemaError(
+                f"Data Schema Error: {', '.join(error_str)}",
+                dataset_label=self.label,
+                data_labels=element_labels,
+                schema_labels=self.get_element_labels(),
+                missing_labels=list(missing_diff),
+                undefined_labels=list(undefined_diff),
+            )
         return True
 
 
