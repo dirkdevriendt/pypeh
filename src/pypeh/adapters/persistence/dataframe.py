@@ -4,19 +4,15 @@ import logging
 import polars as pl
 import io
 
-from datetime import datetime
 from pathlib import Path
 from typing import Union, IO, Literal, Mapping
 from polars.datatypes import DataType, DataTypeClass
 
-from pypeh.core.models.constants import (
-    ObservablePropertyValueType,
-    ValidationErrorLevel,
-)
+from pypeh.core.models.constants import ObservablePropertyValueType
 from pypeh.core.models.validation_errors import (
-    ValidationError,
-    ValidationErrorGroup,
+    TypeCastError,
     ValidationErrorReport,
+    build_type_cast_error_report,
 )
 from pypeh.adapters.persistence.serializations import IOAdapter
 
@@ -38,10 +34,6 @@ DATAFRAME_TYPE_MAPPING: dict[
 
 
 CastErrorPolicy = Literal["null", "raise", "report"]
-
-
-class DataFrameTypeCastError(ValueError):
-    """Raised when a dataframe column cannot be cast to the declared type."""
 
 
 class CsvIOImpl(IOAdapter):
@@ -106,37 +98,6 @@ class ExcelIOImpl(IOAdapter):
             )
         return cast_error_policy
 
-    @staticmethod
-    def _build_cast_error_report(
-        exception: DataFrameTypeCastError,
-        *,
-        section_name: str,
-    ) -> ValidationErrorReport:
-        counter = {level: 0 for level in ValidationErrorLevel}
-        counter[ValidationErrorLevel.FATAL] = 1
-        return ValidationErrorReport(
-            timestamp=datetime.now().isoformat(),
-            total_errors=1,
-            error_counts=counter,
-            groups=[
-                ValidationErrorGroup(
-                    group_id=f"{section_name}",
-                    group_type="excel_cast_error",
-                    name=f"Excel cast error in sheet {section_name!r}",
-                    metadata={"section_name": section_name},
-                    errors=[
-                        ValidationError(
-                            message=str(exception),
-                            type=type(exception).__name__,
-                            level=ValidationErrorLevel.FATAL,
-                            source="ExcelIOImpl.load_section",
-                        )
-                    ],
-                )
-            ],
-            unexpected_errors=[],
-        )
-
     def _cast_frame_to_schema(
         self,
         data: pl.DataFrame,
@@ -162,7 +123,7 @@ class ExcelIOImpl(IOAdapter):
         try:
             return data.with_columns(cast_expressions)
         except pl.exceptions.InvalidOperationError as exc:
-            raise DataFrameTypeCastError(
+            raise TypeCastError(
                 "Failed to cast Excel sheet "
                 f"{section_name!r} using cast_error_policy='raise': {exc}"
             ) from exc
@@ -242,11 +203,16 @@ class ExcelIOImpl(IOAdapter):
                     else cast_error_policy
                 ),
             )
-        except DataFrameTypeCastError as exc:
+        except TypeCastError as exc:
             if cast_error_policy != "report":
                 raise
-            return self._build_cast_error_report(
-                exc, section_name=section_name
+            return build_type_cast_error_report(
+                exc,
+                group_id=section_name,
+                group_type="excel_cast_error",
+                name=f"Excel cast error in sheet {section_name!r}",
+                metadata={"section_name": section_name},
+                source="ExcelIOImpl.load_section",
             )
 
     def load(

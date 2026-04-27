@@ -8,6 +8,31 @@ from typing_extensions import Annotated
 from pypeh.core.models.constants import ValidationErrorLevel
 
 
+class DatasetSchemaError(AssertionError):
+    """Raised when loaded dataset labels do not satisfy the dataset schema."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        dataset_label: str,
+        data_labels: list[str],
+        schema_labels: list[str],
+        missing_labels: list[str] | None = None,
+        undefined_labels: list[str] | None = None,
+    ):
+        super().__init__(message)
+        self.dataset_label = dataset_label
+        self.data_labels = data_labels
+        self.schema_labels = schema_labels
+        self.missing_labels = missing_labels or []
+        self.undefined_labels = undefined_labels or []
+
+
+class TypeCastError(ValueError):
+    """Raised when data cannot be cast to the declared type."""
+
+
 class ValidationErrorLocation(BaseModel):
     """Base class for specifying where an error occurred"""
 
@@ -114,6 +139,83 @@ class ValidationErrorReport(BaseModel):
             groups=[],
             unexpected_errors=[runtime_exception],
         )
+
+
+def _fatal_error_counts() -> Dict[ValidationErrorLevel, int]:
+    counter = {level: 0 for level in ValidationErrorLevel}
+    counter[ValidationErrorLevel.FATAL] = 1
+    return counter
+
+
+def build_schema_error_report(
+    exception: DatasetSchemaError,
+    *,
+    source: str,
+) -> ValidationErrorReport:
+    return ValidationErrorReport(
+        timestamp=datetime.now().isoformat(),
+        total_errors=1,
+        error_counts=_fatal_error_counts(),
+        groups=[
+            ValidationErrorGroup(
+                group_id=f"dataset-schema-error:{exception.dataset_label}",
+                group_type="dataset_schema_error",
+                name=(
+                    "Dataset schema error in dataset "
+                    f"{exception.dataset_label!r}"
+                ),
+                metadata={
+                    "dataset_label": exception.dataset_label,
+                    "data_labels": exception.data_labels,
+                    "schema_labels": exception.schema_labels,
+                    "missing_labels": exception.missing_labels,
+                    "undefined_labels": exception.undefined_labels,
+                },
+                errors=[
+                    ValidationError(
+                        message=str(exception),
+                        type=type(exception).__name__,
+                        level=ValidationErrorLevel.FATAL,
+                        source=source,
+                    )
+                ],
+            )
+        ],
+        unexpected_errors=[],
+    )
+
+
+def build_type_cast_error_report(
+    exception: TypeCastError,
+    *,
+    group_id: str,
+    group_type: str,
+    name: str,
+    metadata: Dict[str, Any],
+    source: str,
+) -> ValidationErrorReport:
+    return ValidationErrorReport(
+        timestamp=datetime.now().isoformat(),
+        total_errors=1,
+        error_counts=_fatal_error_counts(),
+        groups=[
+            ValidationErrorGroup(
+                group_id=group_id,
+                group_type=group_type,
+                name=name,
+                metadata=metadata,
+                errors=[
+                    ValidationError(
+                        message=str(exception),
+                        type=type(exception).__name__,
+                        level=ValidationErrorLevel.FATAL,
+                        source=source,
+                    )
+                ],
+            )
+        ],
+        unexpected_errors=[],
+    )
 
 
 class ValidationErrorReportCollection(dict[str, ValidationErrorReport]):

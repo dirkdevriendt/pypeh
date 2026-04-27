@@ -9,7 +9,10 @@ from pydantic import BaseModel
 
 from pypeh.core.cache.containers import CacheContainer, CacheContainerFactory
 from pypeh.core.models.constants import ValidationErrorLevel
-from pypeh.core.models.validation_errors import ValidationErrorReport
+from pypeh.core.models.validation_errors import (
+    TypeCastError,
+    ValidationErrorReport,
+)
 from pypeh.adapters.persistence.serializations import (
     IOAdapterFactory,
     IOAdapter,
@@ -220,8 +223,6 @@ class TestXlsIO:
         assert result["chol"].to_list() == [1.2, None, 3.4]
 
     def test_typed_sheet_type_mismatch_raises_when_requested(self, tmp_path):
-        from pypeh.adapters.persistence.dataframe import DataFrameTypeCastError
-
         source = tmp_path / "typed_mismatch.xlsx"
         write_minimal_xlsx(
             source,
@@ -236,7 +237,7 @@ class TestXlsIO:
 
         excel_io = ExcelIO()
         with pytest.raises(
-            DataFrameTypeCastError,
+            TypeCastError,
             match="Failed to cast Excel sheet 'SAMPLE'",
         ):
             excel_io.load_section(
@@ -276,7 +277,7 @@ class TestXlsIO:
         assert len(result.groups[0].errors) == 1
         error = result.groups[0].errors[0]
         assert error.level == ValidationErrorLevel.FATAL
-        assert error.type == "DataFrameTypeCastError"
+        assert error.type == "TypeCastError"
         assert "Failed to cast Excel sheet 'SAMPLE'" in error.message
 
 

@@ -30,8 +30,10 @@ from pypeh.core.models.settings import (
 from pypeh.core.models.typing import T_NamedThingLike, T_DataType
 from pypeh.core.models.validation_dto import ValidationConfig
 from pypeh.core.models.validation_errors import (
+    DatasetSchemaError,
     ValidationErrorReport,
     ValidationErrorReportCollection,
+    build_schema_error_report,
 )
 from pypeh.core.models.internal_data_layout import DatasetSeries, Dataset
 from pypeh.core.interfaces.dataops import (
@@ -317,6 +319,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         connection_label: str | None = None,
         allow_incomplete: bool = False,
         cast_error_policy: Literal["null", "raise", "report"] = "raise",
+        schema_error_policy: Literal["raise", "report"] = "raise",
         namespace_key: str | None = None,
     ) -> DatasetSeries[DataFrame] | ValidationErrorReportCollection:
         cache_view = CacheContainerView(self.cache)
@@ -372,17 +375,32 @@ class Session(Generic[T_AdapterType, T_DataType]):
             return cast_error_reports
 
         import_adapter = self.get_adapter("dataops")
+        schema_error_reports = ValidationErrorReportCollection()
         for raw_dataset_label, raw_dataset in data_dict.items():
             assert isinstance(import_adapter, DataOpsInterface)
             data_labels = import_adapter.get_element_labels(raw_dataset)
-            result = dataset_series.add_data(
-                dataset_label=raw_dataset_label,
-                data=raw_dataset,
-                data_labels=data_labels,
-                allow_incomplete=allow_incomplete,
-            )
+            try:
+                result = dataset_series.add_data(
+                    dataset_label=raw_dataset_label,
+                    data=raw_dataset,
+                    data_labels=data_labels,
+                    allow_incomplete=allow_incomplete,
+                )
+            except DatasetSchemaError as exc:
+                if schema_error_policy != "report":
+                    raise
+                schema_error_reports[raw_dataset_label] = (
+                    build_schema_error_report(
+                        exc,
+                        source="Session.load_tabular_dataset_series",
+                    )
+                )
+                continue
             if result is not None:
                 raise RuntimeError(f"{result.type}: {result.message}")
+
+        if schema_error_reports:
+            return schema_error_reports
 
         return dataset_series
 
