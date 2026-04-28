@@ -1,0 +1,185 @@
+# Session Reference
+
+## Constructor
+
+```python
+Session(
+    *,
+    connection_config: ConnectionConfig | Sequence[ConnectionConfig] | None = None,
+    default_connection: str | ConnectionConfig | None = None,
+    env_file: str | None = None,
+    load_from_default_connection: str | None = None,
+)
+```
+
+`connection_config` accepts one connection config or a sequence of configs.
+When `default_connection` is a string, it must match one of those config
+labels. When `default_connection` is a `ConnectionConfig`, it is registered as
+the session's default persisted cache connection.
+
+## Resource and Cache Methods
+
+```python
+load_persisted_cache(
+    source: str | None = None,
+    connection_label: str | None = None,
+) -> None
+```
+
+Load YAML resources from a configured connection into the session cache. If
+`connection_label` is omitted, the default persisted cache connection is used.
+
+```python
+dump_cache(
+    output_path: str,
+    file_format: str = "yaml",
+    connection_label: str | None = None,
+    cache: CacheContainer | CacheContainerView | None = None,
+) -> None
+```
+
+Write a cache or cache view to a configured connection. Currently supported
+formats are `ttl`, `turtle`, `trig`, and `yaml`.
+
+```python
+get_resource(
+    resource_identifier: str,
+    resource_type: str,
+) -> NamedThing | None
+```
+
+Return a cached resource by identifier and PEH model type name.
+
+```python
+load_resource(
+    resource_identifier: str,
+    resource_type: str,
+    resource_path: str | None = None,
+    connection_label: str | None = None,
+) -> NamedThing | None
+```
+
+Return a cached resource, or load resources from a configured connection before
+trying again.
+
+## Tabular Data Methods
+
+```python
+load_tabular_dataset_series(
+    source: str,
+    data_import_config: DataImportConfig,
+    file_format: str | None = None,
+    connection_label: str | None = None,
+    allow_incomplete: bool = False,
+    cast_error_policy: Literal["null", "raise", "report"] = "raise",
+    schema_error_policy: Literal["raise", "report"] = "raise",
+    namespace_key: str | None = None,
+) -> DatasetSeries | ValidationErrorReportCollection
+```
+
+Read tabular data, map it to a `DatasetSeries`, and check labels against the
+schema implied by the `DataImportConfig`.
+
+```python
+validate_tabular_dataset(
+    data: Dataset,
+    dependent_data: DatasetSeries | None = None,
+    allow_incomplete: bool = False,
+) -> ValidationErrorReport
+```
+
+Validate a single dataset with the registered validation adapter.
+
+```python
+validate_tabular_dataset_series(
+    dataset_series: DatasetSeries,
+    allow_incomplete: bool = False,
+) -> ValidationErrorReportCollection
+```
+
+Validate all datasets with data in a `DatasetSeries`.
+
+```python
+build_validation_config(
+    data_layout: DataLayout,
+    sections_to_validate: list[str] | None = None,
+    allow_incomplete: bool = False,
+) -> dict[str, ValidationConfig]
+```
+
+Build validation configuration objects for sections in a PEH `DataLayout`.
+
+## Adapter Methods
+
+```python
+register_default_adapter(interface_functionality: str)
+```
+
+Register and return the default adapter class for `validation`, `dataops`,
+`enrichment`, or supported aggregation functionality.
+
+```python
+register_adapter(interface_functionality: str, adapter) -> None
+```
+
+Register an adapter instance or class for a workflow key.
+
+```python
+register_adapter_by_name(
+    interface_functionality: str,
+    adapter_module_name: str,
+    adapter_class_name: str,
+) -> None
+```
+
+Import and register an adapter class by module and class name.
+
+```python
+get_adapter(interface_functionality: str)
+```
+
+Return the registered adapter. If a class was registered, it is instantiated.
+
+## Enrichment and Aggregation
+
+```python
+enrich(
+    source_dataset_series: DatasetSeries,
+    target_observations: list[Observation],
+    target_derived_from: list[Observation],
+    target_dataset_labels: list[str] | None = None,
+) -> DatasetSeries
+```
+
+Delegate enrichment to the registered enrichment adapter.
+
+```python
+aggregate(
+    source_dataset_series: DatasetSeries,
+    target_observations: list[Observation],
+    target_derived_from: list[Observation],
+    target_dataset_labels: list[str] | None = None,
+) -> DatasetSeries
+```
+
+Delegate summarization to the registered aggregation adapter.
+
+## Namespace Methods
+
+```python
+bind_namespace_manager(namespace_manager: NamespaceManager) -> None
+```
+
+Bind a namespace manager for minted identifiers.
+
+```python
+mint_and_cache(
+    resource_cls: type[NamedThing],
+    namespace_key: str | None = None,
+    identifiying_field: str = "id",
+    **resource_kwargs,
+) -> NamedThing
+```
+
+Mint an identifier, create a PEH model resource, add it to the cache, and return
+the resource.

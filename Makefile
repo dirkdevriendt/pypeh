@@ -1,4 +1,4 @@
-.PHONY: test-core test-dataframe test-end_to_end test-end_to_end_consistency test-export test-rocrate test-s3 test-compehndly test-all format format-diff
+.PHONY: test-core test-dataframe test-end_to_end test-end_to_end_consistency test-export test-rocrate test-s3 test-compehndly test-all docs docs-serve format format-diff
 
 test-core:
 	uv pip install -e ".[core, test-core]"
@@ -35,6 +35,12 @@ test-compehndly:
 	uv run pytest -s tests/end_to_end -m compehndly -W ignore
 
 test-all: test-core test-dataframe test-end_to_end test-end_to_end_consistency test-export test-s3 test-compehndly
+
+docs:
+	uv run --group docs mkdocs build --strict
+
+docs-serve:
+	uv run --group docs mkdocs serve
 
 format:
 	uv pip install ruff
