@@ -1,0 +1,21 @@
+site_name: pypeh
+site_description: Documentation for the pypeh PEH data workflow toolkit
+docs_dir: docs
+site_dir: site
+strict: true
+
+theme:
+  name: readthedocs
+
+nav:
+  - Home: index.md
+  - Session API:
+      - Overview: session.md
+      - Reference: session-reference.md
+  - Core Concepts: core.md
+  - Adapters: adapters.md
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true

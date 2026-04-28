@@ -306,7 +306,7 @@ class TestSessionAggregate:
         source_dataset_series = DatasetSeries(label="source")
         expected = DatasetSeries(label="summary")
         adapter = RecordingAggregationAdapter(result=expected)
-        session.register_adapter("aggregate", adapter)
+        session.register_adapter("aggregation", adapter)
 
         target_observations = [
             self._make_observation("target_a"),

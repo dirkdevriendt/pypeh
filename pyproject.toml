@@ -51,6 +51,9 @@ test-rocrate = [
 ]
 test-s3 = ["s3fs"]
 test-compehndly = ["compehndly>=0.0.1a2"]
+docs = [
+    "mkdocs>=1.6.0,<2",
+]
 dev = [
     "ruff>=0.4.4,<0.5",
     "black",

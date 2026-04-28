@@ -188,7 +188,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
             case "enrichment":
                 adapter = DataEnrichmentInterface.get_default_adapter_class()
                 self._adapter_mapping[interface_functionality] = adapter
-            case "enrichment":
+            case "aggregation":
                 adapter = AggregationInterface.get_default_adapter_class()
                 self._adapter_mapping[interface_functionality] = adapter
             case _:
@@ -610,7 +610,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         if target_dataset_labels is not None:
             assert num_targets == len(target_dataset_labels)
 
-        adapter = self.get_adapter("aggregate")
+        adapter = self.get_adapter("aggregation")
         assert isinstance(adapter, AggregationInterface)
         # TODO: apply target_dataset_labels when splitting
         # DatasetSeries into Observations

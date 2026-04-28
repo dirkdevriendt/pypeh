@@ -52,3 +52,17 @@ make test-core
 make test-dataframe
 make test-rocrate
 ```
+
+## Documentation
+
+Build the static documentation site with MkDocs:
+
+```bash
+make docs
+```
+
+Preview it locally:
+
+```bash
+make docs-serve
+```
