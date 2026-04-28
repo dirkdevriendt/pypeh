@@ -6,6 +6,7 @@ import logging
 import peh_model.peh as peh
 
 from typing import (
+    Any,
     TYPE_CHECKING,
     TypeVar,
     Sequence,
@@ -41,6 +42,10 @@ from pypeh.core.interfaces.dataops import (
     DataOpsInterface,
     DataEnrichmentInterface,
     ValidationInterface,
+)
+from pypeh.adapters.persistence.dataset_parquet import (
+    dump_dataset_series_to_parquet_filesystem,
+    load_dataset_series_from_parquet_filesystem,
 )
 from pypeh.core.session.connections import ConnectionManager
 from pypeh.core.utils.namespaces import NamespaceManager
@@ -311,7 +316,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
                 root, destination=output_path, format=file_format
             )
 
-    def load_tabular_dataset_series(
+    def import_tabular_dataset_series(
         self,
         source: str,
         data_import_config: peh.DataImportConfig,
@@ -344,7 +349,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
         # TODO: fix host calls with unified ConnectionManager
         if is_url(source):
             raise NotImplementedError(
-                "Session.load_tabular_dataset_series does not support URL "
+                "Session.import_tabular_dataset_series does not support URL "
                 f"sources yet. source={source!r}, file_format={file_format!r}."
             )
         elif connection_label is not None:
@@ -392,7 +397,7 @@ class Session(Generic[T_AdapterType, T_DataType]):
                 schema_error_reports[raw_dataset_label] = (
                     build_schema_error_report(
                         exc,
-                        source="Session.load_tabular_dataset_series",
+                        source="Session.import_tabular_dataset_series",
                     )
                 )
                 continue
@@ -403,6 +408,117 @@ class Session(Generic[T_AdapterType, T_DataType]):
             return schema_error_reports
 
         return dataset_series
+
+    def load_tabular_dataset_series(
+        self,
+        source: str,
+        data_import_config: peh.DataImportConfig,
+        file_format: str | None = None,
+        connection_label: str | None = None,
+        allow_incomplete: bool = False,
+        cast_error_policy: Literal["null", "raise", "report"] = "raise",
+        schema_error_policy: Literal["raise", "report"] = "raise",
+        namespace_key: str | None = None,
+    ) -> DatasetSeries[DataFrame] | ValidationErrorReportCollection:
+        logger.warning(
+            "load_tabular_dataset_series will be deprecated in favor of import_tabular_dataset_series"
+        )
+        return self.import_tabular_dataset_series(
+            source=source,
+            data_import_config=data_import_config,
+            file_format=file_format,
+            connection_label=connection_label,
+            allow_incomplete=allow_incomplete,
+            cast_error_policy=cast_error_policy,
+            schema_error_policy=schema_error_policy,
+            namespace_key=namespace_key,
+        )
+
+    @staticmethod
+    def _connection_path(connection, path: str) -> str:
+        normalize_path = getattr(connection, "_normalize_path", None)
+        if normalize_path is not None:
+            return normalize_path(path)
+        return path
+
+    @staticmethod
+    def _connection_file_system(connection) -> Any:
+        file_system = getattr(connection, "file_system", None)
+        if file_system is None:
+            raise NotImplementedError(
+                "DatasetSeries parquet persistence requires a filesystem-backed "
+                "connection."
+            )
+        return file_system
+
+    def dump_tabular_dataset_series(
+        self,
+        dataset_series: DatasetSeries[DataFrame],
+        output_path: str,
+        file_format: Literal["parquet"] = "parquet",
+        connection_label: str | None = None,
+    ) -> list[str]:
+        """
+        Dump a DatasetSeries as one pypeh semantic parquet file per Dataset.
+        """
+        if file_format != "parquet":
+            raise NotImplementedError(
+                "Session.dump_tabular_dataset_series currently only supports "
+                f"file_format='parquet'. Got {file_format!r}."
+            )
+
+        if connection_label is None:
+            connection_label = DEFAULT_CONNECTION_LABEL
+
+        with self.connection_manager.get_connection(
+            connection_label=connection_label
+        ) as connection:
+            destination = self._connection_path(connection, output_path)
+            file_system = self._connection_file_system(connection)
+            return dump_dataset_series_to_parquet_filesystem(
+                dataset_series,
+                file_system,
+                destination,
+            )
+
+    def read_tabular_dataset_series(
+        self,
+        source_paths: Sequence[str],
+        file_format: Literal["parquet"] = "parquet",
+        connection_label: str | None = None,
+        validate_foreign_keys: bool = True,
+    ) -> DatasetSeries[DataFrame]:
+        """
+        Read a persisted DatasetSeries from files previously written by pypeh.
+        """
+        if file_format != "parquet":
+            raise NotImplementedError(
+                "Session.read_tabular_dataset_series currently only supports "
+                f"file_format='parquet'. Got {file_format!r}."
+            )
+
+        if isinstance(source_paths, str):
+            raise TypeError(
+                "Session.read_tabular_dataset_series expects source_paths to "
+                "be a sequence of parquet file paths, not a single path."
+            )
+
+        if connection_label is None:
+            connection_label = DEFAULT_CONNECTION_LABEL
+
+        with self.connection_manager.get_connection(
+            connection_label=connection_label
+        ) as connection:
+            normalized_source_paths: list[str] = [
+                self._connection_path(connection, source_path)
+                for source_path in source_paths
+            ]
+            file_system = self._connection_file_system(connection)
+            return load_dataset_series_from_parquet_filesystem(
+                file_system,
+                normalized_source_paths,
+                validate_foreign_keys=validate_foreign_keys,
+            )
 
     def get_resource(
         self, resource_identifier: str, resource_type: str

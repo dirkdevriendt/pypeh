@@ -44,7 +44,7 @@ class TestDatasetValidation:
         assert isinstance(data_import_config, peh.DataImportConfig)
 
         excel_path = "validation_test_01_data.xlsx"
-        dataset_series = session.load_tabular_dataset_series(
+        dataset_series = session.import_tabular_dataset_series(
             source=excel_path,
             data_import_config=data_import_config,
         )
@@ -91,7 +91,7 @@ class TestDatasetValidation:
         assert isinstance(data_import_config, peh.DataImportConfig)
 
         excel_path = "validation_test_01.1_data.xlsx"
-        dataset_series = session.load_tabular_dataset_series(
+        dataset_series = session.import_tabular_dataset_series(
             source=excel_path,
             data_import_config=data_import_config,
         )
@@ -152,7 +152,7 @@ class TestRoundTripDataset:
             import_config_label, "DataImportConfig"
         )
         assert isinstance(data_import_config, peh.DataImportConfig)
-        dataset_series = session.load_tabular_dataset_series(
+        dataset_series = session.import_tabular_dataset_series(
             source=excel_path,
             data_import_config=data_import_config,
             cast_error_policy="null",
@@ -162,7 +162,7 @@ class TestRoundTripDataset:
 
         if test_label == "04":
             with pytest.raises(TypeCastError):
-                dataset_series = session.load_tabular_dataset_series(
+                dataset_series = session.import_tabular_dataset_series(
                     source=excel_path,
                     data_import_config=data_import_config,
                     cast_error_policy="raise",
@@ -187,7 +187,7 @@ class TestRoundTripDataset:
             import_config_label, "DataImportConfig"
         )
         assert isinstance(data_import_config, peh.DataImportConfig)
-        dataset_series = session.load_tabular_dataset_series(
+        dataset_series = session.import_tabular_dataset_series(
             source=excel_path,
             data_import_config=data_import_config,
         )
@@ -235,7 +235,7 @@ class TestRoundTripDataset:
         )
         assert isinstance(data_import_config, peh.DataImportConfig)
         with pytest.raises(ValueError, match="no matching sheet found.*"):
-            session.load_tabular_dataset_series(
+            session.import_tabular_dataset_series(
                 source=excel_path, data_import_config=data_import_config
             )
 
@@ -263,7 +263,7 @@ class TestRoundTripDataset:
         )
 
         assert isinstance(data_import_config, peh.DataImportConfig)
-        dataset_series = session.load_tabular_dataset_series(
+        dataset_series = session.import_tabular_dataset_series(
             source=excel_path,
             data_import_config=data_import_config,
         )
@@ -307,13 +307,13 @@ class TestRoundTripDataset:
         )
         assert isinstance(data_import_config, peh.DataImportConfig)
         with pytest.raises(TypeCastError):
-            dataset_series = session.load_tabular_dataset_series(
+            dataset_series = session.import_tabular_dataset_series(
                 source=excel_path,
                 data_import_config=data_import_config,
                 cast_error_policy="raise",
             )
 
-        dataset_series = session.load_tabular_dataset_series(
+        dataset_series = session.import_tabular_dataset_series(
             source=excel_path,
             data_import_config=data_import_config,
             cast_error_policy="null",
@@ -379,7 +379,7 @@ class TestRoundTripDataset:
             import_config_label, "DataImportConfig"
         )
         assert isinstance(data_import_config, peh.DataImportConfig)
-        dataset_series = session.load_tabular_dataset_series(
+        dataset_series = session.import_tabular_dataset_series(
             source=excel_path,
             data_import_config=data_import_config,
         )

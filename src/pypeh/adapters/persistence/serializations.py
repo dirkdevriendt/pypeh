@@ -332,6 +332,36 @@ class CsvIO(IOAdapter):
         return CsvIOImpl().load(source, **kwargs)
 
 
+class ParquetIO(IOAdapter):
+    read_mode: str = "rb"
+    write_mode: str = "wb"
+    """
+    Public interface for pypeh DatasetSeries parquet IO.
+    """
+
+    def load(self, source: Union[str, Path, IO[bytes]], **kwargs):
+        try:
+            from pypeh.adapters.persistence.dataset_parquet import (
+                load_dataset_series_from_parquet,
+            )
+        except ImportError:
+            message = "The ParquetIO class requires the dataframe dependencies. Please install them."
+            logging.error(message)
+            raise ImportError(message)
+        return load_dataset_series_from_parquet(source, **kwargs)
+
+    def dump(self, source, file_obj: Union[str, Path, IO[bytes]], **kwargs):
+        try:
+            from pypeh.adapters.persistence.dataset_parquet import (
+                dump_dataset_series_to_parquet,
+            )
+        except ImportError:
+            message = "The ParquetIO class requires the dataframe dependencies. Please install them."
+            logging.error(message)
+            raise ImportError(message)
+        return dump_dataset_series_to_parquet(source, file_obj, **kwargs)
+
+
 class ExcelIO(IOAdapter):
     read_mode: str = "rb"
     write_mode: str = "wb"
@@ -446,6 +476,10 @@ class IOAdapterFactory:
         "yaml": YamlIO,
         "yml": YamlIO,
         "csv": CsvIO,
+        "parquet": ParquetIO,
+        "pq": ParquetIO,
+        "dataset-parquet": ParquetIO,
+        "pypeh-dataset-parquet": ParquetIO,
         "xlsx": ExcelIO,
         "xls": ExcelIO,
         "rdf": RdfIO,
