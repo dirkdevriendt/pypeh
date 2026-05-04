@@ -102,10 +102,12 @@ observation = session.get_resource(
 )
 ```
 
-## Load Tabular Data
+## Import Tabular Data
 
-`load_tabular_dataset_series` reads tabular data into a `DatasetSeries` using a
-PEH `DataImportConfig`.
+`import_tabular_dataset_series` imports external tabular data into a
+`DatasetSeries` using a PEH `DataImportConfig`. The `import_` name is used
+because this workflow needs import mapping metadata from the
+`DataImportConfig`, not only a file path.
 
 ```python
 from peh_model.peh import (
@@ -127,12 +129,16 @@ data_import_config = DataImportConfig(
     ),
 )
 
-dataset_series = session.load_tabular_dataset_series(
+dataset_series = session.import_tabular_dataset_series(
     source="sample_metadata.xlsx",
     data_import_config=data_import_config,
     connection_label="local_file",
 )
 ```
+
+`load_tabular_dataset_series` is kept as a deprecated compatibility alias. It
+accepts the same arguments, logs a warning, and forwards to
+`import_tabular_dataset_series`.
 
 The method checks loaded labels against the expected schema. By default, type
 cast and schema errors are raised. Use `cast_error_policy="report"` or
@@ -140,7 +146,7 @@ cast and schema errors are raised. Use `cast_error_policy="report"` or
 instead.
 
 ```python
-result = session.load_tabular_dataset_series(
+result = session.import_tabular_dataset_series(
     source="sample_metadata.xlsx",
     data_import_config=data_import_config,
     connection_label="local_file",
@@ -151,6 +157,36 @@ result = session.load_tabular_dataset_series(
 
 Set `allow_incomplete=True` to allow missing labels while still reporting
 undefined labels.
+
+## Persist Tabular Data as Parquet
+
+Use `dump_tabular_dataset_series` to persist a tabular `DatasetSeries` after it
+has been imported, validated, enriched, or otherwise prepared. The parquet
+format writes one pypeh semantic parquet file per `Dataset` in the series and
+returns the paths that were written.
+
+```python
+parquet_paths = session.dump_tabular_dataset_series(
+    dataset_series=dataset_series,
+    output_path="exports/sample_metadata",
+    connection_label="local_file",
+)
+```
+
+Read the files back with `read_tabular_dataset_series`. Pass the list returned
+by `dump_tabular_dataset_series`, or another sequence of pypeh dataset parquet
+paths.
+
+```python
+restored_dataset_series = session.read_tabular_dataset_series(
+    source_paths=parquet_paths,
+    connection_label="local_file",
+)
+```
+
+Both methods currently support `file_format="parquet"` only. Reading validates
+foreign-key references by default; set `validate_foreign_keys=False` when
+loading a partial subset intentionally.
 
 ## Validate Tabular Data
 
@@ -205,6 +241,21 @@ session.register_adapter_by_name(
 
 `enrich` and `aggregate` delegate to the registered adapter while passing a
 cache view and the source and target observations.
+
+When the target observations are stored as an `ObservationGroup` of
+`DerivedObservation` resources, use `unpack_derived_observation_group` to
+resolve each target observation and the source observation referenced by its
+`was_derived_from` field.
+
+```python
+observation_pairs = list(
+    session.unpack_derived_observation_group(
+        observation_group_id="peh:TARGET_DERIVED_OBSERVATIONS"
+    )
+)
+target_observations = [target for target, source in observation_pairs]
+source_observations = [source for target, source in observation_pairs]
+```
 
 ```python
 enriched = session.enrich(
