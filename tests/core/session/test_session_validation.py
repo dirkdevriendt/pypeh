@@ -44,7 +44,7 @@ class TestSessionValidation:
         with pytest.raises(
             Exception, match="calamine error: Cannot detect file format.*"
         ):
-            session.load_tabular_dataset_series(
+            session.import_tabular_dataset_series(
                 source=excel_path, data_import_config=data_import_config
             )
 
@@ -66,7 +66,7 @@ class TestSessionValidation:
             Exception,
             match=r"Sheet name\(s\) Template do not correspond with provided data layout",
         ):
-            session.load_tabular_dataset_series(
+            session.import_tabular_dataset_series(
                 source=excel_path, data_import_config=data_import_config
             )
 
@@ -112,7 +112,7 @@ class TestSessionValidation:
             base_uri = "https://example.org/"
             namespace_manager = NamespaceManager(default_base_uri=base_uri)
             session.bind_namespace_manager(namespace_manager=namespace_manager)
-        result = session.load_tabular_dataset_series(
+        result = session.import_tabular_dataset_series(
             source="validation_test_03_data.test",
             file_format="xlsx",
             data_import_config=data_import_config,
@@ -179,7 +179,7 @@ class TestSessionValidation:
                 ]
             ),
         )
-        result = session.load_tabular_dataset_series(
+        result = session.import_tabular_dataset_series(
             source="validation_test_03_data.xlsx",
             data_import_config=data_import_config,
             connection_label="local_file",
@@ -239,7 +239,7 @@ class TestSessionValidation:
             TypeCastError,
             match="Failed to cast Excel sheet 'SAMPLETIMEPOINT_BSS'",
         ):
-            session.load_tabular_dataset_series(
+            session.import_tabular_dataset_series(
                 source=str(source),
                 file_format="xlsx",
                 data_import_config=data_import_config,
@@ -288,7 +288,7 @@ class TestSessionValidation:
             ),
         )
 
-        result = session.load_tabular_dataset_series(
+        result = session.import_tabular_dataset_series(
             source=str(source),
             file_format="xlsx",
             data_import_config=data_import_config,
@@ -385,7 +385,7 @@ class TestSessionValidation:
             DatasetSchemaError,
             match=re.escape(expected_message),
         ) as exc_info:
-            session.load_tabular_dataset_series(**load_kwargs)
+            session.import_tabular_dataset_series(**load_kwargs)
 
         schema_error = exc_info.value
         assert schema_error.dataset_label == "SAMPLETIMEPOINT_BSS"
@@ -457,7 +457,7 @@ class TestSessionValidation:
             ),
         )
 
-        result = session.load_tabular_dataset_series(
+        result = session.import_tabular_dataset_series(
             source=str(source),
             file_format="xlsx",
             data_import_config=data_import_config,
@@ -491,7 +491,7 @@ class TestSessionValidation:
         )
         assert isinstance(data_import_config, DataImportConfig)
         # with pytest.raises(Exception, match=r"Sheet name\(s\) Template do not correspond with provided data layout"):
-        session.load_tabular_dataset_series(
+        session.import_tabular_dataset_series(
             source=excel_path, data_import_config=data_import_config
         )
 
@@ -527,7 +527,7 @@ class TestSessionValidation:
             "peh:IMPORT_CONFIG_TEST_DATA_LAYOUT", "DataImportConfig"
         )
         assert isinstance(data_import_config, DataImportConfig)
-        data = session.load_tabular_dataset_series(
+        data = session.import_tabular_dataset_series(
             source="multi_connection_valid_excel.xlsx",
             data_import_config=data_import_config,
             connection_label="local_file_validation_files",

@@ -52,7 +52,7 @@ class TestDatasetConsistency:
         data_layout = session.cache.get(layout_id, "DataLayout")
         assert data_layout.id == data_import_config.layout
         assert isinstance(data_layout, peh.DataLayout)
-        dataset_series = session.load_tabular_dataset_series(
+        dataset_series = session.import_tabular_dataset_series(
             source="validation_test_06_data.xlsx",
             connection_label="local_file_validation_files",
             data_import_config=data_import_config,

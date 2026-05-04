@@ -32,7 +32,7 @@ class TestDataFrameEnrichment:
         assert isinstance(data_import_config, peh.DataImportConfig)
 
         excel_path = "test_04_data.xlsx"
-        dataset_series = session.load_tabular_dataset_series(
+        dataset_series = session.import_tabular_dataset_series(
             source=excel_path,
             data_import_config=data_import_config,
             cast_error_policy="null",
