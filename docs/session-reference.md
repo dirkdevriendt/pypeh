@@ -65,6 +65,23 @@ trying again.
 ## Tabular Data Methods
 
 ```python
+import_tabular_dataset_series(
+    source: str,
+    data_import_config: DataImportConfig,
+    file_format: str | None = None,
+    connection_label: str | None = None,
+    allow_incomplete: bool = False,
+    cast_error_policy: Literal["null", "raise", "report"] = "raise",
+    schema_error_policy: Literal["raise", "report"] = "raise",
+    namespace_key: str | None = None,
+) -> DatasetSeries | ValidationErrorReportCollection
+```
+
+Import external tabular data, map it to a `DatasetSeries`, and check labels
+against the schema implied by the `DataImportConfig`. Use this method when the
+source data requires a PEH `DataImportConfig`.
+
+```python
 load_tabular_dataset_series(
     source: str,
     data_import_config: DataImportConfig,
@@ -77,8 +94,34 @@ load_tabular_dataset_series(
 ) -> DatasetSeries | ValidationErrorReportCollection
 ```
 
-Read tabular data, map it to a `DatasetSeries`, and check labels against the
-schema implied by the `DataImportConfig`.
+Deprecated compatibility alias for `import_tabular_dataset_series`. It accepts
+the same arguments, logs a warning, and forwards to the import method.
+
+```python
+dump_tabular_dataset_series(
+    dataset_series: DatasetSeries,
+    output_path: str,
+    file_format: Literal["parquet"] = "parquet",
+    connection_label: str | None = None,
+) -> list[str]
+```
+
+Persist a tabular `DatasetSeries` as pypeh semantic parquet files through the
+configured connection. One parquet file is written per `Dataset`, and the
+returned list contains the written paths.
+
+```python
+read_tabular_dataset_series(
+    source_paths: Sequence[str],
+    file_format: Literal["parquet"] = "parquet",
+    connection_label: str | None = None,
+    validate_foreign_keys: bool = True,
+) -> DatasetSeries
+```
+
+Read pypeh semantic parquet files previously produced by
+`dump_tabular_dataset_series`. `source_paths` must be a sequence of parquet file
+paths, such as the list returned by `dump_tabular_dataset_series`.
 
 ```python
 validate_tabular_dataset(
@@ -141,6 +184,16 @@ get_adapter(interface_functionality: str)
 Return the registered adapter. If a class was registered, it is instantiated.
 
 ## Enrichment and Aggregation
+
+```python
+unpack_derived_observation_group(
+    observation_group_id: str,
+) -> Generator[tuple[DerivedObservation, Observation], None, None]
+```
+
+Resolve an `ObservationGroup` from the session cache and yield
+`(target_observation, source_observation)` pairs. Each target must be a
+`DerivedObservation`, and its source is resolved from `was_derived_from`.
 
 ```python
 enrich(
